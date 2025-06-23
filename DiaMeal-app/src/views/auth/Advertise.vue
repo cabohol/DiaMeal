@@ -10,8 +10,7 @@ function onClick() {
 }
 
 function getStarted() {
-  // Replace with actual route
-  router.push('/login')
+  router.push('/terms')
 }
 </script>
 

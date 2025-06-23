@@ -11,7 +11,7 @@ function onClick() {
 
 function getStarted() {
   // Replace with actual route
-  router.push('/LoginView')
+  router.push('/login')
 }
 </script>
 

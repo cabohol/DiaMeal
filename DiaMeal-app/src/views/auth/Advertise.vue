@@ -27,9 +27,9 @@ function getStarted() {
         "
       >
         <!-- Top Decorative Image with Fade -->
-        <div style="position: absolute; top: 0; width: 100%; height: 45%; z-index: 0;">
+        <div style="position: absolute; top: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.4;">
           <v-img
-            src="/src/assets/diameal-header.jpg"
+            src="/src/assets/vegan1.jpg"
             cover
             height="100%"
             gradient="to bottom, rgba(0,0,0,0.3), rgba(169,196,108,0)"
@@ -37,14 +37,15 @@ function getStarted() {
         </div>
 
         <!-- Logo or Brand Icon (Optional) -->
-        <v-icon size="80" class="mt-16 mb-6" color="green-darken-3" style="z-index: 1;">
+        <v-icon size="100" class="mb-4" color="green-darken-3" style="z-index: 1; margin-top: -50px;">
           mdi-food
         </v-icon>
 
         <!-- Welcome Text -->
-        <div class="text-black mb-12" style="z-index: 1;">
-          <h2 class="font-weight-bold mb-1">Welcome</h2>
-          <h2 class="font-weight-bold">to DiaMeal</h2>
+        <div class="text-black mb-7" style="z-index: 1;">
+          <p style="font-family: 'Syne', sans-serif; 
+             font-size: 35px;
+             font-weight: 500;">Start Your Healthy Journey with DiaMeal</p>
         </div>
 
         <!-- Get Started Button -->
@@ -53,7 +54,7 @@ function getStarted() {
           class="text-white px-10"
           rounded
           size="x-large"
-          style="z-index: 1;"
+          style="z-index: 1; font-family: 'Syne', sans-serif;"
           @click="getStarted"
         >
           Get Started
@@ -63,9 +64,7 @@ function getStarted() {
   </v-app>
 </template>
 
+
+
 <style scoped>
-h2 {
-  margin: 0;
-  font-family: 'Poppins', sans-serif;
-}
 </style>

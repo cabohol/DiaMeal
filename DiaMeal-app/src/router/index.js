@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Advertise from '@/views/auth/Advertise.vue'
-import LoginView from '@/views/auth/LoginView.vue' 
+import DiamealHomepage from '@/views/auth/DiamealHomepage.vue'
+import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import TermsAndConditions from '@/views/TermsAndConditions.vue'
 
@@ -9,18 +10,23 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/advertise' // redirect only, no component here
+      redirect: '/advertise'
     },
     {
       path: '/advertise',
-      component: Advertise // this is where you mount your component
+      component: Advertise 
     },
-     {
-      path: '/terms', // route to terms and conditions
+    {
+      path: '/home',
+      name: 'home',
+      component: DiamealHomepage
+    },
+    {
+      path: '/terms',
       name: 'terms',
       component: TermsAndConditions
     },
-     {
+    {
       path: '/login',
       name: 'login',
       component: LoginView
@@ -32,6 +38,5 @@ const router = createRouter({
     },
   ],
 })
-
 
 export default router

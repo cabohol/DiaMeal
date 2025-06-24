@@ -46,6 +46,10 @@ const onSubmit = async () => {
   } else if (data?.user) {
     formAction.value.formSuccessMessage = 'Successfully Logged In!';
     const userRole = data.user.user_metadata.role;
+
+    setTimeout(() => {
+      router.push('/home');
+    }, 1000);
   }
 
   formAction.value.formProcess = false;
@@ -112,7 +116,6 @@ const onSubmit = async () => {
             :rules="[requiredValidator, emailValidator]"
             type="email"
             placeholder="Email"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-email-outline"
             variant="outlined"
             density="comfortable"
@@ -127,7 +130,6 @@ const onSubmit = async () => {
             :rules="[requiredValidator]"
             :type="isPasswordVisible ? 'text' : 'password'"
             placeholder="Password"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-lock-outline"
             :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
             @click:append-inner="isPasswordVisible = !isPasswordVisible"

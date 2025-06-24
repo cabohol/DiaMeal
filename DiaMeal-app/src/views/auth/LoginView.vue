@@ -70,25 +70,33 @@ const onSubmit = async () => {
           cover
           height="40%"
           class="position-absolute top-0 left-0 w-100"
-          style="z-index: 0; opacity: 0.4;"
+          style="z-index: 0; opacity: 0.70"
         />
 
         <!-- Logo -->
         <v-img
-          src="/src/assets/IDMP LOGO.png"
-          width="100"
-          class="my-6"
-          style="z-index: 1;"
+          src="/src/assets/logo1.png"
+          width="150"
+          style="z-index: 1; margin-top: 250px;"
         />
-
-        <!-- Slogan -->
-        <div class="mb-6" style="z-index: 1;">
-          <p class="text-body-1 font-italic font-weight-medium">
+          
+          <!-- Slogan -->
+          <p
+            style="
+              font-family: 'Syne', sans-serif;
+              font-weight: 500;
+              font-size: 1.2rem;
+              margin-bottom: 50px;
+              color: black;
+              display: inline-block;
+            "
+          >
             "For diabetic meals, choose DiaMeal!<br />
-            Plan your meals with DiaMeal, Track<br />
-            your meals with DiaMeal"
+            Plan your meals with DiaMeal, <br />
+            Track your meals with DiaMeal"
           </p>
-        </div>
+
+
 
         <!-- Form -->
         <v-form
@@ -104,6 +112,7 @@ const onSubmit = async () => {
             :rules="[requiredValidator, emailValidator]"
             type="email"
             placeholder="Email"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-email-outline"
             variant="outlined"
             density="comfortable"
@@ -118,6 +127,7 @@ const onSubmit = async () => {
             :rules="[requiredValidator]"
             :type="isPasswordVisible ? 'text' : 'password'"
             placeholder="Password"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-lock-outline"
             :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
             @click:append-inner="isPasswordVisible = !isPasswordVisible"
@@ -150,17 +160,18 @@ const onSubmit = async () => {
             size="large"
             type="submit"
             :loading="formAction.formProcess"
+             style=" font-family: 'Syne', sans-serif;"
           >
             <v-icon start>mdi-login</v-icon>
             Log in
           </v-btn>
 
           <!-- Sign up link -->
-          <div class="text-caption">
+          <div class="text-caption" style=" font-family: 'Syne', sans-serif;">
             Don’t have an account?
             <span
               class="text-green-darken-4 text-decoration-underline"
-              style="cursor: pointer"
+              style="cursor: pointer; font-weight: bold;"
               @click="$router.push('/register')"
             >
               Sign up

@@ -20,43 +20,48 @@ function onContinue() {
         style="background-color: #A9C46C;"
       >
         <v-card width="400" height="700" elevation="4" rounded="xl" color="#E1F3C2">
-          <v-card-title class="text-center text-black font-weight-bold" style="font-size: 27px;">
-            Terms and Conditions
-          </v-card-title>
+            <v-card-title class="d-flex align-center justify-center" style="font-size: 22px;">
+              <div class="d-flex align-center w-100">
+                <div class="flex-grow-1" style="height: 1px; background-color: black;"></div>
+                <span class="mx-4 font-weight-bold text-black" style="font-family: 'Syne', sans-serif; ">Terms and Conditions</span>
+                <div class="flex-grow-1" style="height: 1px; background-color: black;"></div>
+              </div>
+            </v-card-title>
 
           <!-- Scrollable content -->
           <v-card-text
             class="text-black"
-            style="max-height: 570px; overflow-y: auto; text-align: justify; font-size: 16px; margin-top: 10px;"
+            style="max-height: 570px; overflow-y: auto; text-align: justify; font-size: 17px; margin-top: 10px;"
           >
-            <p>
+            <p style="font-family: 'Syne', sans-serif; ">
               Welcome to DiaMeal. By using this system,
               you agree to the collection of certain personal and health-related information such as
               lab results, food preferences, budget, food allergies, and religious or cultural dietary
               restrictions to provide personalized diabetic meal suggestions and improve system performance.
             </p>
-            <p>
+            <p style="font-family: 'Syne', sans-serif; ">
               The DiaMeal system is committed to protecting your privacy and follows the Data Privacy Act of
               2012 (RA 10173). Sensitive information like your name, email, or contact number will not be
               stored or shared outside the system.
             </p>
-            <p>
+            <p style="font-family: 'Syne', sans-serif; ">
               This system is meant to assist with meal planning and is not a substitute for medical advice.
               You are responsible for providing accurate information, and it is advised to consult your
               healthcare provider before making major dietary changes.
             </p>
-            <p>
+            <p style="font-family: 'Syne', sans-serif; ">
               By proceeding, you confirm that you have read and understood these Terms and Conditions and
               that you consent to the collection and use of your data as described above.
             </p>
 
             <!-- Checkbox -->
-            <v-checkbox
+           <v-checkbox
               v-model="agree"
               label="I have read and agree to the Terms and Condition"
               hide-details
-              class="mt-4"
+              class="mt-4 custom-checkbox"
               color="green-darken-2"
+              style="font-family: 'Syne', sans-serif;"
             />
           </v-card-text>
 
@@ -68,6 +73,7 @@ function onContinue() {
             size="large"
             elevation="2"
             @click="router.back()"
+            style="font-family: 'Syne', sans-serif; "
             >
             Cancel
             </v-btn>
@@ -79,6 +85,7 @@ function onContinue() {
             size="large"
             elevation="4"
             @click="onContinue"
+            style="font-family: 'Syne', sans-serif; "
             >
             Continue
             </v-btn>
@@ -94,7 +101,7 @@ function onContinue() {
 p {
   margin-bottom: 12px;
   font-family: 'Poppins', sans-serif;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
 :deep(.custom-cancel-btn.v-btn:hover) {

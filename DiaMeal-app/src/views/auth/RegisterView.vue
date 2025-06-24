@@ -118,7 +118,6 @@ const onSubmit = async () => {
             label="First Name"
             :rules="[requiredValidator]"
             placeholder="Enter your first name"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-account"
             variant="outlined"
             density="comfortable"
@@ -132,7 +131,6 @@ const onSubmit = async () => {
             label="Last Name"
             :rules="[requiredValidator]"
             placeholder="Enter your last name"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-account"
             variant="outlined"
             density="comfortable"
@@ -147,7 +145,6 @@ const onSubmit = async () => {
             :rules="[requiredValidator, emailValidator]"
             type="email"
             placeholder="Email"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-email-outline"
             variant="outlined"
             density="comfortable"
@@ -162,7 +159,6 @@ const onSubmit = async () => {
             :rules="[requiredValidator]"
             type="tel"
             placeholder="09XXXXXXXXX"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-phone"
             variant="outlined"
             density="comfortable"
@@ -170,13 +166,14 @@ const onSubmit = async () => {
             class="mb-2"
           />
 
+
+
           <!-- Address -->
           <v-text-field
             v-model="formData.address"
             label="Address"
             :rules="[requiredValidator]"
             placeholder="Enter your address"
-            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-map-marker"
             variant="outlined"
             density="comfortable"
@@ -191,7 +188,6 @@ const onSubmit = async () => {
         :rules="[requiredValidator, passwordValidator]"
         :type="isPasswordVisible ? 'text' : 'password'"
         placeholder="Password"
-        style=" font-family: 'Syne', sans-serif;"
         prepend-inner-icon="mdi-lock-outline"
         :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
         @click:append-inner="isPasswordVisible = !isPasswordVisible"
@@ -208,7 +204,6 @@ const onSubmit = async () => {
         :rules="[requiredValidator, confirmedValidator(formData.confirmPassword, formData.password)]"
         :type="isPasswordVisible ? 'text' : 'password'"
         placeholder="Confirm Password"
-        style=" font-family: 'Syne', sans-serif;"
         prepend-inner-icon="mdi-lock-check"
         :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
         @click:append-inner="isPasswordVisible = !isPasswordVisible"
@@ -265,4 +260,3 @@ const onSubmit = async () => {
     </v-main>
   </v-app>
 </template>
-

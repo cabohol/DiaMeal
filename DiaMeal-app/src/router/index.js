@@ -4,6 +4,8 @@ import DiamealHomepage from '@/views/auth/DiamealHomepage.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import TermsAndConditions from '@/views/TermsAndConditions.vue'
+import ProfileView from '@/views/auth/ProfileView.vue'
+import MealPlan from '@/views/auth/MealPlan.vue' 
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,7 +16,7 @@ const router = createRouter({
     },
     {
       path: '/advertise',
-      component: Advertise 
+      component: Advertise
     },
     {
       path: '/home',
@@ -35,6 +37,16 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: RegisterView
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView
+    },
+    {
+      path: '/meal-plan', 
+      name: 'meal-plan',
+      component: MealPlan
     },
   ],
 })

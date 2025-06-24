@@ -74,6 +74,9 @@ const onSubmit = async () => {
   formAction.value.formProcess = false;
 };
 </script>
+
+
+
 <template>
   <v-app>
     <v-main>
@@ -86,25 +89,41 @@ const onSubmit = async () => {
           overflow: hidden;
         "
       >
-      <br>
-      <br>
+          <!-- Slogan -->
+          <p
+            style="
+              font-family: 'Syne', sans-serif;
+              font-weight: 500;
+              font-size: 1.2rem;
+              margin-top: 30px;
+              color: black;
+              display: inline-block;
+            "
+          >
+            Join DiaMeal – Where Smart Planning Meets Healthy Living.
+          </p>
+
+        <br>
+        
         <v-form
           ref="refVForm"
           class="w-100"
           style="max-width: 500px; z-index: 1;"
           @submit.prevent="onFormSubmit"
         >
+
           <!-- First Name -->
           <v-text-field
             v-model="formData.firstName"
             label="First Name"
             :rules="[requiredValidator]"
             placeholder="Enter your first name"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-account"
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
-            class="mb-4"
+            class="mb-2"
           />
 
           <!-- Last Name -->
@@ -113,11 +132,12 @@ const onSubmit = async () => {
             label="Last Name"
             :rules="[requiredValidator]"
             placeholder="Enter your last name"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-account"
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
-            class="mb-4"
+            class="mb-2"
           />
 
           <!-- Email -->
@@ -127,11 +147,12 @@ const onSubmit = async () => {
             :rules="[requiredValidator, emailValidator]"
             type="email"
             placeholder="Email"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-email-outline"
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
-            class="mb-4"
+            class="mb-2"
           />
 
           <!-- Contact Number -->
@@ -141,11 +162,12 @@ const onSubmit = async () => {
             :rules="[requiredValidator]"
             type="tel"
             placeholder="09XXXXXXXXX"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-phone"
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
-            class="mb-4"
+            class="mb-2"
           />
 
           <!-- Address -->
@@ -154,11 +176,12 @@ const onSubmit = async () => {
             label="Address"
             :rules="[requiredValidator]"
             placeholder="Enter your address"
+            style=" font-family: 'Syne', sans-serif;"
             prepend-inner-icon="mdi-map-marker"
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
-            class="mb-4"
+            class="mb-2"
           />
 
         <!-- Password -->
@@ -168,7 +191,25 @@ const onSubmit = async () => {
         :rules="[requiredValidator, passwordValidator]"
         :type="isPasswordVisible ? 'text' : 'password'"
         placeholder="Password"
+        style=" font-family: 'Syne', sans-serif;"
         prepend-inner-icon="mdi-lock-outline"
+        :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
+        @click:append-inner="isPasswordVisible = !isPasswordVisible"
+        variant="outlined"
+        density="comfortable"
+        color="green-darken-2"
+        class="mb-2"
+        />
+
+        <!-- Confirm Password -->
+        <v-text-field
+        v-model="formData.confirmPassword"
+        label="Confirm Password"
+        :rules="[requiredValidator, confirmedValidator(formData.confirmPassword, formData.password)]"
+        :type="isPasswordVisible ? 'text' : 'password'"
+        placeholder="Confirm Password"
+        style=" font-family: 'Syne', sans-serif;"
+        prepend-inner-icon="mdi-lock-check"
         :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
         @click:append-inner="isPasswordVisible = !isPasswordVisible"
         variant="outlined"
@@ -176,23 +217,6 @@ const onSubmit = async () => {
         color="green-darken-2"
         class="mb-4"
         />
-
-
-        <!-- Confirm Password -->
-                <v-text-field
-                v-model="formData.confirmPassword"
-                label="Confirm Password"
-                :rules="[requiredValidator, confirmedValidator(formData.confirmPassword, formData.password)]"
-                :type="isPasswordVisible ? 'text' : 'password'"
-                placeholder="Confirm Password"
-                prepend-inner-icon="mdi-lock-check"
-                :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="isPasswordVisible = !isPasswordVisible"
-                variant="outlined"
-                density="comfortable"
-                color="green-darken-2"
-                class="mb-6"
-                />
 
           <!-- Alert Notifications -->
           <AlertNotification
@@ -217,17 +241,18 @@ const onSubmit = async () => {
             size="large"
             type="submit"
             :loading="formAction.formProcess"
+            style=" font-family: 'Syne', sans-serif;"
           >
             <v-icon start>mdi-account-check</v-icon>
             Register
           </v-btn>
 
           <!-- Redirect to Login -->
-          <div class="text-caption">
+          <div class="text-caption" style=" font-family: 'Syne', sans-serif;">
             Already have an account?
             <span
               class="text-green-darken-4 text-decoration-underline"
-              style="cursor: pointer"
+              style="cursor: pointer; font-family: 'Syne', sans-serif; font-weight: bold;"
               @click="$router.push('/login')"
             >
               Log in

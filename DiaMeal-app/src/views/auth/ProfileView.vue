@@ -138,29 +138,52 @@ onMounted(fetchUser);
         </v-row>
 
         <!-- Bottom Navigation -->
-        <v-bottom-navigation grow class="mt-8" style="background-color: #5B913B;">
-          <v-btn @click="$router.push('/home')" value="home" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-home</v-icon>
-            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Home</span>
+        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+          <v-btn @click="$router.push('/home')" class="nav-tab">
+            <v-icon>mdi-home</v-icon><span>Home</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/meal-plan')" value="meal-plan" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-heart-pulse</v-icon>
-            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Meal Plan</span>
+          <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
+            <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/profile')" value="profile" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-account</v-icon>
-            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Profile</span>
+          <v-btn @click="$router.push('/profile')" class="nav-tab">
+            <v-icon>mdi-account</v-icon><span>Profile</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/progress')" value="progress" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-chart-line</v-icon>
-            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Progress</span>
+          <v-btn @click="$router.push('/progress')" class="nav-tab">
+            <v-icon>mdi-chart-line</v-icon><span>Progress</span>
           </v-btn>
         </v-bottom-navigation>
       </v-container>
     </v-main>
   </v-app>
 </template>
+
+
+<style scoped>
+.nav-bar .v-btn {
+  flex-direction: column;
+  color: white;
+  font-family: 'Syne', sans-serif;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-bar .v-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-bar .v-btn:active {
+  transform: scale(0.96);
+}
+
+.nav-bar .v-icon {
+  font-size: 24px;
+}
+
+.nav-bar span {
+  font-size: 12px;
+  margin-top: 4px;
+}
+</style>
 

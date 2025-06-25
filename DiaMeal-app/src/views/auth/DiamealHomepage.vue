@@ -57,7 +57,7 @@ onMounted(async () => {
           </v-container>
         </div>
 
-        <!-- Food Images -->
+          <!-- Food Images -->
           <br>
           <div class="infinite-scroll-wrapper">
             <div class="infinite-scroll-track">
@@ -78,122 +78,91 @@ onMounted(async () => {
           </div>
 
           <!-- Meal Plan Progress -->
-           <br>
+          <br>
           <v-card
-              class="mx-4 mt-4 pa-4 text-center progress-card floating-card"
-              elevation="4  "
-              rounded="xl"
-            >
-              <v-icon size="36" color="#5D8736" class="mb-2">mdi-food-variant</v-icon>
+              class="mx-4 mt-4 pa-4 text-center progress-card floating-card" elevation="4" rounded="xl">
+              <v-icon size="36" color="#5D8736" class="mb-2">	mdi-silverware-fork-knife</v-icon>
+              <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">Your Meal Plan Progress</p>
+              <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">1 out of 3 meals completed this day!</p>
+              <v-progress-linear :model-value="progress" color="green" height="12" class="rounded-pill mt-2"/>
+              <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">{{ progress }}%</div>
+          </v-card>
 
-              <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">
-                Your Meal Plan Progress
+          <!-- Why It Matters Section -->
+          <div class="px-4 mt-6">
+            <div class="d-flex align-center justify-center my-6">
+              <div style="flex: 1; height: 1px; background-color: #5D8736; margin-right: 12px;"></div>
+              <p class="text-h6 mb-0" style="font-family:'Syne', sans-serif; white-space: nowrap;">
+                Why Living a Healthy Lifestyle Matters
               </p>
+              <div style="flex: 1; height: 1px; background-color: #5D8736; margin-left: 12px;"></div>
+            </div>
 
-              <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
-                1 out of 3 meals completed this day!
-              </p>
-
-              <v-progress-linear
-                :model-value="progress"
-                color="green"
-                height="12"
-                class="rounded-pill mt-2"
-              />
-
-              <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">
-                {{ progress }}%
+            <!-- Card 1 -->
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#e9f8ec" rounded="xl" elevation="2">
+              <v-icon color="#ff6b6b" size="40" class="mr-4">mdi-heart-pulse</v-icon>
+              <div>
+                <p class="card-title">Manages Blood Sugar</p>
+                <p class="card-description">Balanced meals help stabilize your glucose levels and prevent dangerous spikes or crashes.</p>
               </div>
-          </v-card>
+            </v-card>
 
-        <!-- Why It Matters Section -->
-        <div class="px-4 mt-6">
-          <!-- Title with Dividers -->
-          <div class="d-flex align-center justify-center my-6">
-            <div style="flex: 1; height: 1px; background-color: #5D8736; margin-right: 12px;"></div>
-            <p class="text-h6 mb-0" style="font-family:'Syne', sans-serif; white-space: nowrap;">
-              Why Living a Healthy Lifestyle Matters
-            </p>
-            <div style="flex: 1; height: 1px; background-color: #5D8736; margin-left: 12px;"></div>
+            <!-- Card 2 -->
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#def5dc" rounded="xl" elevation="2">
+              <v-icon color="#f9a825" size="40" class="mr-4">mdi-eye-check</v-icon>
+              <div>
+                <p class="card-title">Protects Vision</p>
+                <p class="card-description">Proper nutrition reduces the risk of diabetic retinopathy and supports eye health.</p>
+              </div>
+            </v-card>
+
+            <!-- Card 3 -->
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#d3f1df" rounded="xl" elevation="2">
+              <v-icon color="#42a5f5" size="40" class="mr-4">mdi-foot-print</v-icon>
+              <div>
+                <p class="card-title">Improves Circulation</p>
+                <p class="card-description">Healthy food helps blood flow, lowering the risk of nerve damage and foot complications.</p>
+              </div>
+            </v-card>
+
+            <!-- Card 4 -->
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#f0f9e5" rounded="xl" elevation="2">
+              <v-icon color="#ab47bc" size="40" class="mr-4">mdi-emoticon-happy</v-icon>
+              <div>
+                <p class="card-title">Supports Mental Well-being</p>
+                <p class="card-description">A healthy diet contributes to better mood and helps manage stress and anxiety linked to diabetes.</p>
+              </div>
+            </v-card>
+
+            <!-- Card 5 -->
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#e3f4e0" rounded="xl" elevation="2">
+              <v-icon color="#26a69a" size="40" class="mr-4">mdi-shield-check</v-icon>
+              <div>
+                <p class="card-title">Boosts Immunity</p>
+                <p class="card-description">Nutritious meals enhance your immune system, helping fight infections more effectively.</p>
+              </div>
+            </v-card>
           </div>
+          <br>
+        
+          <!-- Bottom Navigation -->
+          <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+            <v-btn @click="$router.push('/home')" class="nav-tab">
+              <v-icon>mdi-home</v-icon><span>Home</span>
+            </v-btn>
 
-          <!-- Cards Section -->
-          <v-card class="mt-4 pa-4 d-flex align-center" color="#EAF4D3" rounded="xl" elevation="2">
-            <v-icon color="red" size="36" class="mr-4">mdi-heart-pulse</v-icon>
-            <div>
-              <p class="card-title">Regulates Blood Sugar & Pressure</p>
-              <p class="card-description">Healthy meals help control blood sugar levels and maintain stable blood pressure.</p>
-            </div>
-          </v-card>
+            <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
+              <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
+            </v-btn>
 
-          <v-card class="mt-4 pa-4 d-flex align-center" color="#FFE5E5" rounded="xl" elevation="2">
-            <v-icon color="red" size="36" class="mr-4">mdi-cancel</v-icon>
-            <div>
-              <p class="card-title">Prevents Complications</p>
-              <p class="card-description">Healthy meals reduce the risk of heart disease and kidney problems.</p>
-            </div>
-          </v-card>
+            <v-btn @click="$router.push('/profile')" class="nav-tab">
+              <v-icon>mdi-account</v-icon><span>Profile</span>
+            </v-btn>
 
-          <v-card class="mt-4 pa-4 d-flex align-center" color="#D3F4EA" rounded="xl" elevation="2">
-            <v-icon color="green" size="36" class="mr-4">mdi-battery-high</v-icon>
-            <div>
-              <p class="card-title">Boosts Energy Levels</p>
-              <p class="card-description">Nutritious meals fuel your body and keep you active throughout the day.</p>
-            </div>
-          </v-card>
-
-          <v-card class="mt-4 pa-4 d-flex align-center" color="#FFF1DC" rounded="xl" elevation="2">
-            <v-icon color="amber" size="36" class="mr-4">mdi-emoticon-happy</v-icon>
-            <div>
-              <p class="card-title">Improves Mood</p>
-              <p class="card-description">Eating balanced meals can improve your mood and reduce stress.</p>
-            </div>
-          </v-card>
-
-          <v-card class="mt-4 pa-4 d-flex align-center" color="#E3F4D3" rounded="xl" elevation="2">
-            <v-icon color="blue" size="36" class="mr-4">mdi-shield-check</v-icon>
-            <div>
-              <p class="card-title">Supports Immune System</p>
-              <p class="card-description">Healthy food strengthens your immune defenses against illness.</p>
-            </div>
-          </v-card>
-        </div>
-        <br>
-
-        <!-- Bottom Navigation -->
-        <v-bottom-navigation grow class="mt-8" style="background-color: #5B913B;">
-        <v-btn @click="$router.push('/home')" value="home" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-home</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Home</span>
-        </v-btn>
-
-        <v-btn @click="$router.push('/meal-plan')" value="meal-plan" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-heart-pulse</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Meal Plan</span>
-        </v-btn>
-
-        <v-btn @click="$router.push('/profile')" value="profile" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-account</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Profile</span>
-        </v-btn>
-
-        <v-btn @click="$router.push('/progress')" value="progress" class="d-flex flex-column align-center">
-            <v-icon style="color: white; font-size: 24px;">mdi-chart-line</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Progress</span>
-        </v-btn>
-        </v-bottom-navigation>
+            <v-btn @click="$router.push('/progress')" class="nav-tab">
+              <v-icon>mdi-chart-line</v-icon><span>Progress</span>
+            </v-btn>
+          </v-bottom-navigation>
       </v-container>
     </v-main>
   </v-app>
@@ -283,6 +252,30 @@ onMounted(async () => {
   font-family: 'Syne', sans-serif;
   line-height: 1.5;
   color: #444;
+}
+
+.nav-bar .v-btn {
+  flex-direction: column;
+  color: white;
+  font-family: 'Syne', sans-serif;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-bar .v-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-bar .v-btn:active {
+  transform: scale(0.96);
+}
+
+.nav-bar .v-icon {
+  font-size: 24px;
+}
+
+.nav-bar span {
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>
 

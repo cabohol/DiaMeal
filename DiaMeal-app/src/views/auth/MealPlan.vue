@@ -343,7 +343,7 @@ async function submitForm() {
             <v-icon>mdi-account</v-icon><span>Profile</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/progress')" class="nav-tab">
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
             <v-icon>mdi-chart-line</v-icon><span>Progress</span>
           </v-btn>
         </v-bottom-navigation>

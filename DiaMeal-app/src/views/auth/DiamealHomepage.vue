@@ -26,22 +26,30 @@ onMounted(async () => {
         <div class="py-8 rounded-bottom"
           style="z-index: 1; position: relative; background-color: #5D8736;">
           <v-container class="d-flex justify-space-between align-center">
-            <!-- Greeting -->
-            <div>
-              <p
-                class="text-left"
-                style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white;"
-              >
-                Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
-              </p>
-            </div>
+              <div>
+                <p
+                  class="text-left"
+                  style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white;"
+                >
+                  Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
+                </p>
+              </div>
+
+              <!-- GIF -->
+              <div style="margin-top: -50px;">
+                <img
+                  src="/src/assets/giphy.gif"
+                  alt="Food Mascot"
+                  class="greeting-mascot"
+                />
+              </div>
           </v-container>
 
           <!-- Welcome Message -->
           <v-container>
             <p
               class="text-center"
-              style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -1px;"
+              style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -35px;"
             >
               “ Welcome to DiaMeal - an AI meal planner for healthier living.
               Get personalized meal plans tailored to your health, preferences, and budget! ”
@@ -70,6 +78,7 @@ onMounted(async () => {
           </div>
 
           <!-- Meal Plan Progress -->
+           <br>
           <v-card
               class="mx-4 mt-4 pa-4 text-center progress-card floating-card"
               elevation="4  "
@@ -195,6 +204,20 @@ onMounted(async () => {
 .rounded-bottom {
   border-bottom-left-radius: 40px;
   border-bottom-right-radius: 40px;
+}
+
+.greeting-mascot {
+  width: 120px; 
+  animation: floatBounce 2.5s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .infinite-scroll-wrapper {

@@ -11,11 +11,13 @@ const router = useRouter();
 const fetchUser = async () => {
   const { data: { user: currentUser } } = await supabase.auth.getUser();
   user.value = currentUser;
+  console.log('Fetched user:', currentUser); // Add this
 
   if (currentUser?.user_metadata?.avatar_url) {
     profileImageUrl.value = currentUser.user_metadata.avatar_url;
   }
 };
+
 
 const handleImageChange = async (event) => {
   const file = event.target.files[0];
@@ -107,7 +109,7 @@ onMounted(fetchUser);
             <!-- User Info -->
             <div class="mt-10">
               <p class="text-h6 font-weight-medium" style="font-family: 'Syne', sans-serif;">
-                {{ user?.user_metadata?.full_name || 'Full name not set' }}
+              {{ (user?.user_metadata?.firstName + ' ' + user?.user_metadata?.lastName) || 'Full name not set' }}
               </p>
               <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
                 <strong>Email:</strong> {{ user?.email || 'Email not available' }}

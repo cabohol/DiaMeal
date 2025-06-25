@@ -29,7 +29,7 @@ onMounted(async () => {
               <div>
                 <p
                   class="text-left"
-                  style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white;"
+                  style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white; font-size: 35px;"
                 >
                   Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
                 </p>

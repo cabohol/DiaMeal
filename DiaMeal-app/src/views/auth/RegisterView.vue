@@ -8,14 +8,14 @@ import AlertNotification from '@/components/AlertNotification.vue';
 const router = useRouter();
 
 const formDataDefault = {
-  firstName: '',
-  lastName: '',
+  fullName: '',
   email: '',
   contact: '',
   address: '',
   password: '',
   confirmPassword: '',
 };
+
 
 const formActionDefault = {
   formProcess: false,
@@ -43,21 +43,21 @@ const onSubmit = async () => {
   formAction.value = { ...formActionDefault };
   formAction.value.formProcess = true;
 
-  const { email, password, firstName, lastName, contact, address } = formData.value;
+const { email, password, fullName, contact, address } = formData.value;
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        firstName,
-        lastName,
-        contact,
-        address,
-        role: 'customer', // you can change the role based on your logic
-      },
+const { data, error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      full_name: fullName, 
+      contact,
+      address,
+      role: 'customer', // you can change the role based on your logic
     },
-  });
+  },
+});
+
 
   if (error) {
     console.error(error);
@@ -112,25 +112,12 @@ const onSubmit = async () => {
           @submit.prevent="onFormSubmit"
         >
 
-          <!-- First Name -->
+          <!-- Full Name -->
           <v-text-field
-            v-model="formData.firstName"
-            label="First Name"
+            v-model="formData.fullName"
+            label="Full Name"
             :rules="[requiredValidator]"
-            placeholder="Enter your first name"
-            prepend-inner-icon="mdi-account"
-            variant="outlined"
-            density="comfortable"
-            color="green-darken-2"
-            class="mb-2"
-          />
-
-          <!-- Last Name -->
-          <v-text-field
-            v-model="formData.lastName"
-            label="Last Name"
-            :rules="[requiredValidator]"
-            placeholder="Enter your last name"
+            placeholder="Enter your full name"
             prepend-inner-icon="mdi-account"
             variant="outlined"
             density="comfortable"

@@ -82,35 +82,18 @@ const { data, error } = await supabase.auth.signUp({
     <v-main>
       <v-container-fluid
         class="d-flex flex-column align-center justify-center text-center px-4"
-        style="
-          min-height: 100vh;
-          background-color: #A9C46C;
-          position: relative;
-          overflow: hidden;
-        "
-      >
-          <!-- Slogan -->
-          <p
-            style="
-              font-family: 'Syne', sans-serif;
-              font-weight: 500;
-              font-size: 1.2rem;
-              margin-top: 30px;
-              color: black;
-              display: inline-block;
-            "
-          >
-            Join DiaMeal – Where Smart Planning Meets Healthy Living.
-          </p>
-
+        style=" min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
+        <!-- Logo -->
+        <v-img src="/src/assets/logo1.png" width="100" style="z-index: 1; margin-top: 5px;"/>
+        <!-- Slogan -->
+        <p style=" font-family: 'Syne', sans-serif; font-weight: 500; font-size: 1.2rem; margin-top: 5px; color: black; 
+           display: inline-block;">Join DiaMeal – Where Smart Planning Meets Healthy Living.
+        </p>
         <br>
         
-        <v-form
-          ref="refVForm"
-          class="w-100"
-          style="max-width: 500px; z-index: 1;"
-          @submit.prevent="onFormSubmit"
-        >
+        <v-row class="w-100" justify="center">
+        <v-col cols="12" sm="10" md="8" lg="6" xl="4">
+        <v-form ref="refVForm" style="z-index: 1;" @submit.prevent="onFormSubmit">
 
           <!-- Full Name -->
           <v-text-field
@@ -153,8 +136,6 @@ const { data, error } = await supabase.auth.signUp({
             class="mb-2"
           />
 
-
-
           <!-- Address -->
           <v-text-field
             v-model="formData.address"
@@ -168,37 +149,37 @@ const { data, error } = await supabase.auth.signUp({
             class="mb-2"
           />
 
-        <!-- Password -->
-        <v-text-field
-        v-model="formData.password"
-        label="Password"
-        :rules="[requiredValidator, passwordValidator]"
-        :type="isPasswordVisible ? 'text' : 'password'"
-        placeholder="Password"
-        prepend-inner-icon="mdi-lock-outline"
-        :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
-        @click:append-inner="isPasswordVisible = !isPasswordVisible"
-        variant="outlined"
-        density="comfortable"
-        color="green-darken-2"
-        class="mb-2"
-        />
+          <!-- Password -->
+          <v-text-field
+          v-model="formData.password"
+          label="Password"
+          :rules="[requiredValidator, passwordValidator]"
+          :type="isPasswordVisible ? 'text' : 'password'"
+          placeholder="Password"
+          prepend-inner-icon="mdi-lock-outline"
+          :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
+          @click:append-inner="isPasswordVisible = !isPasswordVisible"
+          variant="outlined"
+          density="comfortable"
+          color="green-darken-2"
+          class="mb-2"
+          />
 
-        <!-- Confirm Password -->
-        <v-text-field
-        v-model="formData.confirmPassword"
-        label="Confirm Password"
-        :rules="[requiredValidator, confirmedValidator(formData.confirmPassword, formData.password)]"
-        :type="isPasswordVisible ? 'text' : 'password'"
-        placeholder="Confirm Password"
-        prepend-inner-icon="mdi-lock-check"
-        :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
-        @click:append-inner="isPasswordVisible = !isPasswordVisible"
-        variant="outlined"
-        density="comfortable"
-        color="green-darken-2"
-        class="mb-4"
-        />
+          <!-- Confirm Password -->
+          <v-text-field
+          v-model="formData.confirmPassword"
+          label="Confirm Password"
+          :rules="[requiredValidator, confirmedValidator(formData.confirmPassword, formData.password)]"
+          :type="isPasswordVisible ? 'text' : 'password'"
+          placeholder="Confirm Password"
+          prepend-inner-icon="mdi-lock-check"
+          :append-inner-icon="isPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
+          @click:append-inner="isPasswordVisible = !isPasswordVisible"
+          variant="outlined"
+          density="comfortable"
+          color="green-darken-2"
+          class="mb-4"
+          />
 
           <!-- Alert Notifications -->
           <AlertNotification
@@ -240,7 +221,9 @@ const { data, error } = await supabase.auth.signUp({
               Log in
             </span>
           </div>
-        </v-form>
+      </v-form>
+    </v-col>
+  </v-row>
         <br>
         <br>
       </v-container-fluid>

@@ -1,9 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/utils/supabase';
 
-const tab = ref(0)
+const router = useRouter();
+const tab = ref(0);
+const currentUser = ref(null); // Will store the authenticated user
 
 const basicInfo = ref({
   gender: '',
@@ -14,14 +16,24 @@ const basicInfo = ref({
   allergies: '',
   religiousDiet: '',
   budget: ''
-})
+});
 
 const labResults = ref({
   fbs: '',
   ppbs: '',
   hba1c: '',
   glucoseTolerance: ''
-})
+});
+
+// Fetch authenticated user on mount
+onMounted(async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error('Auth error:', error.message);
+  } else {
+    currentUser.value = user;
+  }
+});
 
 function cancelForm() {
   labResults.value = {
@@ -29,13 +41,75 @@ function cancelForm() {
     ppbs: '',
     hba1c: '',
     glucoseTolerance: ''
-  }
+  };
 }
 
-function submitForm() {
-  console.log('Submitting Lab Results:', labResults.value)
+async function submitForm() {
+  try {
+    // Check if user is logged in
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('User not authenticated');
+
+    const fullName = user.user_metadata?.full_name || '';
+    const email = user.email || '';
+
+    // Step 1: Insert into 'users' table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .insert({
+        full_name: fullName,
+        email: email,
+        gender: basicInfo.value.gender,
+        age: parseInt(basicInfo.value.age),
+        height_cm: parseFloat(basicInfo.value.height),
+        weight_kg: parseFloat(basicInfo.value.weight),
+        diabetes_type: basicInfo.value.diabetesType,
+        budget: parseFloat(basicInfo.value.budget),
+        created_at: new Date()
+      })
+      .select()
+      .single();
+
+    if (userError) throw userError;
+
+    const userId = userData.id;
+
+    // Step 2: Insert allergies
+    if (basicInfo.value.allergies) {
+      await supabase.from('allergies').insert({
+        allergy: basicInfo.value.allergies,
+        user_id: userId,
+        created_at: new Date()
+      });
+    }
+
+    // Step 3: Insert religious diet
+    if (basicInfo.value.religiousDiet) {
+      await supabase.from('religious_diets').insert({
+        diet_type: basicInfo.value.religiousDiet,
+        user_id: userId,
+        created_at: new Date()
+      });
+    }
+
+    // Step 4: Insert lab results
+    await supabase.from('lab_results').insert({
+      fasting_blood_sugar: parseFloat(labResults.value.fbs),
+      postprandial_blood_sugar: parseFloat(labResults.value.ppbs),
+      hba1c: parseFloat(labResults.value.hba1c),
+      glucose_tolerance: labResults.value.glucoseTolerance,
+      user_id: userId,
+      created_at: new Date()
+    });
+
+    console.log('User and lab results saved successfully!');
+  } catch (error) {
+    console.error('Error submitting form:', error.message);
+  }
 }
 </script>
+
+
 
 
 <template>
@@ -54,36 +128,10 @@ function submitForm() {
 
       <v-container style="margin-top: -30px">
         <!-- Tabs -->
-        <v-tabs
-        v-model="tab"
-        bg-color="#A9C46C"
-        class="mb-4"
-        grow
-        >
-        <v-tab
-            class="text-center"
-            style="
-            font-family: 'Syne', sans-serif;
-            color: #0B2E33;
-            min-width: 160px;
-            flex: 1 1 auto;
-            "
-        >
-            Basic Information
-        </v-tab>
-        <v-tab
-            class="text-center"
-            style="
-            font-family: 'Syne', sans-serif;
-            color: #0B2E33;
-            min-width: 160px;
-            flex: 1 1 auto;
-            "
-        >
-            Lab Results
-        </v-tab>
+        <v-tabs v-model="tab" bg-color="#A9C46C" class="mb-4" grow>
+          <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;">Basic Information</v-tab>
+          <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;">Lab Results</v-tab>
         </v-tabs>
-
 
         <!-- Tab Content -->
         <v-window v-model="tab">

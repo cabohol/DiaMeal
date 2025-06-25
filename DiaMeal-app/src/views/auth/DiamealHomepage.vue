@@ -13,7 +13,8 @@ onMounted(async () => {
   if (error || !data?.user) {
     router.push('/login'); // redirect if not logged in
   } else {
-    userFirstName.value = data.user.user_metadata.firstName || 'User';
+    const fullName = data.user.user_metadata.full_name || 'User';
+    userFirstName.value = fullName.split(' ')[0]; // Get only the first name
   }
 });
 </script>

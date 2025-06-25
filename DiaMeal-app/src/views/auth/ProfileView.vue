@@ -58,6 +58,7 @@ onMounted(fetchUser);
 </script>
 
 
+
 <template>
   <v-app>
     <v-main>
@@ -93,12 +94,18 @@ onMounted(fetchUser);
 
             <!-- User Info -->
             <div class="mt-6">
-            <p class="text-h6" style="font-family: 'Syne', sans-serif;">
-                {{ user?.user_metadata?.firstName }} {{ user?.user_metadata?.lastName }}
-            </p>
-            <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
-                {{ user?.email }}
-            </p>
+              <p class="text-h6" style="font-family: 'Syne', sans-serif;">
+                {{ user?.user_metadata?.full_name || 'Full name not set' }}
+              </p>
+              <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
+                {{ user?.email || 'Email not available' }}
+              </p>
+              <p class="text-subtitle-2" style="font-family: 'Syne', sans-serif; margin-top: 4px;">
+               <strong>Contact Number:</strong>{{ user?.user_metadata?.contact || 'Not set' }}
+              </p>
+              <p class="text-subtitle-2" style="font-family: 'Syne', sans-serif; margin-top: 4px;">
+               <strong>Address:</strong>{{ user?.user_metadata?.address || 'Not set' }}
+              </p>
             </div>
 
             <!-- Edit Profile Button -->
@@ -130,41 +137,30 @@ onMounted(fetchUser);
           </v-col>
         </v-row>
 
-    <v-bottom-navigation grow class="mt-8" style="background-color: #5B913B;">
-        <v-btn @click="$router.push('/home')" value="home" class="d-flex flex-column align-center">
+        <!-- Bottom Navigation -->
+        <v-bottom-navigation grow class="mt-8" style="background-color: #5B913B;">
+          <v-btn @click="$router.push('/home')" value="home" class="d-flex flex-column align-center">
             <v-icon style="color: white; font-size: 24px;">mdi-home</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Home</span>
-        </v-btn>
+            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Home</span>
+          </v-btn>
 
-        <v-btn @click="$router.push('/meal-plan')" value="meal-plan" class="d-flex flex-column align-center">
+          <v-btn @click="$router.push('/meal-plan')" value="meal-plan" class="d-flex flex-column align-center">
             <v-icon style="color: white; font-size: 24px;">mdi-heart-pulse</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Meal Plan</span>
-        </v-btn>
+            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Meal Plan</span>
+          </v-btn>
 
-        <v-btn @click="$router.push('/profile')" value="profile" class="d-flex flex-column align-center">
+          <v-btn @click="$router.push('/profile')" value="profile" class="d-flex flex-column align-center">
             <v-icon style="color: white; font-size: 24px;">mdi-account</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Profile</span>
-        </v-btn>
+            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Profile</span>
+          </v-btn>
 
-        <v-btn @click="$router.push('/progress')" value="progress" class="d-flex flex-column align-center">
+          <v-btn @click="$router.push('/progress')" value="progress" class="d-flex flex-column align-center">
             <v-icon style="color: white; font-size: 24px;">mdi-chart-line</v-icon>
-            <span
-            class="text-white mt-1"
-            style="font-family: 'Syne', sans-serif; font-size: 12px;"
-            >Progress</span>
-        </v-btn>
-    </v-bottom-navigation>
-
+            <span class="text-white mt-1" style="font-family: 'Syne', sans-serif; font-size: 12px;">Progress</span>
+          </v-btn>
+        </v-bottom-navigation>
       </v-container>
     </v-main>
   </v-app>
 </template>
+

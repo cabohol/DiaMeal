@@ -62,49 +62,61 @@ onMounted(fetchUser);
 <template>
   <v-app>
     <v-main>
+      <div
+        style="background-color: #A9C46C; height: 250px; border-bottom-left-radius: 100% 40px; 
+        border-bottom-right-radius: 100% 40px; position: relative;">
+      </div>
+
       <v-container class="py-10" fluid>
         <v-row justify="center">
           <v-col cols="12" sm="8" md="6" lg="4" class="text-center">
-            
-            <!-- Avatar -->
-            <v-avatar size="120" class="mx-auto">
-              <v-img
-                :src="profileImageUrl || 'https://via.placeholder.com/120'"
-                cover
-              />
-            </v-avatar>
-
-            <!-- Change Photo -->
-            <div class="mt-4">
-              <v-btn
-                color="green-darken-2"
-                @click="$refs.fileInput.click()"
-                :loading="uploading"
+            <!-- Avatar Profile -->
+            <div style="position: relative; width: 200px; height: 200px; margin: -160px auto 0;">
+              <v-avatar
+                size="200"
+                style="background-color: #5d8736;"
               >
-                Change Photo
+                <v-img
+                  :src="profileImageUrl || '/src/assets/default_profile.png'"
+                  cover
+                />
+              </v-avatar>
+
+              <!-- Edit Profile Button -->
+              <v-btn
+                icon
+                size="small"
+                class="ma-0 pa-0"
+                style="
+                  position: absolute;
+                  bottom: 8px;
+                  right: 8px;
+                  background-color: #A9C46C;
+                  color: black;
+                  z-index: 2;
+                  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                "
+                @click="$refs.fileInput.click()"
+              >
+                <v-icon size="16">mdi-pencil</v-icon>
               </v-btn>
-              <input
-                type="file"
-                accept="image/*"
-                ref="fileInput"
-                @change="handleImageChange"
-                style="display: none"
-              />
             </div>
 
+            <input type="file" accept="image/*" ref="fileInput" @change="handleImageChange" style="display: none"/>
+
             <!-- User Info -->
-            <div class="mt-6">
-              <p class="text-h6" style="font-family: 'Syne', sans-serif;">
+            <div class="mt-10">
+              <p class="text-h6 font-weight-medium" style="font-family: 'Syne', sans-serif;">
                 {{ user?.user_metadata?.full_name || 'Full name not set' }}
               </p>
               <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
-                {{ user?.email || 'Email not available' }}
+                <strong>Email:</strong> {{ user?.email || 'Email not available' }}
               </p>
               <p class="text-subtitle-2" style="font-family: 'Syne', sans-serif; margin-top: 4px;">
-               <strong>Contact Number:</strong>{{ user?.user_metadata?.contact || 'Not set' }}
+                <strong>Contact Number:</strong> {{ user?.user_metadata?.contact || 'Not set' }}
               </p>
               <p class="text-subtitle-2" style="font-family: 'Syne', sans-serif; margin-top: 4px;">
-               <strong>Address:</strong>{{ user?.user_metadata?.address || 'Not set' }}
+                <strong>Address:</strong> {{ user?.user_metadata?.address || 'Not set' }}
               </p>
             </div>
 
@@ -118,7 +130,7 @@ onMounted(fetchUser);
               style="width: 100%; max-width: 300px; font-family: 'Syne', sans-serif;"
               @click="$router.push('/edit-profile')"
             >
-              Edit Profile
+              Edit Details
             </v-btn>
 
             <!-- Logout Button -->
@@ -133,7 +145,6 @@ onMounted(fetchUser);
             >
               Logout
             </v-btn>
-
           </v-col>
         </v-row>
 

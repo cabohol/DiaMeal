@@ -439,7 +439,7 @@ async function submitForm() {
           </v-btn>
 
           <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-            <v-icon>mdi-chart-line</v-icon><span>Progress</span>
+            <v-icon>mdi-chart-line</v-icon><span>Progresss</span>
           </v-btn>
         </v-bottom-navigation>
     </v-main>

@@ -13,8 +13,14 @@ onMounted(async () => {
   if (error || !data?.user) {
     router.push('/login'); // redirect if not logged in
   } else {
+<<<<<<< HEAD
     const fullName = data.user.user_metadata.full_name || 'User';
     userFirstName.value = fullName.split(' ')[0]; // Get only the first name
+=======
+    const fullName = `${data.user.user_metadata.firstName || ''} ${data.user.user_metadata.lastName || ''}`.trim() || 'User';
+     userFirstName.value = fullName.split(' ')[0];
+
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
   }
 });
 </script>
@@ -159,7 +165,11 @@ onMounted(async () => {
               <v-icon>mdi-account</v-icon><span>Profile</span>
             </v-btn>
 
+<<<<<<< HEAD
             <v-btn @click="$router.push('/progress')" class="nav-tab">
+=======
+            <v-btn @click="$router.push('/myprogress')" class="nav-tab">
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
               <v-icon>mdi-chart-line</v-icon><span>Progress</span>
             </v-btn>
           </v-bottom-navigation>

@@ -11,12 +11,20 @@ const router = useRouter();
 const fetchUser = async () => {
   const { data: { user: currentUser } } = await supabase.auth.getUser();
   user.value = currentUser;
+<<<<<<< HEAD
+=======
+  console.log('Fetched user:', currentUser); // Add this
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 
   if (currentUser?.user_metadata?.avatar_url) {
     profileImageUrl.value = currentUser.user_metadata.avatar_url;
   }
 };
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 const handleImageChange = async (event) => {
   const file = event.target.files[0];
   if (!file || !user.value) return;
@@ -107,7 +115,11 @@ onMounted(fetchUser);
             <!-- User Info -->
             <div class="mt-10">
               <p class="text-h6 font-weight-medium" style="font-family: 'Syne', sans-serif;">
+<<<<<<< HEAD
                 {{ user?.user_metadata?.full_name || 'Full name not set' }}
+=======
+              {{ (user?.user_metadata?.firstName + ' ' + user?.user_metadata?.lastName) || 'Full name not set' }}
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
               </p>
               <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
                 <strong>Email:</strong> {{ user?.email || 'Email not available' }}
@@ -162,7 +174,11 @@ onMounted(fetchUser);
             <v-icon>mdi-account</v-icon><span>Profile</span>
           </v-btn>
 
+<<<<<<< HEAD
           <v-btn @click="$router.push('/progress')" class="nav-tab">
+=======
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
             <v-icon>mdi-chart-line</v-icon><span>Progress</span>
           </v-btn>
         </v-bottom-navigation>

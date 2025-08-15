@@ -6,6 +6,11 @@ import RegisterView from '@/views/auth/RegisterView.vue'
 import TermsAndConditions from '@/views/TermsAndConditions.vue'
 import ProfileView from '@/views/auth/ProfileView.vue'
 import MealPlan from '@/views/auth/MealPlan.vue' 
+<<<<<<< HEAD
+=======
+import MyProgress from '@/views/auth/MyProgress.vue'
+import WeeklyMeal from '@/views/auth/WeeklyMeal.vue'
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,6 +52,19 @@ const router = createRouter({
       path: '/meal-plan', 
       name: 'meal-plan',
       component: MealPlan
+<<<<<<< HEAD
+=======
+    },
+    {
+      path: '/myprogress', 
+      name: 'myprogress',
+      component: MyProgress
+    },
+     {
+      path: '/weekly-meal', 
+      name: 'weekly-meal',
+      component: WeeklyMeal
+>>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     },
   ],
 })

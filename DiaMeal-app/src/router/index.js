@@ -6,6 +6,8 @@ import RegisterView from '@/views/auth/RegisterView.vue'
 import TermsAndConditions from '@/views/TermsAndConditions.vue'
 import ProfileView from '@/views/auth/ProfileView.vue'
 import MealPlan from '@/views/auth/MealPlan.vue' 
+import MyProgress from '@/views/auth/MyProgress.vue'
+import WeeklyMeal from '@/views/auth/WeeklyMeal.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,6 +49,16 @@ const router = createRouter({
       path: '/meal-plan', 
       name: 'meal-plan',
       component: MealPlan
+    },
+    {
+      path: '/myprogress', 
+      name: 'myprogress',
+      component: MyProgress
+    },
+     {
+      path: '/weekly-meal', 
+      name: 'weekly-meal',
+      component: WeeklyMeal
     },
   ],
 })

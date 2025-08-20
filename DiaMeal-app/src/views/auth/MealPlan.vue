@@ -5,7 +5,7 @@ import { supabase } from '@/utils/supabase';
 
 const router = useRouter();
 const tab = ref(0);
-const currentUser = ref(null); // Will store the authenticated user
+const currentUser = ref(null);
 const required = v => !!v || 'This field is required';
 
 const basicInfo = ref({
@@ -26,56 +26,151 @@ const labResults = ref({
   glucoseTolerance: ''
 });
 
-// Fetch authenticated user on mount
+const mealPlanText = ref(''); // Holds the streamed meal plan
+
+// ✅ On mount → get logged-in user
 onMounted(async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error('Auth error:', error.message);
-  } else {
-    currentUser.value = user;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    router.push('/login');
+    return;
+  }
+
+  const lastDate = await getLastSubmissionDate(user.email);
+  if (lastDate && !hasSevenDaysPassed(lastDate)) {
+    router.push('/weekly-meal'); // block access
   }
 });
 
+
 function cancelForm() {
-  labResults.value = {
-    fbs: '',
-    ppbs: '',
-    hba1c: '',
-    glucoseTolerance: ''
-  };
+  labResults.value = { fbs: '', ppbs: '', hba1c: '', glucoseTolerance: '' };
+  basicInfo.value = { gender: '', age: '', height: '', weight: '', diabetesType: '', allergies: '', religiousDiet: '', budget: '' };
+  mealPlanText.value = '';
 }
 
+// ✅ Helper – Get last submission date
+async function getLastSubmissionDate(email) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('last_submission_date')
+    .eq('email', email);
+
+  if (error) {
+    console.error('Error fetching last submission date:', error);
+    return null;
+  }
+
+  if (!data || data.length === 0) return null;
+
+  // Find the most recent last_submission_date
+  const dates = data
+    .map(row => row.last_submission_date)
+    .filter(date => date !== null)
+    .map(date => new Date(date));
+
+  if (dates.length === 0) return null;
+
+  return new Date(Math.max(...dates)); // latest date
+}
+
+
+
+// ✅ Helper – Check if 7 days passed
+function hasSevenDaysPassed(lastDate) {
+  if (!lastDate) return true; // No submission yet → allow
+  const now = new Date();
+  const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+  return diffDays >= 7;
+}
+
+// ✅ Navigation check for Meal Plan button
+async function checkMealPlanAccess() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    router.push('/login');
+    return;
+  }
+
+  const lastDate = await getLastSubmissionDate(user.email);
+
+  if (!lastDate) {
+    // First time → go to form
+    router.push('/meal-plan');
+  } else if (hasSevenDaysPassed(lastDate)) {
+    // 7 days passed → go to form again
+    router.push('/meal-plan');
+  } else {
+    // Still locked → go directly to weekly meal
+    router.push('/weekly-meal');
+  }
+}
+
+// ✅ Form submission
 async function submitForm() {
   try {
-    // Check if user is logged in
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('User not authenticated');
 
     const fullName = user.user_metadata?.full_name || '';
     const email = user.email || '';
 
-    // Step 1: Insert into 'users' table
-    const { data: userData, error: userError } = await supabase
+    const { data: existingUser, error: fetchError } = await supabase
       .from('users')
-      .insert({
-        full_name: fullName,
-        email: email,
-        gender: basicInfo.value.gender,
-        age: parseInt(basicInfo.value.age),
-        height_cm: parseFloat(basicInfo.value.height),
-        weight_kg: parseFloat(basicInfo.value.weight),
-        diabetes_type: basicInfo.value.diabetesType,
-        budget: parseFloat(basicInfo.value.budget),
-        created_at: new Date()
-      })
-      .select()
+      .select('id, last_submission_date')
+      .eq('email', email)
       .single();
 
-    if (userError) throw userError;
+    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
 
-    const userId = userData.id;
+    if (existingUser?.last_submission_date) {
+      const lastDate = new Date(existingUser.last_submission_date);
+      if (!hasSevenDaysPassed(lastDate)) {
+        alert(`You can only submit once a week. Please try again later.`);
+        return;
+      }
+    }
 
-    // Step 2: Insert allergies
+    let userId;
+    if (existingUser) {
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({
+          gender: basicInfo.value.gender,
+          age: parseInt(basicInfo.value.age),
+          height_cm: parseFloat(basicInfo.value.height),
+          weight_kg: parseFloat(basicInfo.value.weight),
+          diabetes_type: basicInfo.value.diabetesType,
+          budget: parseFloat(basicInfo.value.budget),
+          last_submission_date: new Date(),
+          updated_at: new Date()
+        })
+        .eq('id', existingUser.id)
+        .select()
+        .single();
+      if (updateError) throw updateError;
+      userId = updatedUser.id;
+    } else {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert({
+          full_name: fullName,
+          email: email,
+          gender: basicInfo.value.gender,
+          age: parseInt(basicInfo.value.age),
+          height_cm: parseFloat(basicInfo.value.height),
+          weight_kg: parseFloat(basicInfo.value.weight),
+          diabetes_type: basicInfo.value.diabetesType,
+          budget: parseFloat(basicInfo.value.budget),
+          last_submission_date: new Date(),
+          created_at: new Date()
+        })
+        .select()
+        .single();
+      if (userError) throw userError;
+      userId = userData.id;
+    }
+
     if (basicInfo.value.allergies) {
       await supabase.from('allergies').insert({
         allergy: basicInfo.value.allergies,
@@ -84,7 +179,6 @@ async function submitForm() {
       });
     }
 
-    // Step 3: Insert religious diet
     if (basicInfo.value.religiousDiet) {
       await supabase.from('religious_diets').insert({
         diet_type: basicInfo.value.religiousDiet,
@@ -93,7 +187,6 @@ async function submitForm() {
       });
     }
 
-    // Step 4: Insert lab results
     await supabase.from('lab_results').insert({
       fasting_blood_sugar: parseFloat(labResults.value.fbs),
       postprandial_blood_sugar: parseFloat(labResults.value.ppbs),
@@ -104,14 +197,13 @@ async function submitForm() {
     });
 
     console.log('User and lab results saved successfully!');
+    router.push('/weekly-meal');
+
   } catch (error) {
     console.error('Error submitting form:', error.message);
   }
 }
 </script>
-
-
-
 
 <template>
   <v-app>
@@ -324,6 +416,9 @@ async function submitForm() {
                 Submit
               </v-btn>
             </div>
+            <!-- Live Meal Plan Output -->
+
+
           </v-form>
         </v-window-item>
         </v-window>
@@ -334,16 +429,16 @@ async function submitForm() {
           <v-btn @click="$router.push('/home')" class="nav-tab">
             <v-icon>mdi-home</v-icon><span>Home</span>
           </v-btn>
+        <v-btn @click="checkMealPlanAccess" class="nav-tab">
+          <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
+        </v-btn>
 
-          <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
-            <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-          </v-btn>
 
           <v-btn @click="$router.push('/profile')" class="nav-tab">
             <v-icon>mdi-account</v-icon><span>Profile</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/progress')" class="nav-tab">
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
             <v-icon>mdi-chart-line</v-icon><span>Progress</span>
           </v-btn>
         </v-bottom-navigation>

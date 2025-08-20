@@ -9,15 +9,19 @@ const uploading = ref(false);
 const router = useRouter();
 
 const fetchUser = async () => {
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-  user.value = currentUser;
-  console.log('Fetched user:', currentUser); // Add this
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.error('Error fetching user:', error);
+    return;
+  }
 
-  if (currentUser?.user_metadata?.avatar_url) {
-    profileImageUrl.value = currentUser.user_metadata.avatar_url;
+  user.value = data.user;
+  console.log('Fetched user:', user.value);
+
+  if (user.value?.user_metadata?.avatar_url) {
+    profileImageUrl.value = user.value.user_metadata.avatar_url;
   }
 };
-
 
 const handleImageChange = async (event) => {
   const file = event.target.files[0];
@@ -25,30 +29,46 @@ const handleImageChange = async (event) => {
 
   uploading.value = true;
 
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${user.value.id}.${fileExt}`;
-  const filePath = `avatars/${fileName}`;
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, { upsert: true });
+    // Upload image to "diameal" bucket
+    const { error: uploadError } = await supabase.storage
+      .from('diameal')
+      .upload(filePath, file, { upsert: true });
 
-  if (uploadError) {
-    alert('Failed to upload image.');
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      alert('Failed to upload image.');
+      return;
+    }
+
+    // Get public URL
+    const { data: publicData } = supabase.storage
+      .from('diameal')
+      .getPublicUrl(filePath);
+
+    profileImageUrl.value = publicData.publicUrl;
+
+    // Save to user metadata
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: {
+        avatar_url: publicData.publicUrl,
+      },
+    });
+
+    if (updateError) {
+      console.error('Error updating user metadata:', updateError);
+    } else {
+      console.log('Profile image updated successfully!');
+    }
+  } catch (err) {
+    console.error('Unexpected error:', err);
+  } finally {
     uploading.value = false;
-    return;
   }
-
-  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-  profileImageUrl.value = data.publicUrl;
-
-  await supabase.auth.updateUser({
-    data: {
-      avatar_url: data.publicUrl,
-    },
-  });
-
-  uploading.value = false;
 };
 
 const handleLogout = async () => {
@@ -58,6 +78,7 @@ const handleLogout = async () => {
 
 onMounted(fetchUser);
 </script>
+
 
 
 
@@ -109,7 +130,7 @@ onMounted(fetchUser);
             <!-- User Info -->
             <div class="mt-10">
               <p class="text-h6 font-weight-medium" style="font-family: 'Syne', sans-serif;">
-              {{ (user?.user_metadata?.firstName + ' ' + user?.user_metadata?.lastName) || 'Full name not set' }}
+              {{ user?.user_metadata?.full_name || 'Full Name not set' }}
               </p>
               <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
                 <strong>Email:</strong> {{ user?.email || 'Email not available' }}

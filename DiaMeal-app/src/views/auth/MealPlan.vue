@@ -5,11 +5,7 @@ import { supabase } from '@/utils/supabase';
 
 const router = useRouter();
 const tab = ref(0);
-<<<<<<< HEAD
 const currentUser = ref(null); // Will store the authenticated user
-=======
-const currentUser = ref(null);
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 const required = v => !!v || 'This field is required';
 
 const basicInfo = ref({
@@ -30,7 +26,6 @@ const labResults = ref({
   glucoseTolerance: ''
 });
 
-<<<<<<< HEAD
 // Fetch authenticated user on mount
 onMounted(async () => {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -53,98 +48,12 @@ function cancelForm() {
 async function submitForm() {
   try {
     // Check if user is logged in
-=======
-const mealPlanText = ref(''); // Holds the streamed meal plan
-
-// ✅ On mount → get logged-in user
-onMounted(async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    router.push('/login');
-    return;
-  }
-
-  const lastDate = await getLastSubmissionDate(user.email);
-  if (lastDate && !hasSevenDaysPassed(lastDate)) {
-    router.push('/weekly-meal'); // block access
-  }
-});
-
-
-function cancelForm() {
-  labResults.value = { fbs: '', ppbs: '', hba1c: '', glucoseTolerance: '' };
-  basicInfo.value = { gender: '', age: '', height: '', weight: '', diabetesType: '', allergies: '', religiousDiet: '', budget: '' };
-  mealPlanText.value = '';
-}
-
-// ✅ Helper – Get last submission date
-async function getLastSubmissionDate(email) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('last_submission_date')
-    .eq('email', email);
-
-  if (error) {
-    console.error('Error fetching last submission date:', error);
-    return null;
-  }
-
-  if (!data || data.length === 0) return null;
-
-  // Find the most recent last_submission_date
-  const dates = data
-    .map(row => row.last_submission_date)
-    .filter(date => date !== null)
-    .map(date => new Date(date));
-
-  if (dates.length === 0) return null;
-
-  return new Date(Math.max(...dates)); // latest date
-}
-
-
-
-// ✅ Helper – Check if 7 days passed
-function hasSevenDaysPassed(lastDate) {
-  if (!lastDate) return true; // No submission yet → allow
-  const now = new Date();
-  const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-  return diffDays >= 7;
-}
-
-// ✅ Navigation check for Meal Plan button
-async function checkMealPlanAccess() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    router.push('/login');
-    return;
-  }
-
-  const lastDate = await getLastSubmissionDate(user.email);
-
-  if (!lastDate) {
-    // First time → go to form
-    router.push('/meal-plan');
-  } else if (hasSevenDaysPassed(lastDate)) {
-    // 7 days passed → go to form again
-    router.push('/meal-plan');
-  } else {
-    // Still locked → go directly to weekly meal
-    router.push('/weekly-meal');
-  }
-}
-
-// ✅ Form submission
-async function submitForm() {
-  try {
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('User not authenticated');
 
     const fullName = user.user_metadata?.full_name || '';
     const email = user.email || '';
 
-<<<<<<< HEAD
     // Step 1: Insert into 'users' table
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -167,64 +76,6 @@ async function submitForm() {
     const userId = userData.id;
 
     // Step 2: Insert allergies
-=======
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('id, last_submission_date')
-      .eq('email', email)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-    if (existingUser?.last_submission_date) {
-      const lastDate = new Date(existingUser.last_submission_date);
-      if (!hasSevenDaysPassed(lastDate)) {
-        alert(`You can only submit once a week. Please try again later.`);
-        return;
-      }
-    }
-
-    let userId;
-    if (existingUser) {
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update({
-          gender: basicInfo.value.gender,
-          age: parseInt(basicInfo.value.age),
-          height_cm: parseFloat(basicInfo.value.height),
-          weight_kg: parseFloat(basicInfo.value.weight),
-          diabetes_type: basicInfo.value.diabetesType,
-          budget: parseFloat(basicInfo.value.budget),
-          last_submission_date: new Date(),
-          updated_at: new Date()
-        })
-        .eq('id', existingUser.id)
-        .select()
-        .single();
-      if (updateError) throw updateError;
-      userId = updatedUser.id;
-    } else {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert({
-          full_name: fullName,
-          email: email,
-          gender: basicInfo.value.gender,
-          age: parseInt(basicInfo.value.age),
-          height_cm: parseFloat(basicInfo.value.height),
-          weight_kg: parseFloat(basicInfo.value.weight),
-          diabetes_type: basicInfo.value.diabetesType,
-          budget: parseFloat(basicInfo.value.budget),
-          last_submission_date: new Date(),
-          created_at: new Date()
-        })
-        .select()
-        .single();
-      if (userError) throw userError;
-      userId = userData.id;
-    }
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     if (basicInfo.value.allergies) {
       await supabase.from('allergies').insert({
         allergy: basicInfo.value.allergies,
@@ -233,10 +84,7 @@ async function submitForm() {
       });
     }
 
-<<<<<<< HEAD
     // Step 3: Insert religious diet
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     if (basicInfo.value.religiousDiet) {
       await supabase.from('religious_diets').insert({
         diet_type: basicInfo.value.religiousDiet,
@@ -245,10 +93,7 @@ async function submitForm() {
       });
     }
 
-<<<<<<< HEAD
     // Step 4: Insert lab results
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     await supabase.from('lab_results').insert({
       fasting_blood_sugar: parseFloat(labResults.value.fbs),
       postprandial_blood_sugar: parseFloat(labResults.value.ppbs),
@@ -259,23 +104,15 @@ async function submitForm() {
     });
 
     console.log('User and lab results saved successfully!');
-<<<<<<< HEAD
-=======
-    router.push('/weekly-meal');
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
   } catch (error) {
     console.error('Error submitting form:', error.message);
   }
 }
 </script>
 
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 <template>
   <v-app>
     <v-main>
@@ -487,12 +324,6 @@ async function submitForm() {
                 Submit
               </v-btn>
             </div>
-<<<<<<< HEAD
-=======
-            <!-- Live Meal Plan Output -->
-
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
           </v-form>
         </v-window-item>
         </v-window>
@@ -503,29 +334,17 @@ async function submitForm() {
           <v-btn @click="$router.push('/home')" class="nav-tab">
             <v-icon>mdi-home</v-icon><span>Home</span>
           </v-btn>
-<<<<<<< HEAD
 
           <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
             <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
           </v-btn>
-=======
-        <v-btn @click="checkMealPlanAccess" class="nav-tab">
-          <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-        </v-btn>
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 
           <v-btn @click="$router.push('/profile')" class="nav-tab">
             <v-icon>mdi-account</v-icon><span>Profile</span>
           </v-btn>
 
-<<<<<<< HEAD
           <v-btn @click="$router.push('/progress')" class="nav-tab">
             <v-icon>mdi-chart-line</v-icon><span>Progress</span>
-=======
-          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-            <v-icon>mdi-chart-line</v-icon><span>Progresss</span>
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
           </v-btn>
         </v-bottom-navigation>
     </v-main>

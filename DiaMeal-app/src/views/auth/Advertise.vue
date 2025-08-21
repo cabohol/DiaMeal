@@ -16,7 +16,7 @@ function getStarted() {
 
 <template>
   <v-app :theme="theme">
-    <v-main>
+    <v-main style=" background-color: #A9C46C;">
       <v-container
         class="d-flex flex-column align-center justify-center text-center pa-0"
         style="
@@ -29,7 +29,7 @@ function getStarted() {
         <!-- Top Decorative Image with Fade -->
         <div style="position: absolute; top: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.4;">
           <v-img
-            src="/src/assets/vegan1.jpg"
+            src="/src/assets/vegan2.jpg"
             cover
             height="100%"
             gradient="to bottom, rgba(0,0,0,0.3), rgba(169,196,108,0)"
@@ -63,8 +63,3 @@ function getStarted() {
     </v-main>
   </v-app>
 </template>
-
-
-
-<style scoped>
-</style>

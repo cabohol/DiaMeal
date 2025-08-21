@@ -8,6 +8,7 @@ import ProfileView from '@/views/auth/ProfileView.vue'
 import MealPlan from '@/views/auth/MealPlan.vue' 
 import MyProgress from '@/views/auth/MyProgress.vue'
 import WeeklyMeal from '@/views/auth/WeeklyMeal.vue'
+import EditProfile from '@/views/auth/EditProfile.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +45,11 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: ProfileView
+    },
+    {
+      path: '/edit-profile',   
+      name: 'edit-profile',
+      component: EditProfile
     },
     {
       path: '/meal-plan', 

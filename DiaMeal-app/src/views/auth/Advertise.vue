@@ -16,24 +16,13 @@ function getStarted() {
 
 <template>
   <v-app :theme="theme">
-    <v-main>
+    <v-main style=" background-color: #A9C46C;">
       <v-container
         class="d-flex flex-column align-center justify-center text-center pa-0"
-        style="
-          height: 100vh;
-          background-color: #A9C46C;
-          position: relative;
-          overflow: hidden;
-        "
-      >
-        <!-- Top Decorative Image with Fade -->
+        style="height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
+
         <div style="position: absolute; top: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.4;">
-          <v-img
-            src="/src/assets/vegan1.jpg"
-            cover
-            height="100%"
-            gradient="to bottom, rgba(0,0,0,0.3), rgba(169,196,108,0)"
-          />
+          <v-img src="/src/assets/vegan2.jpg" cover height="100%" gradient="to bottom, rgba(0,0,0,0.3), rgba(169,196,108,0)"/>
         </div>
 
         <!-- Logo or Brand Icon (Optional) -->
@@ -43,9 +32,7 @@ function getStarted() {
 
         <!-- Welcome Text -->
         <div class="text-black mb-7" style="z-index: 1;">
-          <p style="font-family: 'Syne', sans-serif; 
-             font-size: 35px;
-             font-weight: 500;">Start Your Healthy Journey with DiaMeal</p>
+          <p style="font-family: 'Syne', sans-serif; font-size: 35px; font-weight: 500;">Start Your Healthy Journey with DiaMeal</p>
         </div>
 
         <!-- Get Started Button -->
@@ -55,16 +42,9 @@ function getStarted() {
           rounded
           size="x-large"
           style="z-index: 1; font-family: 'Syne', sans-serif;"
-          @click="getStarted"
-        >
-          Get Started
+          @click="getStarted"> Get Started
         </v-btn>
       </v-container>
     </v-main>
   </v-app>
 </template>
-
-
-
-<style scoped>
-</style>

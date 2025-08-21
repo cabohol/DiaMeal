@@ -8,6 +8,11 @@ const profileImageUrl = ref('');
 const uploading = ref(false);
 const router = useRouter();
 
+// Snackbar
+const snackbar = ref(false);
+const snackbarMessage = ref('');
+const snackbarColor = ref('green');
+
 const fetchUser = async () => {
   const { data, error } = await supabase.auth.getUser();
   if (error) {
@@ -18,7 +23,6 @@ const fetchUser = async () => {
   user.value = currentUser;
 
   user.value = data.user;
-  console.log('Fetched user:', user.value);
 
   if (user.value?.user_metadata?.avatar_url) {
     profileImageUrl.value = user.value.user_metadata.avatar_url;
@@ -36,53 +40,58 @@ const handleImageChange = async (event) => {
     const fileName = `${user.value.id}_${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
-    // Upload image to "diameal" bucket
     const { error: uploadError } = await supabase.storage
       .from('diameal')
       .upload(filePath, file, { upsert: true });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      alert('Failed to upload image.');
-      return;
-    }
+    if (uploadError) throw uploadError;
 
-    // Get public URL
     const { data: publicData } = supabase.storage
       .from('diameal')
       .getPublicUrl(filePath);
 
     profileImageUrl.value = publicData.publicUrl;
 
-    // Save to user metadata
     const { error: updateError } = await supabase.auth.updateUser({
-      data: {
-        avatar_url: publicData.publicUrl,
-      },
+      data: { avatar_url: publicData.publicUrl },
     });
 
-    if (updateError) {
-      console.error('Error updating user metadata:', updateError);
-    } else {
-      console.log('Profile image updated successfully!');
-    }
+    if (updateError) throw updateError;
+
+    snackbarMessage.value = 'Profile image updated successfully!';
+    snackbarColor.value = 'green';
+    snackbar.value = true;
   } catch (err) {
-    console.error('Unexpected error:', err);
+    console.error('Error updating profile image:', err);
+    snackbarMessage.value = 'Failed to update profile image!';
+    snackbarColor.value = 'red';
+    snackbar.value = true;
   } finally {
     uploading.value = false;
   }
 };
 
 const handleLogout = async () => {
-  await supabase.auth.signOut();
-  router.push('/login');
+  try {
+    await supabase.auth.signOut();
+    snackbarMessage.value = 'Logged out successfully!';
+    snackbarColor.value = 'green';
+    snackbar.value = true;
+
+    // Wait 1.2s for snackbar then redirect
+    setTimeout(() => {
+      router.push('/login');
+    }, 1200);
+  } catch (err) {
+    console.error('Logout error:', err);
+    snackbarMessage.value = 'Failed to log out!';
+    snackbarColor.value = 'red';
+    snackbar.value = true;
+  }
 };
 
 onMounted(fetchUser);
 </script>
-
-
-
 
 <template>
   <v-app>
@@ -97,22 +106,15 @@ onMounted(fetchUser);
           <v-col cols="12" sm="8" md="6" lg="4" class="text-center">
             <!-- Avatar Profile -->
             <div style="position: relative; width: 200px; height: 200px; margin: -160px auto 0;">
-              <v-avatar
-                size="200"
-                style="background-color: #5d8736;"
-              >
-                <v-img
-                  :src="profileImageUrl || '/src/assets/default_profile.png'"
-                  cover
-                />
+              <v-avatar size="200" style="background-color: #5d8736;">
+                <v-img :src="profileImageUrl || '/src/assets/default_profile.png'" cover/>
               </v-avatar>
 
-              <!-- Edit Profile Button -->
               <v-btn
-                icon
-                size="small"
-                class="ma-0 pa-0"
-                style="
+                  icon
+                  size="small"
+                  class="ma-0 pa-0"
+                  style="
                   position: absolute;
                   bottom: 8px;
                   right: 8px;
@@ -132,7 +134,7 @@ onMounted(fetchUser);
             <!-- User Info -->
             <div class="mt-10">
               <p class="text-h6 font-weight-medium" style="font-family: 'Syne', sans-serif;">
-              {{ user?.user_metadata?.full_name || 'Full Name not set' }}
+                {{ user?.user_metadata?.full_name || 'Full Name not set' }}
               </p>
               <p class="text-subtitle-1" style="font-family: 'Syne', sans-serif;">
                 <strong>Email:</strong> {{ user?.email || 'Email not available' }}
@@ -145,7 +147,6 @@ onMounted(fetchUser);
               </p>
             </div>
 
-            <!-- Edit Profile Button -->
             <v-btn
               class="mt-8 text-white"
               color="#5D8736"
@@ -153,12 +154,9 @@ onMounted(fetchUser);
               prepend-icon="mdi-account-edit"
               size="large"
               style="width: 100%; max-width: 300px; font-family: 'Syne', sans-serif;"
-              @click="$router.push('/edit-profile')"
-            >
-              Edit Details
+              @click="$router.push('/edit-profile')"> Edit Details
             </v-btn>
 
-            <!-- Logout Button -->
             <v-btn
               class="mt-4 text-white"
               color="#5D8736"
@@ -166,29 +164,44 @@ onMounted(fetchUser);
               prepend-icon="mdi-logout"
               size="large"
               style="width: 100%; max-width: 300px; font-family: 'Syne', sans-serif;"
-              @click="handleLogout"
-            >
-              Logout
+              @click="handleLogout"> Logout
             </v-btn>
           </v-col>
         </v-row>
 
+        <!-- Snackbar -->
+        <v-snackbar v-model="snackbar" :color="snackbarColor" absolute top rounded="pill" timeout="1500" elevation="12">
+          <v-icon start>{{ snackbarColor === 'green' ? 'mdi-check-circle' : 'mdi-alert-circle' }}</v-icon>{{ snackbarMessage }}
+        </v-snackbar>
+
         <!-- Bottom Navigation -->
         <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
-          <v-btn @click="$router.push('/home')" class="nav-tab">
-            <v-icon>mdi-home</v-icon><span>Home</span>
+          <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
+              <v-icon>mdi-home</v-icon>
+            </span>
+            <span>Home</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
-            <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
+          <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/meal-plan' }">
+              <v-icon>mdi-heart-pulse</v-icon>
+            </span>
+            <span>Meal Plan</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/profile')" class="nav-tab">
-            <v-icon>mdi-account</v-icon><span>Profile</span>
+          <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
+              <v-icon>mdi-account</v-icon>
+            </span>
+            <span>Profile</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-            <v-icon>mdi-chart-line</v-icon><span>Progress</span>
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
+              <v-icon>mdi-chart-line</v-icon>
+            </span>
+            <span>Progress</span>
           </v-btn>
         </v-bottom-navigation>
       </v-container>
@@ -196,8 +209,21 @@ onMounted(fetchUser);
   </v-app>
 </template>
 
-
 <style scoped>
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.icon-wrapper.active {
+  background-color: white;
+  color: #5B913B;
+}
+
 .nav-bar .v-btn {
   flex-direction: column;
   color: white;
@@ -222,4 +248,3 @@ onMounted(fetchUser);
   margin-top: 4px;
 }
 </style>
-

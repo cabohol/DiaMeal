@@ -15,11 +15,11 @@ function onContinue() {
 <template>
   <v-app>
     <v-main>
-      <v-container
+      <v-container fluid
         class="fill-height d-flex justify-center align-center"
         style="background-color: #A9C46C;"
       >
-        <v-card width="400" height="700" elevation="4" rounded="xl" color="#E1F3C2">
+        <v-card width="550" height="700" elevation="4" rounded="xl" color="#E1F3C2">
             <v-card-title class="d-flex align-center justify-center" style="font-size: 22px;">
               <div class="d-flex align-center w-100">
                 <div class="flex-grow-1" style="height: 1px; background-color: black;"></div>
@@ -31,8 +31,8 @@ function onContinue() {
           <!-- Scrollable content -->
           <v-card-text
             class="text-black"
-            style="max-height: 570px; overflow-y: auto; text-align: justify; font-size: 17px; margin-top: 10px;"
-          >
+            style="max-height: 570px; overflow-y: auto; text-align: justify; font-size: 17px; margin-top: 10px;">
+
             <p style="font-family: 'Syne', sans-serif; ">
               Welcome to DiaMeal. By using this system,
               you agree to the collection of certain personal and health-related information such as
@@ -61,34 +61,29 @@ function onContinue() {
               hide-details
               class="mt-4 custom-checkbox"
               color="green-darken-2"
-              style="font-family: 'Syne', sans-serif;"
-            />
+              style="font-family: 'Syne', sans-serif;"/>
           </v-card-text>
 
             <v-card-actions class="justify-center px-4 pb-4">
-            <v-btn
-            variant="outlined"
-            color="grey-darken-1"
-            class="custom-cancel-btn rounded-pill px-6 me-2"
-            size="large"
-            elevation="2"
-            @click="router.back()"
-            style="font-family: 'Syne', sans-serif; "
-            >
-            Cancel
-            </v-btn>
+              <v-btn
+              variant="outlined"
+              color="grey-darken-1"
+              class="custom-cancel-btn rounded-pill px-6 me-2"
+              size="large"
+              elevation="2"
+              @click="router.back()"
+              style="font-family: 'Syne', sans-serif;"> Cancel
+              </v-btn>
 
-            <v-btn
-            :disabled="!agree"
-            color="green-darken-2"
-            class="custom-continue-btn text-white rounded-pill px-8"
-            size="large"
-            elevation="4"
-            @click="onContinue"
-            style="font-family: 'Syne', sans-serif; "
-            >
-            Continue
-            </v-btn>
+              <v-btn
+              :disabled="!agree"
+              color="green-darken-2"
+              class="custom-continue-btn text-white rounded-pill px-8"
+              size="large"
+              elevation="4"
+              @click="onContinue"
+              style="font-family: 'Syne', sans-serif; "> Continue
+              </v-btn>
             </v-card-actions>
         </v-card>
       </v-container>

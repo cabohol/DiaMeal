@@ -84,7 +84,7 @@ const { data, error } = await supabase.auth.signUp({
         class="d-flex flex-column align-center justify-center text-center px-4"
         style=" min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
         <!-- Logo -->
-        <v-img src="/src/assets/logo1.png" width="100" style="z-index: 1; margin-top: 5px;"/>
+        <v-img src="/src/assets/logo1.png" width="100" style="z-index: 1; margin-top: 15px;"/>
         <!-- Slogan -->
         <p style=" font-family: 'Syne', sans-serif; font-weight: 500; font-size: 1.2rem; margin-top: 5px; color: black; 
            display: inline-block;">Join DiaMeal – Where Smart Planning Meets Healthy Living.
@@ -105,6 +105,7 @@ const { data, error } = await supabase.auth.signUp({
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
+            style="font-family: 'Syne', sans-serif;"
             class="mb-2"
           />
 
@@ -119,6 +120,7 @@ const { data, error } = await supabase.auth.signUp({
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
+            style="font-family: 'Syne', sans-serif;"
             class="mb-2"
           />
 
@@ -133,6 +135,7 @@ const { data, error } = await supabase.auth.signUp({
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
+            style="font-family: 'Syne', sans-serif;"
             class="mb-2"
           />
 
@@ -146,6 +149,7 @@ const { data, error } = await supabase.auth.signUp({
             variant="outlined"
             density="comfortable"
             color="green-darken-2"
+            style="font-family: 'Syne', sans-serif;"
             class="mb-2"
           />
 
@@ -162,6 +166,7 @@ const { data, error } = await supabase.auth.signUp({
           variant="outlined"
           density="comfortable"
           color="green-darken-2"
+          style="font-family: 'Syne', sans-serif;"
           class="mb-2"
           />
 
@@ -178,6 +183,7 @@ const { data, error } = await supabase.auth.signUp({
           variant="outlined"
           density="comfortable"
           color="green-darken-2"
+          style="font-family: 'Syne', sans-serif;"
           class="mb-4"
           />
 
@@ -211,21 +217,16 @@ const { data, error } = await supabase.auth.signUp({
           </v-btn>
 
           <!-- Redirect to Login -->
-          <div class="text-caption" style=" font-family: 'Syne', sans-serif;">
-            Already have an account?
-            <span
-              class="text-green-darken-4 text-decoration-underline"
-              style="cursor: pointer; font-family: 'Syne', sans-serif; font-weight: bold;"
-              @click="$router.push('/login')"
-            >
-              Log in
+          <div style=" font-family: 'Syne', sans-serif; font-size: 15px;"> Already have an account?
+            <span class="text-green-darken-4 text-decoration-underline"
+                  style="cursor: pointer; font-family: 'Syne', sans-serif; 
+                  font-size: 15px; font-weight: bold;" @click="$router.push('/login')"> Log in
             </span>
           </div>
       </v-form>
     </v-col>
   </v-row>
-        <br>
-        <br>
+
       </v-container-fluid>
     </v-main>
   </v-app>

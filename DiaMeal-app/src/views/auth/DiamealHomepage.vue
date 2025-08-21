@@ -22,7 +22,7 @@ onMounted(async () => {
 <template>
   <v-app>
     <v-main >
-      <v-container class="pa-0" style="position: relative; overflow: hidden;">
+      <v-container fluid class="pa-0" style="position: relative; overflow: hidden;">
         <div class="py-8 rounded-bottom"
           style="z-index: 1; position: relative; background-color: #5D8736;">
           <v-container class="d-flex justify-space-between align-center">
@@ -40,7 +40,7 @@ onMounted(async () => {
                 <img
                   src="/src/assets/giphy.gif"
                   alt="Food Mascot"
-                  class="greeting-mascot"
+                  class="gif"
                 />
               </div>
           </v-container>
@@ -80,89 +80,140 @@ onMounted(async () => {
           <!-- Meal Plan Progress -->
           <br>
           <v-card
-              class="mx-4 mt-4 pa-4 text-center progress-card floating-card" elevation="4" rounded="xl">
-              <v-icon size="36" color="#5D8736" class="mb-2">	mdi-silverware-fork-knife</v-icon>
-              <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">Your Meal Plan Progress</p>
-              <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">1 out of 3 meals completed this day!</p>
-              <v-progress-linear :model-value="progress" color="green" height="12" class="rounded-pill mt-2"/>
-              <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">{{ progress }}%</div>
-          </v-card>
+            class="mx-4 mt-4 pa-4 text-center progress-card floating-card" elevation="4" rounded="xl">
+            <v-icon size="36" color="#5D8736" class="mb-2">mdi-silverware-fork-knife</v-icon>
+          
+            <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">
+              Your Meal Plan Progress
+            </p>
+            <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
+              1 out of 3 meals completed this day!
+            </p>
 
-          <!-- Why It Matters Section -->
-          <div class="px-4 mt-6">
-            <div class="d-flex align-center justify-center my-6">
-              <div style="flex: 1; height: 1px; background-color: #5D8736; margin-right: 12px;"></div>
-              <p class="text-h6 mb-0" style="font-family:'Syne', sans-serif; white-space: nowrap;">
-                Why Living a Healthy Lifestyle Matters
-              </p>
-              <div style="flex: 1; height: 1px; background-color: #5D8736; margin-left: 12px;"></div>
+            <v-progress-linear :model-value="progress" color="green" height="12" class="rounded-pill mt-2"/>
+
+            <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">
+              {{ progress }}%
             </div>
 
-            <!-- Card 1 -->
-            <v-card class="mt-4 pa-4 d-flex align-center" color="#e9f8ec" rounded="xl" elevation="2">
-              <v-icon color="#ff6b6b" size="40" class="mr-4">mdi-heart-pulse</v-icon>
-              <div>
-                <p class="card-title">Manages Blood Sugar</p>
-                <p class="card-description">Balanced meals help stabilize your glucose levels and prevent dangerous spikes or crashes.</p>
-              </div>
-            </v-card>
+            <v-btn color="#5D8736" class="mt-3" rounded="lg" variant="flat" @click="$router.push('/myprogress')"
+                   style="font-family: 'Syne', sans-serif;"> <v-icon start class="mr-2">mdi-eye</v-icon> View Progress
+            </v-btn>
 
+          </v-card>
+
+
+         <!-- Why It Matters Section -->
+        <div class="px-4 mt-6">
+          <div class="d-flex align-center justify-center my-6">
+            <div style="flex: 1; height: 1px; background-color: #5D8736; margin-right: 12px;"></div>
+            <p class="text-h6 mb-0" style="font-family:'Syne', sans-serif; white-space: nowrap;">
+              Why Living a Healthy Lifestyle Matters
+            </p>
+            <div style="flex: 1; height: 1px; background-color: #5D8736; margin-left: 12px;"></div>
+          </div>
+
+          <!-- Card 1 -->
+          <v-row dense>
+            <v-col cols="12" md="6">
+              <v-card class="mt-4 pa-4 d-flex align-center" color="#e9f8ec" rounded="xl" elevation="2">
+                <v-icon color="#ff6b6b" size="40" class="mr-4">mdi-food-apple</v-icon>
+                <div>
+                  <p class="card-title">Manages Blood Sugar</p>
+                  <p class="card-description">Balanced meals help stabilize your glucose levels and prevent dangerous spikes or crashes.</p>
+                </div>
+              </v-card>
+            </v-col>
+            
             <!-- Card 2 -->
-            <v-card class="mt-4 pa-4 d-flex align-center" color="#def5dc" rounded="xl" elevation="2">
-              <v-icon color="#f9a825" size="40" class="mr-4">mdi-eye-check</v-icon>
-              <div>
-                <p class="card-title">Protects Vision</p>
-                <p class="card-description">Proper nutrition reduces the risk of diabetic retinopathy and supports eye health.</p>
-              </div>
-            </v-card>
+            <v-col cols="12" md="6">
+              <v-card class="mt-4 pa-4 d-flex align-center" color="#f0f9e5" rounded="xl" elevation="2">
+                <v-icon color="#ab47bc" size="40" class="mr-4">mdi-emoticon-happy</v-icon>
+                <div>
+                  <p class="card-title">Supports Mental Well-being</p>
+                  <p class="card-description">A healthy diet contributes to better mood and helps manage stress and anxiety linked to diabetes.</p>
+                </div>
+              </v-card>
+            </v-col>
 
             <!-- Card 3 -->
-            <v-card class="mt-4 pa-4 d-flex align-center" color="#d3f1df" rounded="xl" elevation="2">
-              <v-icon color="#42a5f5" size="40" class="mr-4">mdi-foot-print</v-icon>
-              <div>
-                <p class="card-title">Improves Circulation</p>
-                <p class="card-description">Healthy food helps blood flow, lowering the risk of nerve damage and foot complications.</p>
-              </div>
-            </v-card>
+            <v-col cols="12" md="6">
+              <v-card class="mt-4 pa-4 d-flex align-center" color="#def5dc" rounded="xl" elevation="2">
+                <v-icon color="#f9a825" size="40" class="mr-4">mdi-eye-check</v-icon>
+                <div>
+                  <p class="card-title">Protects Vision</p>
+                  <p class="card-description">Proper nutrition reduces the risk of diabetic retinopathy and supports eye health.</p>
+                </div>
+              </v-card>
+            </v-col>
 
             <!-- Card 4 -->
-            <v-card class="mt-4 pa-4 d-flex align-center" color="#f0f9e5" rounded="xl" elevation="2">
-              <v-icon color="#ab47bc" size="40" class="mr-4">mdi-emoticon-happy</v-icon>
-              <div>
-                <p class="card-title">Supports Mental Well-being</p>
-                <p class="card-description">A healthy diet contributes to better mood and helps manage stress and anxiety linked to diabetes.</p>
-              </div>
-            </v-card>
+            <v-col cols="12" md="6">
+              <v-card class="mt-4 pa-4 d-flex align-center" color="#e3f4e0" rounded="xl" elevation="2">
+                <v-icon color="#26a69a" size="40" class="mr-4">mdi-shield-check</v-icon>
+                <div>
+                  <p class="card-title">Boosts Immunity</p>
+                  <p class="card-description">Nutritious meals enhance your immune system, helping fight infections more effectively.</p>
+                </div>
+              </v-card>
+            </v-col>
 
             <!-- Card 5 -->
-            <v-card class="mt-4 pa-4 d-flex align-center" color="#e3f4e0" rounded="xl" elevation="2">
-              <v-icon color="#26a69a" size="40" class="mr-4">mdi-shield-check</v-icon>
+            <v-col cols="12" md="6">
+              <v-card class="mt-4 pa-4 d-flex align-center" color="#d3f1df" rounded="xl" elevation="2">
+                <v-icon color="#42a5f5" size="40" class="mr-4">mdi-foot-print</v-icon>
+                <div>
+                  <p class="card-title">Improves Circulation</p>
+                  <p class="card-description">Healthy food helps blood flow, lowering the risk of nerve damage and foot complications.</p>
+                </div>
+              </v-card>
+            </v-col>
+
+            <!-- Card 6 -->
+            <v-col cols="12" md="6">
+            <v-card class="mt-4 pa-4 d-flex align-center" color="#def5dc" rounded="xl" elevation="2">
+              <v-icon color="#320A6B" size="40" class="mr-4">mdi-heart-pulse</v-icon>
               <div>
-                <p class="card-title">Boosts Immunity</p>
-                <p class="card-description">Nutritious meals enhance your immune system, helping fight infections more effectively.</p>
+                <p class="card-title">Promotes Heart Health</p>
+                <p class="card-description">Nutritious meals lower cholesterol and blood pressure, reducing the risk of heart disease.</p>
               </div>
             </v-card>
-          </div>
+            </v-col>
+          </v-row>
+        </div>
+
           <br>
-        
-          <!-- Bottom Navigation -->
-          <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
-            <v-btn @click="$router.push('/home')" class="nav-tab">
-              <v-icon>mdi-home</v-icon><span>Home</span>
-            </v-btn>
+        <!-- Bottom Navigation -->
+        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+          <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
+              <v-icon>mdi-home</v-icon>
+            </span>
+            <span>Home</span>
+          </v-btn>
 
-            <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
-              <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-            </v-btn>
+          <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/meal-plan' }">
+              <v-icon>mdi-heart-pulse</v-icon>
+            </span>
+            <span>Meal Plan</span>
+          </v-btn>
 
-            <v-btn @click="$router.push('/profile')" class="nav-tab">
-              <v-icon>mdi-account</v-icon><span>Profile</span>
-            </v-btn>
+          <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
+              <v-icon>mdi-account</v-icon>
+            </span>
+            <span>Profile</span>
+          </v-btn>
 
-            <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-              <v-icon>mdi-chart-line</v-icon><span>Progress</span>
-            </v-btn>
-          </v-bottom-navigation>
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
+              <v-icon>mdi-chart-line</v-icon>
+            </span>
+            <span>Progress</span>
+          </v-btn>
+        </v-bottom-navigation>
+
       </v-container>
     </v-main>
   </v-app>
@@ -175,7 +226,7 @@ onMounted(async () => {
   border-bottom-right-radius: 40px;
 }
 
-.greeting-mascot {
+.gif {
   width: 120px; 
   animation: floatBounce 2.5s ease-in-out infinite;
 }
@@ -214,7 +265,7 @@ onMounted(async () => {
     transform: translateX(0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translateX(-30%);
   }
 }
 
@@ -254,6 +305,20 @@ onMounted(async () => {
   color: #444;
 }
 
+.icon-wrapper {  /* start nav bar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;   
+  height: 30px;
+  border-radius: 50%;
+}
+
+.icon-wrapper.active {
+  background-color: white;
+  color: #5B913B;
+}
+
 .nav-bar .v-btn {
   flex-direction: column;
   color: white;
@@ -273,7 +338,7 @@ onMounted(async () => {
   font-size: 24px;
 }
 
-.nav-bar span {
+.nav-bar span { /* end nav bar */
   font-size: 12px;
   margin-top: 4px;
 }

@@ -202,7 +202,6 @@ async function submitForm() {
 }
 </script>
 
-
 <template>
   <v-app>
     <v-main>

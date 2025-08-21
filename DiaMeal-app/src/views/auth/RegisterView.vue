@@ -63,15 +63,18 @@ const { data, error } = await supabase.auth.signUp({
     console.error(error);
     formAction.value.formErrorMessage = error.message;
     formAction.value.formStatus = error.status;
+    alert(`Registration failed: ${error.message}`);
   } else {
     formAction.value.formSuccessMessage = 'Successfully registered! Please check your email to confirm your account.';
+    alert('Successfully registered! Please check your email to confirm your account.');
     // Optionally redirect to login
     setTimeout(() => {
       router.push('/login');
     }, 2000);
   }
 
-  formAction.value.formProcess = false;
+formAction.value.formProcess = false;
+
 };
 </script>
 

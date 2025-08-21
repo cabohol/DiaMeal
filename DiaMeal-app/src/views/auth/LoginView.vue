@@ -3,6 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { requiredValidator, emailValidator } from '@/utils/validator';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AlertNotification from '@/components/AlertNotification.vue'; 
 
 const router = useRouter();
 
@@ -23,11 +24,6 @@ const formAction = ref({ ...formActionDefault });
 const isPasswordVisible = ref(false);
 const refVForm = ref();
 
-// Snackbar
-const snackbar = ref(false);
-const snackbarMessage = ref('');
-const snackbarColor = ref('green');
-
 const onFormSubmit = () => {
   if (refVForm.value?.validate()) {
     onSubmit();
@@ -47,18 +43,8 @@ const onSubmit = async () => {
     console.error(error);
     formAction.value.formErrorMessage = error.message;
     formAction.value.formStatus = error.status;
-
-    // Snackbar for error
-    snackbarMessage.value = error.message;
-    snackbarColor.value = 'red';
-    snackbar.value = true;
   } else if (data?.user) {
     formAction.value.formSuccessMessage = 'Successfully Logged In!';
-
-    // Snackbar for success
-    snackbarMessage.value = 'Successfully Logged In!';
-    snackbarColor.value = 'green';
-    snackbar.value = true;
 
     setTimeout(() => {
       router.push('/home');
@@ -74,6 +60,7 @@ const onSubmit = async () => {
     <v-main>
       <v class="d-flex flex-column align-center justify-center text-center px-4"
         style="min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
+
         <!-- Top Image -->
         <v-img src="/src/assets/diameal-header.jpg" cover height="40%" class="position-absolute top-0 left-0 w-100" style="z-index: 0; opacity: 0.70" />
 
@@ -135,10 +122,9 @@ const onSubmit = async () => {
           </div>
         </v-form>
 
-        <!-- Snackbar -->
-        <v-snackbar v-model="snackbar" :color="snackbarColor" absolute top rounded="pill" timeout="1500" elevation="12">
-          <v-icon start>{{ snackbarColor === 'green' ? 'mdi-check-circle' : 'mdi-alert-circle' }}</v-icon>{{ snackbarMessage }}
-        </v-snackbar>
+        <!-- AlertNotification Component -->
+        <AlertNotification :formSuccessMessage="formAction.formSuccessMessage"
+                           :formErrorMessage="formAction.formErrorMessage"/>
       </v>
     </v-main>
   </v-app>

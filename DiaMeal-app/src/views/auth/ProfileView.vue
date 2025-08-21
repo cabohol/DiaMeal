@@ -2,16 +2,16 @@
 import { supabase } from '@/utils/supabase';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import AlertNotification from '@/components/AlertNotification.vue';
 
 const user = ref(null);
 const profileImageUrl = ref('');
 const uploading = ref(false);
 const router = useRouter();
 
-// Snackbar
-const snackbar = ref(false);
-const snackbarMessage = ref('');
-const snackbarColor = ref('green');
+// Alert messages
+const formSuccessMessage = ref('');
+const formErrorMessage = ref('');
 
 const fetchUser = async () => {
   const { data, error } = await supabase.auth.getUser();
@@ -19,8 +19,6 @@ const fetchUser = async () => {
     console.error('Error fetching user:', error);
     return;
   }
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-  user.value = currentUser;
 
   user.value = data.user;
 
@@ -58,14 +56,10 @@ const handleImageChange = async (event) => {
 
     if (updateError) throw updateError;
 
-    snackbarMessage.value = 'Profile image updated successfully!';
-    snackbarColor.value = 'green';
-    snackbar.value = true;
+    showSuccess('Profile Image Updated Successfully!');
   } catch (err) {
-    console.error('Error updating profile image:', err);
-    snackbarMessage.value = 'Failed to update profile image!';
-    snackbarColor.value = 'red';
-    snackbar.value = true;
+    console.error('Error Updating Profile Image:', err);
+    showError('Failed to Update Profile Image!');
   } finally {
     uploading.value = false;
   }
@@ -74,20 +68,26 @@ const handleImageChange = async (event) => {
 const handleLogout = async () => {
   try {
     await supabase.auth.signOut();
-    snackbarMessage.value = 'Logged out successfully!';
-    snackbarColor.value = 'green';
-    snackbar.value = true;
+    showSuccess('Logged Out Successfully!');
 
-    // Wait 1.2s for snackbar then redirect
     setTimeout(() => {
       router.push('/login');
     }, 1200);
   } catch (err) {
     console.error('Logout error:', err);
-    snackbarMessage.value = 'Failed to log out!';
-    snackbarColor.value = 'red';
-    snackbar.value = true;
+    showError('Failed to Log Out!');
   }
+};
+
+// Alert Notif Message
+const showSuccess = (message) => {
+  formSuccessMessage.value = message;
+  formErrorMessage.value = '';
+};
+
+const showError = (message) => {
+  formErrorMessage.value = message;
+  formSuccessMessage.value = '';
 };
 
 onMounted(fetchUser);
@@ -96,9 +96,8 @@ onMounted(fetchUser);
 <template>
   <v-app>
     <v-main>
-      <div
-        style="background-color: #A9C46C; height: 250px; border-bottom-left-radius: 100% 40px; 
-        border-bottom-right-radius: 100% 40px; position: relative;">
+      <div  class="moving-bg" style="background-color: #A9C46C; height: 250px; border-bottom-left-radius: 100% 40px; 
+            border-bottom-right-radius: 100% 40px; position: relative; overflow: hidden;">
       </div>
 
       <v-container class="py-10" fluid>
@@ -169,13 +168,12 @@ onMounted(fetchUser);
           </v-col>
         </v-row>
 
-        <!-- Snackbar -->
-        <v-snackbar v-model="snackbar" :color="snackbarColor" absolute top rounded="pill" timeout="1500" elevation="12">
-          <v-icon start>{{ snackbarColor === 'green' ? 'mdi-check-circle' : 'mdi-alert-circle' }}</v-icon>{{ snackbarMessage }}
-        </v-snackbar>
+        <!-- AlertNotification Component -->
+        <AlertNotification :formSuccessMessage="formSuccessMessage" 
+                           :formErrorMessage="formErrorMessage"/>
 
         <!-- Bottom Navigation -->
-        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B; margin-bottom: -1px;">
           <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
             <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
               <v-icon>mdi-home</v-icon>
@@ -209,8 +207,32 @@ onMounted(fetchUser);
   </v-app>
 </template>
 
+
+
 <style scoped>
-.icon-wrapper {
+.moving-bg {   /* moving bg */
+  background: linear-gradient(-45deg, #A9C46C, #B6D37E, #94B55C, #A9C46C);
+  background-size: 400% 400%;
+  height: 250px;
+  border-bottom-left-radius: 100% 40px; 
+  border-bottom-right-radius: 100% 40px;
+  position: relative;
+  animation: gradientMove 8s ease infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}        /* moving bg */
+
+.icon-wrapper {   /* start nav bar */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -243,7 +265,7 @@ onMounted(fetchUser);
   font-size: 24px;
 }
 
-.nav-bar span {
+.nav-bar span {    /* end nav bar */
   font-size: 12px;
   margin-top: 4px;
 }

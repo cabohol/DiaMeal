@@ -23,39 +23,39 @@ onMounted(async () => {
   <v-app>
     <v-main >
       <v-container fluid class="pa-0" style="position: relative; overflow: hidden;">
-        <div class="py-8 rounded-bottom"
-          style="z-index: 1; position: relative; background-color: #5D8736;">
-          <v-container class="d-flex justify-space-between align-center">
-              <div>
-                <p
-                  class="text-left"
-                  style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white; font-size: 35px;"
-                >
-                  Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
-                </p>
-              </div>
+<div class="py-8 rounded-bottom animated-bg"
+  style="z-index: 1; position: relative;">
+  <v-container class="d-flex justify-space-between align-center">
+      <div>
+        <p
+          class="text-left"
+          style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white; font-size: 35px;"
+        >
+          Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
+        </p>
+      </div>
 
-              <!-- GIF -->
-              <div style="margin-top: -50px;">
-                <img
-                  src="/src/assets/giphy.gif"
-                  alt="Food Mascot"
-                  class="gif"
-                />
-              </div>
-          </v-container>
+      <!-- GIF -->
+      <div style="margin-top: -50px;">
+        <img
+          src="/src/assets/giphy.gif"
+          alt="Food Mascot"
+          class="gif"
+        />
+      </div>
+  </v-container>
 
-          <!-- Welcome Message -->
-          <v-container>
-            <p
-              class="text-center"
-              style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -35px;"
-            >
-              “ Welcome to DiaMeal - an AI meal planner for healthier living.
-              Get personalized meal plans tailored to your health, preferences, and budget! ”
-            </p>
-          </v-container>
-        </div>
+  <!-- Welcome Message -->
+  <v-container>
+    <p
+      class="text-center"
+      style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -35px;"
+    >
+      “ Welcome to DiaMeal - an AI meal planner for healthier living.
+      Get personalized meal plans tailored to your health, preferences, and budget! ”
+    </p>
+  </v-container>
+</div>
 
           <!-- Food Images -->
           <br>
@@ -184,7 +184,7 @@ onMounted(async () => {
 
           <br>
         <!-- Bottom Navigation -->
-        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B; margin-bottom: -1px;">
           <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
             <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
               <v-icon>mdi-home</v-icon>
@@ -221,6 +221,29 @@ onMounted(async () => {
 
 
 <style scoped>
+.animated-bg {
+  position: relative;
+  height: auto;
+  border-bottom-left-radius: 100% 40px;
+  border-bottom-right-radius: 100% 40px;
+  overflow: hidden;
+  background: linear-gradient(-45deg, #5D8736, #A9C46C, #7BAA4B, #5D8736);
+  background-size: 400% 400%;
+  animation: gradientMove 10s ease infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .rounded-bottom {
   border-bottom-left-radius: 40px;
   border-bottom-right-radius: 40px;

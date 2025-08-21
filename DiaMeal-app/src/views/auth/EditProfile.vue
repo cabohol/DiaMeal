@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
+import AlertNotification from '@/components/AlertNotification.vue'
 
 const router = useRouter()
 const user = ref(null)
@@ -13,10 +14,9 @@ const address = ref('')
 const profileImageUrl = ref('')
 const uploading = ref(false)
 
-// Snackbar
-const snackbar = ref(false)
-const snackbarMessage = ref('')
-const snackbarColor = ref('green') // green for success, red for error
+// Alert messages
+const formSuccessMessage = ref('')
+const formErrorMessage = ref('')
 
 const fetchUser = async () => {
   const { data: { user: currentUser } } = await supabase.auth.getUser()
@@ -64,16 +64,11 @@ const handleImageChange = async (event) => {
 
     if (updateError) throw updateError
 
-    // Snackbar success
-    snackbarMessage.value = 'Profile image updated successfully!'
-    snackbarColor.value = 'green'
-    snackbar.value = true
+    showSuccess('Profile Image Updated Successfully!')
 
   } catch (err) {
     console.error(err)
-    snackbarMessage.value = 'Failed to update profile!'
-    snackbarColor.value = 'red'
-    snackbar.value = true
+    showError('Failed to Update Profile Image!')
   } finally {
     uploading.value = false
   }
@@ -95,22 +90,27 @@ const saveDetails = async () => {
 
     if (error) throw error
 
-    // Snackbar success
-    snackbarMessage.value = 'Profile updated successfully!'
-    snackbarColor.value = 'green'
-    snackbar.value = true
+    showSuccess('Information Updated Successfully!')
 
-    // Redirect to profile page after 1.5 seconds
     setTimeout(() => {
       router.push('/profile')
     }, 1500)
 
   } catch (err) {
     console.error(err)
-    snackbarMessage.value = 'Failed to update profile!'
-    snackbarColor.value = 'red'
-    snackbar.value = true
+    showError('Failed to Update Information!')
   }
+}
+
+// Alert Notification
+const showSuccess = (message) => {
+  formSuccessMessage.value = message
+  formErrorMessage.value = ''
+}
+
+const showError = (message) => {
+  formErrorMessage.value = message
+  formSuccessMessage.value = ''
 }
 
 onMounted(fetchUser)
@@ -179,28 +179,24 @@ onMounted(fetchUser)
           </v-col>
         </v-row>
 
-        <!-- Snackbar -->
-        <v-snackbar v-model="snackbar" :color="snackbarColor" top rounded="pill" timeout="1500">
-          <v-icon start>{{ snackbarColor === 'green' ? 'mdi-check-circle' : 'mdi-alert-circle' }}</v-icon>
-          {{ snackbarMessage }}
-        </v-snackbar>
+        <!-- AlertNotification Component -->
+        <AlertNotification :formSuccessMessage="formSuccessMessage" 
+                           :formErrorMessage="formErrorMessage" />
       </v-container>
 
     </v-main>
   </v-app>
 </template>
 
-
-
 <style scoped>
 .syne-font {
   font-family: 'Syne', sans-serif !important;
 }
 
-/* make outline green only when the field is focused */
 :deep(.custom-field .v-field--focused .v-field__outline__start),
 :deep(.custom-field .v-field--focused .v-field__outline__end),
 :deep(.custom-field .v-field--focused .v-field__outline__notch) {
   border-color: #5D8736 !important;
 }
 </style>
+

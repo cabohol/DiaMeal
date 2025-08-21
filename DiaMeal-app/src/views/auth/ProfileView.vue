@@ -19,6 +19,7 @@ const fetchUser = async () => {
     console.error('Error fetching user:', error);
     return;
   }
+
   user.value = data.user;
 
   if (user.value?.user_metadata?.avatar_url) {

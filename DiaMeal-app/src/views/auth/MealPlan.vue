@@ -455,11 +455,8 @@ async function submitForm() {
             <span>Profile</span>
           </v-btn>
 
-          <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
-            <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
-              <v-icon>mdi-chart-line</v-icon>
-            </span>
-            <span>Progress</span>
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
+            <v-icon>mdi-chart-line</v-icon><span>Progresss</span>
           </v-btn>
         </v-bottom-navigation>
     </v-main>

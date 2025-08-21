@@ -1,66 +1,92 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { supabase } from '@/utils/supabase'
 
-// Days
+// Days (we'll show "Day 1" for now; you can expand to more later)
 const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7']
 const selectedDay = ref('Day 1')
 
- console.log('User and lab results saved successfully!');
+const loading = ref(false)
+const errorMsg = ref('')
+const mealsByType = ref({
+  breakfast: [],
+  lunch: [],
+  dinner: []
+})
 
-    // Step 5: Call backend API for Groq DeepSeek streaming
-    // mealPlanText.value = '';
-    // const response = await fetch('/api/generateMealPlan', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     userData: {
-    //       ...basicInfo.value,
-    //       ...labResults.value,
-    //       full_name: fullName,
-    //       email: email
-    //     }
-    //   })
-    // });
-// Meals data per day
-const allMeals = {
-  'Day 1': [
-    {
-      title: 'BREAKFAST',
-      name: 'Vegetable Omelette with Rice',
-      time: '15 mins',
-      calories: '495 kcal',
-      image: 'https://via.placeholder.com/200'
-    },
-    {
-      title: 'LUNCH',
-      name: 'Grilled Chicken with Rice',
-      time: '20 mins',
-      calories: '520 kcal',
-      image: 'https://via.placeholder.com/200'
-    },
-    {
-      title: 'DINNER',
-      name: 'Salmon with Steamed Veggies',
-      time: '25 mins',
-      calories: '480 kcal',
-      image: 'https://via.placeholder.com/200'
+// Fetch the current user id, then call API
+const fetchMealPlan = async () => {
+  loading.value = true
+  errorMsg.value = ''
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('User not authenticated')
+
+    // If your 'users' table uses auth uid as id, map accordingly.
+    // Otherwise you might need to query users table by email to get its numeric/uuid id.
+    // Here we assume you used the 'users' table id returned when saving in MealPlan.vue.
+    // If you saved by email, fetch that row first to get its id:
+    const { data: userRow, error: userRowErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .single()
+    if (userRowErr || !userRow) throw userRowErr || new Error('User row not found')
+
+    const resp = await fetch('/api/generateMealPlan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userRow.id })
+    })
+
+    // ensure JSON only
+    const text = await resp.text()
+    let json
+    try {
+      json = JSON.parse(text)
+    } catch (e) {
+      console.error('Non-JSON response:', text)
+      throw new Error('Response was not valid JSON')
     }
-  ],
-  // You can repeat or modify for Day 2 - Day 7
-  'Day 2': [],
-  'Day 3': [],
-  'Day 4': [],
-  'Day 5': [],
-  'Day 6': [],
-  'Day 7': []
+
+    if (!json.success) {
+      throw new Error(json.error || 'Failed to generate meal plan')
+    }
+
+    // Store per meal type
+    mealsByType.value = {
+      breakfast: json.mealsByType?.breakfast || [],
+      lunch: json.mealsByType?.lunch || [],
+      dinner: json.mealsByType?.dinner || []
+    }
+  } catch (err) {
+    console.error('Error fetching meal plan:', err)
+    errorMsg.value = err.message || 'Something went wrong'
+  } finally {
+    loading.value = false
+  }
 }
 
-const goBack = () => {
-  window.history.back()
-}
+onMounted(fetchMealPlan)
+
+const goBack = () => window.history.back()
+
+const sections = computed(() => ([
+  { key: 'breakfast', title: 'BREAKFAST' },
+  { key: 'lunch', title: 'LUNCH' },
+  { key: 'dinner', title: 'DINNER' }
+]))
 
 const viewMeal = (meal) => {
-  alert(`Viewing details for ${meal.name}`)
+  const details = [
+    `Name: ${meal.name}`,
+    `Time: ${meal.preparation_time || 'N/A'}`,
+    `Calories: ${typeof meal.calories === 'number' ? `${meal.calories} kcal` : 'N/A'}`,
+    `Ingredients: ${(meal.ingredients || []).join(', ')}`,
+    `Procedure: ${meal.procedures || 'N/A'}`
+  ].join('\n')
+  alert(details)
 }
 </script>
 
@@ -73,12 +99,10 @@ const viewMeal = (meal) => {
       </v-btn>
       <v-toolbar-title class="text-white">Weekly Menu</v-toolbar-title>
     </v-app-bar>
-    
-    <br>
-    <br>
-    <br>
-    <br>
-    <!-- Day Selector Scroll -->
+
+    <br><br><br><br>
+
+    <!-- Day Selector (only Day 1 has content for now) -->
     <div class="day-scroll">
       <div class="day-buttons">
         <v-btn
@@ -96,43 +120,87 @@ const viewMeal = (meal) => {
       <br>
     </div>
 
-    <!-- Meals List -->
     <v-container>
-      <v-card
-        v-for="(meal, index) in allMeals[selectedDay]"
-        :key="index"
-        class="pa-4 my-4"
-        rounded="lg"
-        elevation="0"
-        style="background-color: #E8F5C8;"
+      <v-alert
+        v-if="errorMsg"
+        type="error"
+        variant="tonal"
+        class="mb-4"
       >
-        <v-img
-          :src="meal.image"
-          aspect-ratio="1"
-          class="rounded-circle mx-auto"
-          max-width="200"
-        ></v-img>
+        {{ errorMsg }}
+      </v-alert>
 
-        <v-card-text class="text-center">
-          <h4 class="font-weight-bold">{{ meal.title }}</h4>
-          <p class="mb-1">{{ meal.name }}</p>
-          <p class="text-grey-darken-1">
-            Time: {{ meal.time }}<br>
-            Calories: {{ meal.calories }}
-          </p>
-          <v-btn
-            color="#5D8736"
-            rounded
-            class="mt-2 text-white"
-            @click="viewMeal(meal)"
+      <v-skeleton-loader
+        v-if="loading"
+        type="image, article, actions"
+        class="mb-6"
+      />
+
+      <!-- Sections: Breakfast / Lunch / Dinner -->
+      <template v-if="!loading && !errorMsg">
+        <v-card
+          v-for="sec in sections"
+          :key="sec.key"
+          class="pa-4 my-6"
+          rounded="lg"
+          elevation="0"
+          style="background-color: #E8F5C8;"
+        >
+          <h3 class="text-center font-weight-bold mb-3">{{ sec.title }}</h3>
+
+          <v-slide-group
+            show-arrows
+            class="px-2"
           >
-            View
-            <v-icon end>mdi-chevron-right</v-icon>
-          </v-btn>
-        </v-card-text>
-      </v-card>
-      <br>
-      <br>
+            <v-slide-group-item
+              v-for="(meal, idx) in mealsByType[sec.key]"
+              :key="sec.key + '-' + idx"
+            >
+              <v-card
+                class="ma-3 pa-4 d-flex flex-column align-center"
+                max-width="280"
+                rounded="lg"
+                elevation="1"
+              >
+                <v-img
+                  :src="'https://via.placeholder.com/280x180'"
+                  width="100%"
+                  height="180"
+                  cover
+                  class="rounded-lg mb-3"
+                />
+                <div class="text-center">
+                  <div class="font-weight-bold mb-1">{{ meal.name }}</div>
+                  <div class="text-grey-darken-1 mb-1">
+                    Time: {{ meal.preparation_time || 'N/A' }}
+                  </div>
+                  <div class="text-grey-darken-1">
+                    Calories:
+                    <span>
+                      {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'N/A' }}
+                    </span>
+                  </div>
+                  <v-btn
+                    color="#5D8736"
+                    rounded
+                    class="mt-3 text-white"
+                    @click="viewMeal(meal)"
+                  >
+                    View
+                    <v-icon end>mdi-chevron-right</v-icon>
+                  </v-btn>
+                </div>
+              </v-card>
+            </v-slide-group-item>
+          </v-slide-group>
+
+          <div v-if="!mealsByType[sec.key]?.length" class="text-center py-6">
+            <em>No {{ sec.title.toLowerCase() }} options yet.</em>
+          </div>
+        </v-card>
+      </template>
+
+      <br><br>
     </v-container>
 
     <!-- Bottom Navigation -->
@@ -155,6 +223,9 @@ const viewMeal = (meal) => {
     </v-bottom-navigation>
   </v-app>
 </template>
+
+
+
 
 <style scoped>
 /* Horizontal Scroll for Days */

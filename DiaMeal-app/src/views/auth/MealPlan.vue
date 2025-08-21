@@ -7,6 +7,12 @@ const router = useRouter();
 const tab = ref(0);
 const currentUser = ref(null);
 const required = v => !!v || 'This field is required';
+const infoDialog = ref(false);  // for FBS
+const ppbsDialog = ref(false);  // for PPBS
+const hba1cDialog = ref(false);
+const glucoseToleranceDialog = ref(false);
+
+
 
 const basicInfo = ref({
   gender: '',
@@ -136,7 +142,6 @@ async function submitForm() {
           diabetes_type: basicInfo.value.diabetesType,
           budget: parseFloat(basicInfo.value.budget),
           last_submission_date: new Date(),
-          updated_at: new Date()
         })
         .eq('id', existingUser.id)
         .select()
@@ -366,31 +371,101 @@ async function submitForm() {
             <v-row dense>
 
               <!-- Fasting Blood Sugar -->
-              <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="labResults.fbs"
-                  label="Fasting Blood Sugar [mg/dL]"
-                  :rules="[required]"
-                  type="number"
-                  color="success"
-                  prepend-inner-icon="mdi-water-percent"
-                />
-              </v-col>
+             <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="labResults.fbs"
+                label="Fasting Blood Sugar [mg/dL]"
+                :rules="[required]"
+                type="number"
+                color="success"
+                prepend-inner-icon="mdi-water-percent"
+                placeholder="e.g., 95"
+                hint="Enter your fasting blood sugar in mg/dL"
+                persistent-hint
+              >
+                <!-- Info Icon inside the text field -->
+                <template v-slot:append>
+                  <v-icon
+                    class="ml-2"
+                    color="#5D8736"
+                    @click="infoDialog = true"
+                    style="cursor: pointer"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+              </v-text-field>
+            </v-col>
+
+
+            <!-- Dialog for Info -->
+            <v-dialog v-model="infoDialog"  color="#5D8736" max-width="400px">
+              <v-card>
+                <v-card-title class="headline" style="background-color:#5D8736; color:white;">Fasting Blood Sugar Ranges</v-card-title>
+                <v-card-text>
+                  <ul>
+                    <li><strong>Normal (no diabetes):</strong> 70–99 mg/dL (3.9–5.5 mmol/L)</li>
+                    <li><strong>Prediabetes:</strong> 100–125 mg/dL (5.6–6.9 mmol/L)</li>
+                    <li><strong>Diabetes (Type 1 or Type 2):</strong> ≥126 mg/dL (7.0 mmol/L or higher) on two separate tests</li>
+                  </ul>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn  color="#5D8736" dark text @click="infoDialog = false">Close</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+
 
               <!-- PBS -->
               <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="labResults.ppbs"
-                  label="Postprandial Blood Sugar [mg/dL]"
-                  :rules="[required]"
-                  type="number"
-                  color="success"
-                  prepend-inner-icon="mdi-food-variant"
-                />
-              </v-col>
+              <v-text-field
+                v-model="labResults.ppbs"
+                label="Postprandial Blood Sugar [mg/dL]"
+                :rules="[required]"
+                type="number"
+                color="success"
+                prepend-inner-icon="mdi-food-variant"
+                placeholder="e.g., 120"
+                hint="Enter your PPBS in mg/dL"
+                persistent-hint
+              >
+                <!-- Info Icon inside the text field -->
+                <template v-slot:append>
+                  <v-icon
+                    class="ml-2"
+                    color="#5D8736"
+                    @click="ppbsDialog = true"
+                    style="cursor: pointer"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+              </v-text-field>
+            </v-col>
+
+            <!-- Dialog for PPBS Info -->
+            <v-dialog v-model="ppbsDialog" max-width="400px">
+              <v-card>
+                <v-card-title class="headline" style="background-color:#5D8736; color:white;">
+                  Postprandial Blood Sugar Ranges
+                </v-card-title>
+                <v-card-text>
+                  <ul>
+                    <li><strong>Normal (no diabetes):</strong> Less than 140 mg/dL (7.8 mmol/L)</li>
+                    <li><strong>Prediabetes:</strong> 140–199 mg/dL (7.8–11.0 mmol/L)</li>
+                    <li><strong>Diabetes (Type 1 or Type 2):</strong> 200 mg/dL (11.1 mmol/L) or higher</li>
+                  </ul>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="#5D8736" text @click="ppbsDialog = false">Close</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
 
               <!-- HBA1C -->
-              <v-col cols="12" sm="6">
+             <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.hba1c"
                   label="HbA1c [%]"
@@ -398,20 +473,95 @@ async function submitForm() {
                   type="number"
                   color="success"
                   prepend-inner-icon="mdi-percent"
-                />
+                  placeholder="e.g., 5.6"
+                  hint="Enter your HbA1c percentage"
+                  persistent-hint
+                >
+                  <!-- Info Icon inside the text field -->
+                  <template v-slot:append>
+                    <v-icon
+                      class="ml-2"
+                      color="#5D8736"
+                      @click="hba1cDialog = true"
+                      style="cursor: pointer"
+                    >
+                      mdi-information
+                    </v-icon>
+                  </template>
+                </v-text-field>
               </v-col>
 
+              <!-- Dialog for HbA1c Info -->
+              <v-dialog v-model="hba1cDialog" max-width="400px">
+                <v-card>
+                  <v-card-title class="headline" style="background-color:#5D8736; color:white;">
+                    HbA1c Ranges
+                  </v-card-title>
+                  <v-card-text>
+                    <ul>
+                      <li><strong>Normal (no diabetes):</strong> Below 5.7%</li>
+                      <li><strong>Prediabetes:</strong> 5.7% – 6.4%</li>
+                      <li><strong>Diabetes (Type 1 or Type 2):</strong> 6.5% or higher</li>
+                      <li><strong>Target for most people with diabetes:</strong> Below 7% (may vary based on doctor’s advice)</li>
+                    </ul>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="#5D8736" text @click="hba1cDialog = false">Close</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+
+
               <!-- Glucose Tolerance -->
-              <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="labResults.glucoseTolerance"
-                  label="Glucose Tolerance"
-                  :rules="[required]"
-                  type="number"
-                  color="success"
-                  prepend-inner-icon="mdi-test-tube"
-                />
-              </v-col>
+            <!-- Glucose Tolerance -->
+<v-col cols="12" sm="6">
+  <v-text-field
+    v-model="labResults.glucoseTolerance"
+    label="Glucose Tolerance [mg/dL]"
+    :rules="[required]"
+    type="number"
+    color="success"
+    prepend-inner-icon="mdi-test-tube"
+    placeholder="e.g., 135"
+    hint="Enter your 2-hour OGTT result"
+    persistent-hint
+  >
+    <!-- Info Icon inside the text field -->
+    <template v-slot:append>
+      <v-icon
+        class="ml-2"
+        color="#5D8736"
+        @click="glucoseToleranceDialog = true"
+        style="cursor: pointer"
+      >
+        mdi-information
+      </v-icon>
+    </template>
+  </v-text-field>
+</v-col>
+
+<!-- Dialog for Glucose Tolerance Info -->
+<v-dialog v-model="glucoseToleranceDialog" max-width="400px">
+  <v-card>
+    <v-card-title class="headline" style="background-color:#5D8736; color:white;">
+      Glucose Tolerance Test Ranges
+    </v-card-title>
+    <v-card-text>
+      <ul>
+        <li><strong>Normal:</strong> Less than 140 mg/dL (7.8 mmol/L)</li>
+        <li><strong>Prediabetes (Impaired Tolerance):</strong> 140–199 mg/dL (7.8–11.0 mmol/L)</li>
+        <li><strong>Diabetes:</strong> 200 mg/dL (11.1 mmol/L) or higher</li>
+      </ul>
+    </v-card-text>
+    <v-card-actions>
+      <v-spacer></v-spacer>
+      <v-btn color="#5D8736" text @click="glucoseToleranceDialog = false">Close</v-btn>
+    </v-card-actions>
+  </v-card>
+</v-dialog>
+
+
             </v-row>
 
             <!-- Cancel and Submit Buttons Centered -->

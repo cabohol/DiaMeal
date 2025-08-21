@@ -5,11 +5,7 @@ import { supabase } from '@/utils/supabase';
 
 const router = useRouter();
 const tab = ref(0);
-<<<<<<< HEAD
-const currentUser = ref(null); // Will store the authenticated user
-=======
 const currentUser = ref(null);
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 const required = v => !!v || 'This field is required';
 
 const basicInfo = ref({
@@ -30,33 +26,9 @@ const labResults = ref({
   glucoseTolerance: ''
 });
 
-<<<<<<< HEAD
-// Fetch authenticated user on mount
-onMounted(async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) {
-    console.error('Auth error:', error.message);
-  } else {
-    currentUser.value = user;
-  }
-});
-
-function cancelForm() {
-  labResults.value = {
-    fbs: '',
-    ppbs: '',
-    hba1c: '',
-    glucoseTolerance: ''
-  };
-}
-
-async function submitForm() {
-  try {
-    // Check if user is logged in
-=======
 const mealPlanText = ref(''); // Holds the streamed meal plan
 
-// ✅ On mount → get logged-in user
+// On mount → get logged-in user
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -70,14 +42,13 @@ onMounted(async () => {
   }
 });
 
-
 function cancelForm() {
   labResults.value = { fbs: '', ppbs: '', hba1c: '', glucoseTolerance: '' };
   basicInfo.value = { gender: '', age: '', height: '', weight: '', diabetesType: '', allergies: '', religiousDiet: '', budget: '' };
   mealPlanText.value = '';
 }
 
-// ✅ Helper – Get last submission date
+// Helper – Get last submission date
 async function getLastSubmissionDate(email) {
   const { data, error } = await supabase
     .from('users')
@@ -91,7 +62,6 @@ async function getLastSubmissionDate(email) {
 
   if (!data || data.length === 0) return null;
 
-  // Find the most recent last_submission_date
   const dates = data
     .map(row => row.last_submission_date)
     .filter(date => date !== null)
@@ -102,17 +72,15 @@ async function getLastSubmissionDate(email) {
   return new Date(Math.max(...dates)); // latest date
 }
 
-
-
-// ✅ Helper – Check if 7 days passed
+// Helper – Check if 7 days passed
 function hasSevenDaysPassed(lastDate) {
-  if (!lastDate) return true; // No submission yet → allow
+  if (!lastDate) return true; 
   const now = new Date();
   const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
   return diffDays >= 7;
 }
 
-// ✅ Navigation check for Meal Plan button
+// Navigation check for Meal Plan button
 async function checkMealPlanAccess() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
@@ -123,51 +91,23 @@ async function checkMealPlanAccess() {
   const lastDate = await getLastSubmissionDate(user.email);
 
   if (!lastDate) {
-    // First time → go to form
     router.push('/meal-plan');
   } else if (hasSevenDaysPassed(lastDate)) {
-    // 7 days passed → go to form again
     router.push('/meal-plan');
   } else {
-    // Still locked → go directly to weekly meal
     router.push('/weekly-meal');
   }
 }
 
-// ✅ Form submission
+// Form submission
 async function submitForm() {
   try {
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('User not authenticated');
 
     const fullName = user.user_metadata?.full_name || '';
     const email = user.email || '';
 
-<<<<<<< HEAD
-    // Step 1: Insert into 'users' table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert({
-        full_name: fullName,
-        email: email,
-        gender: basicInfo.value.gender,
-        age: parseInt(basicInfo.value.age),
-        height_cm: parseFloat(basicInfo.value.height),
-        weight_kg: parseFloat(basicInfo.value.weight),
-        diabetes_type: basicInfo.value.diabetesType,
-        budget: parseFloat(basicInfo.value.budget),
-        created_at: new Date()
-      })
-      .select()
-      .single();
-
-    if (userError) throw userError;
-
-    const userId = userData.id;
-
-    // Step 2: Insert allergies
-=======
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('id, last_submission_date')
@@ -179,9 +119,9 @@ async function submitForm() {
     if (existingUser?.last_submission_date) {
       const lastDate = new Date(existingUser.last_submission_date);
       if (!hasSevenDaysPassed(lastDate)) {
-        alert(`You can only submit once a week. Please try again later.`);
-        return;
-      }
+      alert('You can only submit once a week. Please try again later.');
+      return;
+    }
     }
 
     let userId;
@@ -224,7 +164,7 @@ async function submitForm() {
       userId = userData.id;
     }
 
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
+    // Insert allergies if provided
     if (basicInfo.value.allergies) {
       await supabase.from('allergies').insert({
         allergy: basicInfo.value.allergies,
@@ -233,10 +173,7 @@ async function submitForm() {
       });
     }
 
-<<<<<<< HEAD
-    // Step 3: Insert religious diet
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
+    // Insert religious diets if provided
     if (basicInfo.value.religiousDiet) {
       await supabase.from('religious_diets').insert({
         diet_type: basicInfo.value.religiousDiet,
@@ -245,10 +182,7 @@ async function submitForm() {
       });
     }
 
-<<<<<<< HEAD
-    // Step 4: Insert lab results
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
+    // Insert lab results
     await supabase.from('lab_results').insert({
       fasting_blood_sugar: parseFloat(labResults.value.fbs),
       postprandial_blood_sugar: parseFloat(labResults.value.ppbs),
@@ -259,23 +193,16 @@ async function submitForm() {
     });
 
     console.log('User and lab results saved successfully!');
-<<<<<<< HEAD
-=======
-    router.push('/weekly-meal');
+    // Pass userId to weekly-meal for fetching data
+    router.push({ path: '/weekly-meal', query: { userId } });
 
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
   } catch (error) {
     console.error('Error submitting form:', error.message);
   }
 }
 </script>
 
-<<<<<<< HEAD
 
-
-
-=======
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
 <template>
   <v-app>
     <v-main>
@@ -303,6 +230,8 @@ async function submitForm() {
         <v-window-item :value="0">
           <v-form class="mt-4" style="font-family: 'Syne', sans-serif;">
             <v-row dense>
+
+              <!-- Gender -->
               <v-col cols="12" sm="6">
                 <v-select
                   v-model="basicInfo.gender"
@@ -315,6 +244,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Age -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="basicInfo.age"
@@ -327,6 +257,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Height -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="basicInfo.height"
@@ -339,6 +270,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Weight -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="basicInfo.weight"
@@ -351,6 +283,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Diabetes Type -->
               <v-col cols="12">
                 <v-select
                   v-model="basicInfo.diabetesType"
@@ -363,28 +296,49 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Allergies -->
               <v-col cols="12">
-                <v-text-field
+                <v-select
                   v-model="basicInfo.allergies"
-                  label="Allergies"
-                  :rules="[required]"
+                  :items="[
+                    'Peanuts', 
+                    'Shellfish', 
+                    'Shrimp',
+                    'Crab',
+                    'Lobster', 
+                    'Eggs',]"
+                  label="Allergies (select all that apply)"
+                  multiple
+                  chips
+                  clearable
+                  deletable-chips
                   color="success"
                   class="mt-n2"
                   prepend-inner-icon="mdi-alert-octagon"
                 />
               </v-col>
 
+              <!-- Religious Diets -->
               <v-col cols="12">
-                <v-text-field
+                <v-select
                   v-model="basicInfo.religiousDiet"
+                  :items="[
+                    'Catholic (No meat on Fridays/Lent)', 
+                    'Islam (Halal)', 
+                    'Vegetarian', 
+                    'Vegan']"
                   label="Religious Diet (if any)"
-                  :rules="[required]"
+                  multiple
+                  chips
+                  clearable
+                  deletable-chips
                   color="success"
                   class="mt-n2"
-                  prepend-inner-icon="mdi-food"  
+                  prepend-inner-icon="mdi-food"
                 />
               </v-col>
 
+              <!-- Budget -->
               <v-col cols="12">
                 <v-text-field
                   v-model="basicInfo.budget"
@@ -396,19 +350,12 @@ async function submitForm() {
                   prepend-inner-icon="mdi-currency-php"  
                 />
               </v-col>
-
             </v-row>
 
             <!-- NEXT BUTTON -->
             <div class="d-flex justify-end">
-              <v-btn
-                color="#5D8736"
-                class="mt-4 text-white"
-                style="font-family: 'Syne', sans-serif; width: 200px;"
-                @click="tab = 1"
-                append-icon="mdi-arrow-right"
-              >
-                Next
+              <v-btn color="#5D8736" class="mt-4 text-white" style="font-family: 'Syne', sans-serif; 
+                     width: 200px;" @click="tab = 1" append-icon="mdi-arrow-right"> Next
               </v-btn>
             </div>
           </v-form>
@@ -418,6 +365,8 @@ async function submitForm() {
         <v-window-item :value="1">
           <v-form class="mt-4" style="font-family: 'Syne', sans-serif;">
             <v-row dense>
+
+              <!-- Fasting Blood Sugar -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.fbs"
@@ -429,6 +378,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- PBS -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.ppbs"
@@ -440,6 +390,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- HBA1C -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.hba1c"
@@ -451,6 +402,7 @@ async function submitForm() {
                 />
               </v-col>
 
+              <!-- Glucose Tolerance -->
               <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.glucoseTolerance"
@@ -466,33 +418,16 @@ async function submitForm() {
             <!-- Cancel and Submit Buttons Centered -->
             <div class="d-flex justify-center mt-6" style="gap: 16px;">
               <!-- Cancel Button -->
-              <v-btn
-                color="#A9C46C"
-                class="text-black"
-                style="font-family: 'Syne', sans-serif; width: 140px;"
-                @click="cancelForm"
-                prepend-icon="mdi-close-circle"
-              >
-                Cancel
+              <v-btn color="#A9C46C" class="text-black" style="font-family: 'Syne', sans-serif; width: 140px;"
+                @click="cancelForm" prepend-icon="mdi-close-circle">Cancel
               </v-btn>
 
               <!-- Submit Button -->
-              <v-btn
-                color="#5D8736"
-                class="text-white"
-                style="font-family: 'Syne', sans-serif; width: 140px;"
-                @click="submitForm"
-                prepend-icon="mdi-check"
-              >
-                Submit
+              <v-btn color="#5D8736" class="text-white" style="font-family: 'Syne', sans-serif; width: 140px;"
+                @click="submitForm"prepend-icon="mdi-check">Submit
               </v-btn>
             </div>
-<<<<<<< HEAD
-=======
             <!-- Live Meal Plan Output -->
-
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
           </v-form>
         </v-window-item>
         </v-window>
@@ -500,39 +435,54 @@ async function submitForm() {
 
         <!-- Bottom Navigation -->
         <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
-          <v-btn @click="$router.push('/home')" class="nav-tab">
-            <v-icon>mdi-home</v-icon><span>Home</span>
-          </v-btn>
-<<<<<<< HEAD
-
-          <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
-            <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-          </v-btn>
-=======
-        <v-btn @click="checkMealPlanAccess" class="nav-tab">
-          <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-        </v-btn>
-
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
-
-          <v-btn @click="$router.push('/profile')" class="nav-tab">
-            <v-icon>mdi-account</v-icon><span>Profile</span>
+          <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
+              <v-icon>mdi-home</v-icon>
+            </span>
+            <span>Home</span>
           </v-btn>
 
-<<<<<<< HEAD
-          <v-btn @click="$router.push('/progress')" class="nav-tab">
-            <v-icon>mdi-chart-line</v-icon><span>Progress</span>
-=======
-          <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-            <v-icon>mdi-chart-line</v-icon><span>Progresss</span>
->>>>>>> bbfcfab2e2ae32ec5165d74cc00237063671f71f
+          <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/meal-plan' }">
+              <v-icon>mdi-heart-pulse</v-icon>
+            </span>
+            <span>Meal Plan</span>
+          </v-btn>
+
+          <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
+              <v-icon>mdi-account</v-icon>
+            </span>
+            <span>Profile</span>
+          </v-btn>
+
+          <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
+            <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
+              <v-icon>mdi-chart-line</v-icon>
+            </span>
+            <span>Progress</span>
           </v-btn>
         </v-bottom-navigation>
     </v-main>
   </v-app>
 </template>
 
+
 <style scoped>
+.icon-wrapper {  /* start nav bar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;   
+  height: 30px;
+  border-radius: 50%;
+}
+
+.icon-wrapper.active {
+  background-color: white;
+  color: #5B913B;
+}
+
 .nav-bar .v-btn {
   flex-direction: column;
   color: white;
@@ -552,7 +502,7 @@ async function submitForm() {
   font-size: 24px;
 }
 
-.nav-bar span {
+.nav-bar span { /* end nav bar */
   font-size: 12px;
   margin-top: 4px;
 }

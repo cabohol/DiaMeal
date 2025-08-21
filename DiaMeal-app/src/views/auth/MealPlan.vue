@@ -13,15 +13,16 @@ const hba1cDialog = ref(false);
 const glucoseToleranceDialog = ref(false);
 
 
-
 const basicInfo = ref({
   gender: '',
   age: '',
   height: '',
   weight: '',
   diabetesType: '',
-  allergies: '',
-  religiousDiet: '',
+  allergies: [],     
+  otherAllergy: '',     
+  religiousDiet: [],   
+  otherReligiousDiet: '',
   budget: ''
 });
 
@@ -306,11 +307,11 @@ async function submitForm() {
                   v-model="basicInfo.allergies"
                   :items="[
                     'Peanuts', 
-                    'Shellfish', 
                     'Shrimp',
                     'Crab',
                     'Lobster', 
-                    'Eggs',]"
+                    'Eggs',
+                    'Other']"
                   label="Allergies (select all that apply)"
                   multiple
                   chips
@@ -319,6 +320,19 @@ async function submitForm() {
                   color="success"
                   class="mt-n2"
                   prepend-inner-icon="mdi-alert-octagon"
+                />
+
+                <!-- Show custom allergy input if 'Other' is selected -->
+                <v-text-field
+                  v-if="basicInfo.allergies.includes('Other')"
+                  v-model="basicInfo.otherAllergy"
+                  label="Please specify your other allergies"
+                  outlined
+                  dense
+                  clearable
+                  prepend-inner-icon="mdi-pencil"
+                  color="success"
+                  class="mt-2"
                 />
               </v-col>
 
@@ -330,7 +344,8 @@ async function submitForm() {
                     'Catholic (No meat on Fridays/Lent)', 
                     'Islam (Halal)', 
                     'Vegetarian', 
-                    'Vegan']"
+                    'Vegan',
+                    'Other']"
                   label="Religious Diet (if any)"
                   multiple
                   chips
@@ -339,6 +354,19 @@ async function submitForm() {
                   color="success"
                   class="mt-n2"
                   prepend-inner-icon="mdi-food"
+                />
+
+                <!-- Show custom religious diet input if 'Other' is selected -->
+                <v-text-field
+                  v-if="basicInfo.religiousDiet.includes('Other')"
+                  v-model="basicInfo.otherReligiousDiet"
+                  label="Please specify your other religious diet"
+                  outlined
+                  dense
+                  clearable
+                  prepend-inner-icon="mdi-pencil"
+                  color="success"
+                  class="mt-2"
                 />
               </v-col>
 
@@ -370,8 +398,8 @@ async function submitForm() {
           <v-form class="mt-4" style="font-family: 'Syne', sans-serif;">
             <v-row dense>
 
-              <!-- Fasting Blood Sugar -->
-             <v-col cols="12" sm="6">
+            <!-- Fasting Blood Sugar -->
+            <v-col cols="12" sm="6">
               <v-text-field
                 v-model="labResults.fbs"
                 label="Fasting Blood Sugar [mg/dL]"
@@ -384,22 +412,16 @@ async function submitForm() {
                 persistent-hint
               >
                 <!-- Info Icon inside the text field -->
-                <template v-slot:append>
-                  <v-icon
-                    class="ml-2"
-                    color="#5D8736"
-                    @click="infoDialog = true"
-                    style="cursor: pointer"
-                  >
-                    mdi-information
+                <template v-slot:prepend>
+                  <v-icon class="ml-2" color="#5D8736"
+                          @click="infoDialog = true" style="cursor: pointer"> mdi-information
                   </v-icon>
                 </template>
               </v-text-field>
             </v-col>
 
-
             <!-- Dialog for Info -->
-            <v-dialog v-model="infoDialog"  color="#5D8736" max-width="400px">
+            <v-dialog v-model="infoDialog"  color="#5D8736" max-width="400px" style="font-family: 'Syne', sans-serif;">
               <v-card>
                 <v-card-title class="headline" style="background-color:#5D8736; color:white;">Fasting Blood Sugar Ranges</v-card-title>
                 <v-card-text>
@@ -416,9 +438,8 @@ async function submitForm() {
               </v-card>
             </v-dialog>
 
-
-              <!-- PBS -->
-              <v-col cols="12" sm="6">
+            <!-- PBS -->
+            <v-col cols="12" sm="6">
               <v-text-field
                 v-model="labResults.ppbs"
                 label="Postprandial Blood Sugar [mg/dL]"
@@ -431,21 +452,16 @@ async function submitForm() {
                 persistent-hint
               >
                 <!-- Info Icon inside the text field -->
-                <template v-slot:append>
-                  <v-icon
-                    class="ml-2"
-                    color="#5D8736"
-                    @click="ppbsDialog = true"
-                    style="cursor: pointer"
-                  >
-                    mdi-information
+                <template v-slot:prepend>
+                  <v-icon class="ml-2" color="#5D8736"
+                          @click="ppbsDialog = true" style="cursor: pointer"> mdi-information
                   </v-icon>
                 </template>
               </v-text-field>
             </v-col>
 
             <!-- Dialog for PPBS Info -->
-            <v-dialog v-model="ppbsDialog" max-width="400px">
+            <v-dialog v-model="ppbsDialog" max-width="400px" style="font-family: 'Syne', sans-serif;">
               <v-card>
                 <v-card-title class="headline" style="background-color:#5D8736; color:white;">
                   Postprandial Blood Sugar Ranges
@@ -464,8 +480,8 @@ async function submitForm() {
               </v-card>
             </v-dialog>
 
-              <!-- HBA1C -->
-             <v-col cols="12" sm="6">
+            <!-- HBA1C -->
+            <v-col cols="12" sm="6">
                 <v-text-field
                   v-model="labResults.hba1c"
                   label="HbA1c [%]"
@@ -478,21 +494,16 @@ async function submitForm() {
                   persistent-hint
                 >
                   <!-- Info Icon inside the text field -->
-                  <template v-slot:append>
-                    <v-icon
-                      class="ml-2"
-                      color="#5D8736"
-                      @click="hba1cDialog = true"
-                      style="cursor: pointer"
-                    >
-                      mdi-information
+                  <template v-slot:prepend>
+                    <v-icon class="ml-2" color="#5D8736"
+                            @click="hba1cDialog = true" style="cursor: pointer"> mdi-information
                     </v-icon>
                   </template>
                 </v-text-field>
-              </v-col>
+            </v-col>
 
-              <!-- Dialog for HbA1c Info -->
-              <v-dialog v-model="hba1cDialog" max-width="400px">
+            <!-- Dialog for HbA1c Info -->
+            <v-dialog v-model="hba1cDialog" max-width="400px" style="font-family: 'Syne', sans-serif;">
                 <v-card>
                   <v-card-title class="headline" style="background-color:#5D8736; color:white;">
                     HbA1c Ranges
@@ -510,57 +521,49 @@ async function submitForm() {
                     <v-btn color="#5D8736" text @click="hba1cDialog = false">Close</v-btn>
                   </v-card-actions>
                 </v-card>
-              </v-dialog>
+            </v-dialog>
 
-
-              <!-- Glucose Tolerance -->
             <!-- Glucose Tolerance -->
-<v-col cols="12" sm="6">
-  <v-text-field
-    v-model="labResults.glucoseTolerance"
-    label="Glucose Tolerance [mg/dL]"
-    :rules="[required]"
-    type="number"
-    color="success"
-    prepend-inner-icon="mdi-test-tube"
-    placeholder="e.g., 135"
-    hint="Enter your 2-hour OGTT result"
-    persistent-hint
-  >
-    <!-- Info Icon inside the text field -->
-    <template v-slot:append>
-      <v-icon
-        class="ml-2"
-        color="#5D8736"
-        @click="glucoseToleranceDialog = true"
-        style="cursor: pointer"
-      >
-        mdi-information
-      </v-icon>
-    </template>
+            <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="labResults.glucoseTolerance"
+                  label="Glucose Tolerance [mg/dL]"
+                  :rules="[required]"
+                  type="number"
+                  color="success"
+                  prepend-inner-icon="mdi-test-tube"
+                  placeholder="e.g., 135"
+                  hint="Enter your 2-hour OGTT result"
+                  persistent-hint
+                >
+                  <!-- Info Icon inside the text field -->
+                  <template v-slot:prepend>
+                    <v-icon class="ml-2" color="#5D8736"
+                            @click="glucoseToleranceDialog = true" style="cursor: pointer"> mdi-information
+                    </v-icon>
+                  </template>
   </v-text-field>
-</v-col>
+            </v-col>
 
-<!-- Dialog for Glucose Tolerance Info -->
-<v-dialog v-model="glucoseToleranceDialog" max-width="400px">
-  <v-card>
-    <v-card-title class="headline" style="background-color:#5D8736; color:white;">
-      Glucose Tolerance Test Ranges
-    </v-card-title>
-    <v-card-text>
-      <ul>
-        <li><strong>Normal:</strong> Less than 140 mg/dL (7.8 mmol/L)</li>
-        <li><strong>Prediabetes (Impaired Tolerance):</strong> 140–199 mg/dL (7.8–11.0 mmol/L)</li>
-        <li><strong>Diabetes:</strong> 200 mg/dL (11.1 mmol/L) or higher</li>
-      </ul>
-    </v-card-text>
-    <v-card-actions>
-      <v-spacer></v-spacer>
-      <v-btn color="#5D8736" text @click="glucoseToleranceDialog = false">Close</v-btn>
-    </v-card-actions>
-  </v-card>
-</v-dialog>
-
+            <!-- Dialog for Glucose Tolerance Info -->
+            <v-dialog v-model="glucoseToleranceDialog" max-width="400px" style="font-family: 'Syne', sans-serif;">
+              <v-card>
+                <v-card-title class="headline" style="background-color:#5D8736; color:white; ">
+                  Glucose Tolerance Test Ranges
+                </v-card-title>
+                <v-card-text>
+                  <ul>
+                    <li><strong>Normal:</strong> Less than 140 mg/dL (7.8 mmol/L)</li>
+                    <li><strong>Prediabetes (Impaired Tolerance):</strong> 140–199 mg/dL (7.8–11.0 mmol/L)</li>
+                    <li><strong>Diabetes:</strong> 200 mg/dL (11.1 mmol/L) or higher</li>
+                  </ul>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="#5D8736" text @click="glucoseToleranceDialog = false">Close</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
 
             </v-row>
 

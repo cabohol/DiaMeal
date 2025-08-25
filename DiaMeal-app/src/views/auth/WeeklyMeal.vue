@@ -2,6 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/utils/supabase'
 
+// API base URL - change this for production
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 // Days (we'll show "Day 1" for now; you can expand to more later)
 const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7']
 const selectedDay = ref('Day 1')
@@ -23,32 +26,44 @@ const fetchMealPlan = async () => {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('User not authenticated')
 
-    // If your 'users' table uses auth uid as id, map accordingly.
-    // Otherwise you might need to query users table by email to get its numeric/uuid id.
-    // Here we assume you used the 'users' table id returned when saving in MealPlan.vue.
-    // If you saved by email, fetch that row first to get its id:
+    // Fetch user row to get its id
     const { data: userRow, error: userRowErr } = await supabase
       .from('users')
       .select('id')
       .eq('email', user.email)
       .single()
-    if (userRowErr || !userRow) throw userRowErr || new Error('User row not found')
+    if (userRowErr || !userRow) {
+      console.error('User row error:', userRowErr)
+      throw userRowErr || new Error('User row not found')
+    }
 
-    const resp = await fetch('/api/generateMealPlan', {
+    console.log('Fetching meal plan for user:', userRow.id)
+
+    // Call the Express API instead of relative path
+    const resp = await fetch(`${API_BASE_URL}/api/generateMealPlan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userRow.id })
     })
 
-    // ensure JSON only
-    const text = await resp.text()
-    let json
-    try {
-      json = JSON.parse(text)
-    } catch (e) {
-      console.error('Non-JSON response:', text)
-      throw new Error('Response was not valid JSON')
+    // Check if response is ok
+    if (!resp.ok) {
+      console.error('Response status:', resp.status)
+      const text = await resp.text()
+      console.error('Response text:', text)
+      
+      // Try to parse as JSON for error message
+      try {
+        const errorJson = JSON.parse(text)
+        throw new Error(errorJson.error || `Server error: ${resp.status}`)
+      } catch {
+        throw new Error(`Server error: ${resp.status}`)
+      }
     }
+
+    // Parse JSON response
+    const json = await resp.json()
+    console.log('API response:', json)
 
     if (!json.success) {
       throw new Error(json.error || 'Failed to generate meal plan')
@@ -60,6 +75,8 @@ const fetchMealPlan = async () => {
       lunch: json.mealsByType?.lunch || [],
       dinner: json.mealsByType?.dinner || []
     }
+    
+    console.log('Meals loaded successfully:', mealsByType.value)
   } catch (err) {
     console.error('Error fetching meal plan:', err)
     errorMsg.value = err.message || 'Something went wrong'
@@ -68,7 +85,30 @@ const fetchMealPlan = async () => {
   }
 }
 
-onMounted(fetchMealPlan)
+// Test API connection on mount
+async function testAPIConnection() {
+  try {
+    console.log("Testing API at:", `${API_BASE_URL}/api/health`);
+    const response = await fetch(`${API_BASE_URL}/api/health`);
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}`);
+    }
+    const data = await response.json();
+    console.log("API Health Check:", data);
+    alert(`✅ API is running: ${data.status}`);
+  } catch (error) {
+    console.error("Cannot connect to API server:", error);
+    alert("❌ Cannot connect to API server");
+  }
+}
+
+
+onMounted(async () => {
+  await testAPIConnection()
+  if (!errorMsg.value) {
+    await fetchMealPlan()
+  }
+})
 
 const goBack = () => window.history.back()
 
@@ -88,6 +128,11 @@ const viewMeal = (meal) => {
   ].join('\n')
   alert(details)
 }
+
+// Regenerate meal plan
+const regenerateMealPlan = async () => {
+  await fetchMealPlan()
+}
 </script>
 
 <template>
@@ -98,6 +143,15 @@ const viewMeal = (meal) => {
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title class="text-white">Weekly Menu</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-btn
+        icon
+        @click="regenerateMealPlan"
+        :loading="loading"
+        title="Regenerate meal plan"
+      >
+        <v-icon>mdi-refresh</v-icon>
+      </v-btn>
     </v-app-bar>
 
     <br><br><br><br>
@@ -125,6 +179,8 @@ const viewMeal = (meal) => {
         v-if="errorMsg"
         type="error"
         variant="tonal"
+        closable
+        @click:close="errorMsg = ''"
         class="mb-4"
       >
         {{ errorMsg }}
@@ -137,7 +193,7 @@ const viewMeal = (meal) => {
       />
 
       <!-- Sections: Breakfast / Lunch / Dinner -->
-      <template v-if="!loading && !errorMsg">
+      <template v-if="!loading && !errorMsg && selectedDay === 'Day 1'">
         <v-card
           v-for="sec in sections"
           :key="sec.key"
@@ -200,6 +256,17 @@ const viewMeal = (meal) => {
         </v-card>
       </template>
 
+      <!-- Message for other days -->
+      <v-card
+        v-if="!loading && !errorMsg && selectedDay !== 'Day 1'"
+        class="pa-6 text-center"
+        rounded="lg"
+        elevation="0"
+      >
+        <v-icon size="64" color="grey">mdi-calendar-clock</v-icon>
+        <p class="mt-4 text-grey">Meal plans for {{ selectedDay }} will be available soon.</p>
+      </v-card>
+
       <br><br>
     </v-container>
 
@@ -223,9 +290,6 @@ const viewMeal = (meal) => {
     </v-bottom-navigation>
   </v-app>
 </template>
-
-
-
 
 <style scoped>
 /* Horizontal Scroll for Days */

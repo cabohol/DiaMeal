@@ -1,28 +1,40 @@
-import { Groq } from "groq-sdk";
-import { supabase } from "../utils/supabase.js";
+import express from 'express';
+import cors from 'cors';
+import { Groq } from 'groq-sdk';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+dotenv.config();
 
-export default async function handler(req, res) {
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Initialize Supabase
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+);
+
+// Initialize Groq
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
+
+// Middleware
+app.use(cors({
+  origin: 'http://localhost:5173', // Your Vue app URL
+  credentials: true
+}));
+app.use(express.json());
+
+// Generate Meal Plan endpoint
+app.post('/api/generateMealPlan', async (req, res) => {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ success: false, error: "Method not allowed" });
-    }
-
-    // --- Parse body manually ---
-    const buffers = [];
-    for await (const chunk of req) {
-      buffers.push(chunk);
-    }
-    const body = JSON.parse(Buffer.concat(buffers).toString() || "{}");
-    const { user_id } = body;
-
+    // --- 1) Validate input ---
+    const { user_id } = req.body || {};
     if (!user_id) {
       return res.status(400).json({ success: false, error: "Missing user_id" });
     }
-
-    // rest of your code unchanged...
-
 
     // --- 2) Pull latest user profile & constraints from Supabase ---
     const { data: user, error: userError } = await supabase
@@ -30,7 +42,10 @@ export default async function handler(req, res) {
       .select("*")
       .eq("id", user_id)
       .single();
-    if (userError || !user) throw userError || new Error("User not found");
+    if (userError || !user) {
+      console.error('User fetch error:', userError);
+      throw userError || new Error("User not found");
+    }
 
     const { data: lab, error: labError } = await supabase
       .from("lab_results")
@@ -99,6 +114,7 @@ Rules:
       religious_diets: religiousList
     };
 
+    console.log('Calling Groq API...');
     const chat = await groq.chat.completions.create({
       model: "deepseek-r1-distill-llama-70b",
       temperature: 0.6,
@@ -120,6 +136,7 @@ Rules:
     try {
       ai = JSON.parse(chat.choices?.[0]?.message?.content || "{}");
     } catch (e) {
+      console.error('AI response parse error:', e);
       throw new Error("AI response was not valid JSON.");
     }
 
@@ -132,7 +149,7 @@ Rules:
     }
 
     // --- 5) Save all alternatives into DB ---
-    const today = new Date();
+    const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
     const saved = [];
 
     // Insert each alternative to `meals` then link with `meal_plans`
@@ -154,7 +171,10 @@ Rules:
           .insert([payload])
           .select()
           .single();
-        if (mealErr) throw mealErr;
+        if (mealErr) {
+          console.error('Meal insert error:', mealErr);
+          throw mealErr;
+        }
 
         const { data: planRow, error: planErr } = await supabase
           .from("meal_plans")
@@ -168,7 +188,10 @@ Rules:
           ])
           .select()
           .single();
-        if (planErr) throw planErr;
+        if (planErr) {
+          console.error('Meal plan insert error:', planErr);
+          throw planErr;
+        }
 
         saved.push({ meal: mealRow, mealPlan: planRow });
       }
@@ -186,5 +209,13 @@ Rules:
       .status(500)
       .json({ success: false, error: error?.message || "Internal server error" });
   }
-}
+});
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.listen(PORT, () => {
+  console.log(`API Server running on http://localhost:${PORT}`);
+});

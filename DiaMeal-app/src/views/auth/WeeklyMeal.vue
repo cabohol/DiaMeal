@@ -5,20 +5,42 @@ import { supabase } from '@/utils/supabase'
 // API base URL - change this for production
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-// Days (we'll show "Day 1" for now; you can expand to more later)
-const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7']
-const selectedDay = ref('Day 1')
+// Generate day labels with actual dates
+const generateDaysWithDates = () => {
+  const days = []
+  const today = new Date()
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+    const dateStr = date.toISOString().split('T')[0]
+    const dayLabel = `Day ${i + 1}`
+    days.push({ label: dayLabel, date: dateStr })
+  }
+  
+  return days
+}
+
+const daysWithDates = ref(generateDaysWithDates())
+const selectedDayIndex = ref(0)
+const selectedDay = computed(() => daysWithDates.value[selectedDayIndex.value])
 
 const loading = ref(false)
 const errorMsg = ref('')
-const mealsByType = ref({
-  breakfast: [],
-  lunch: [],
-  dinner: []
+const mealPlansByDay = ref({})
+const isExistingPlan = ref(false)
+
+// Get meals for selected day
+const currentDayMeals = computed(() => {
+  const dateStr = selectedDay.value?.date
+  if (!dateStr || !mealPlansByDay.value[dateStr]) {
+    return { breakfast: [], lunch: [], dinner: [] }
+  }
+  return mealPlansByDay.value[dateStr]
 })
 
-// Fetch the current user id, then call API
-const fetchMealPlan = async () => {
+// Fetch or generate meal plan
+const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true
   errorMsg.value = ''
 
@@ -39,20 +61,39 @@ const fetchMealPlan = async () => {
 
     console.log('Fetching meal plan for user:', userRow.id)
 
-    // Call the Express API instead of relative path
+    // First try to get existing meal plan
+    if (!forceRegenerate) {
+      const getResp = await fetch(`${API_BASE_URL}/api/getMealPlan/${userRow.id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (getResp.ok) {
+        const getData = await getResp.json()
+        if (getData.success && getData.mealPlansByDay && Object.keys(getData.mealPlansByDay).length >= 7) {
+          console.log('Using existing meal plan:', getData.mealPlansByDay)
+          mealPlansByDay.value = getData.mealPlansByDay
+          isExistingPlan.value = true
+          return
+        }
+      }
+    }
+
+    // Generate new meal plan
     const resp = await fetch(`${API_BASE_URL}/api/generateMealPlan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userRow.id })
+      body: JSON.stringify({ 
+        user_id: userRow.id,
+        force_regenerate: forceRegenerate 
+      })
     })
 
-    // Check if response is ok
     if (!resp.ok) {
       console.error('Response status:', resp.status)
       const text = await resp.text()
       console.error('Response text:', text)
       
-      // Try to parse as JSON for error message
       try {
         const errorJson = JSON.parse(text)
         throw new Error(errorJson.error || `Server error: ${resp.status}`)
@@ -61,7 +102,6 @@ const fetchMealPlan = async () => {
       }
     }
 
-    // Parse JSON response
     const json = await resp.json()
     console.log('API response:', json)
 
@@ -69,14 +109,10 @@ const fetchMealPlan = async () => {
       throw new Error(json.error || 'Failed to generate meal plan')
     }
 
-    // Store per meal type
-    mealsByType.value = {
-      breakfast: json.mealsByType?.breakfast || [],
-      lunch: json.mealsByType?.lunch || [],
-      dinner: json.mealsByType?.dinner || []
-    }
+    mealPlansByDay.value = json.mealPlansByDay || {}
+    isExistingPlan.value = json.isExisting || false
     
-    console.log('Meals loaded successfully:', mealsByType.value)
+    console.log('Meal plans loaded successfully:', mealPlansByDay.value)
   } catch (err) {
     console.error('Error fetching meal plan:', err)
     errorMsg.value = err.message || 'Something went wrong'
@@ -85,23 +121,21 @@ const fetchMealPlan = async () => {
   }
 }
 
-// Test API connection on mount
+// Test API connection
 async function testAPIConnection() {
   try {
-    console.log("Testing API at:", `${API_BASE_URL}/api/health`);
-    const response = await fetch(`${API_BASE_URL}/api/health`);
+    console.log("Testing API at:", `${API_BASE_URL}/api/health`)
+    const response = await fetch(`${API_BASE_URL}/api/health`)
     if (!response.ok) {
-      throw new Error(`Server responded with ${response.status}`);
+      throw new Error(`Server responded with ${response.status}`)
     }
-    const data = await response.json();
-    console.log("API Health Check:", data);
-    alert(`✅ API is running: ${data.status}`);
+    const data = await response.json()
+    console.log("API Health Check:", data)
   } catch (error) {
-    console.error("Cannot connect to API server:", error);
-    alert("❌ Cannot connect to API server");
+    console.error("Cannot connect to API server:", error)
+    errorMsg.value = "Cannot connect to API server. Please ensure the server is running."
   }
 }
-
 
 onMounted(async () => {
   await testAPIConnection()
@@ -113,25 +147,50 @@ onMounted(async () => {
 const goBack = () => window.history.back()
 
 const sections = computed(() => ([
-  { key: 'breakfast', title: 'BREAKFAST' },
-  { key: 'lunch', title: 'LUNCH' },
-  { key: 'dinner', title: 'DINNER' }
+  { key: 'breakfast', title: 'BREAKFAST', icon: 'mdi-coffee' },
+  { key: 'lunch', title: 'LUNCH', icon: 'mdi-food' },
+  { key: 'dinner', title: 'DINNER', icon: 'mdi-silverware-fork-knife' }
 ]))
 
 const viewMeal = (meal) => {
+  // You could navigate to a detailed meal view or show a dialog
   const details = [
     `Name: ${meal.name}`,
     `Time: ${meal.preparation_time || 'N/A'}`,
     `Calories: ${typeof meal.calories === 'number' ? `${meal.calories} kcal` : 'N/A'}`,
-    `Ingredients: ${(meal.ingredients || []).join(', ')}`,
-    `Procedure: ${meal.procedures || 'N/A'}`
+    `\nIngredients:`,
+    ...(meal.ingredients || []).map(ing => `  • ${ing}`),
+    `\nProcedure:`,
+    meal.procedures || 'N/A'
   ].join('\n')
+  
+  // For now using alert, but you should implement a proper modal/dialog
   alert(details)
 }
 
-// Regenerate meal plan
+// Regenerate entire week meal plan
 const regenerateMealPlan = async () => {
-  await fetchMealPlan()
+  if (confirm('This will generate a new 7-day meal plan. Your current plan will be replaced. Continue?')) {
+    await fetchMealPlan(true)
+  }
+}
+
+// Format date for display
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr + 'T00:00:00')
+  const options = { month: 'short', day: 'numeric' }
+  return date.toLocaleDateString('en-US', options)
+}
+
+// Get meal image placeholder (you can customize this)
+const getMealImage = (meal, mealType) => {
+  // You could generate different placeholders based on meal type or name
+  const images = {
+    breakfast: 'https://via.placeholder.com/280x180/FFF3E0/FF9800?text=Breakfast',
+    lunch: 'https://via.placeholder.com/280x180/E8F5E9/4CAF50?text=Lunch',
+    dinner: 'https://via.placeholder.com/280x180/F3E5F5/9C27B0?text=Dinner'
+  }
+  return images[mealType] || 'https://via.placeholder.com/280x180'
 }
 </script>
 
@@ -144,11 +203,20 @@ const regenerateMealPlan = async () => {
       </v-btn>
       <v-toolbar-title class="text-white">Weekly Menu</v-toolbar-title>
       <v-spacer></v-spacer>
+      <v-chip 
+        v-if="isExistingPlan" 
+        size="small" 
+        color="white"
+        class="mr-2"
+      >
+        <v-icon start size="small">mdi-check-circle</v-icon>
+        Saved Plan
+      </v-chip>
       <v-btn
         icon
         @click="regenerateMealPlan"
         :loading="loading"
-        title="Regenerate meal plan"
+        title="Generate new meal plan"
       >
         <v-icon>mdi-refresh</v-icon>
       </v-btn>
@@ -156,25 +224,30 @@ const regenerateMealPlan = async () => {
 
     <br><br><br><br>
 
-    <!-- Day Selector (only Day 1 has content for now) -->
+    <!-- Day Selector -->
     <div class="day-scroll">
       <div class="day-buttons">
         <v-btn
-          v-for="day in days"
-          :key="day"
-          :color="selectedDay === day ? '#A9C46C' : 'white'"
-          :class="selectedDay === day ? 'text-white' : 'text-black'"
+          v-for="(day, index) in daysWithDates"
+          :key="day.date"
+          :color="selectedDayIndex === index ? '#A9C46C' : 'white'"
+          :class="selectedDayIndex === index ? 'text-white' : 'text-black'"
           rounded
-          @click="selectedDay = day"
+          @click="selectedDayIndex = index"
           style="min-width: 90px; border: 1px solid #A9C46C; flex-shrink: 0;"
+          class="ma-1"
         >
-          {{ day }}
+          <div class="d-flex flex-column">
+            <span class="text-caption">{{ day.label }}</span>
+            <span class="text-caption" style="font-size: 10px;">{{ formatDate(day.date) }}</span>
+          </div>
         </v-btn>
       </div>
       <br>
     </div>
 
     <v-container>
+      <!-- Error Alert -->
       <v-alert
         v-if="errorMsg"
         type="error"
@@ -186,14 +259,31 @@ const regenerateMealPlan = async () => {
         {{ errorMsg }}
       </v-alert>
 
-      <v-skeleton-loader
-        v-if="loading"
-        type="image, article, actions"
-        class="mb-6"
-      />
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-8">
+        <v-progress-circular
+          indeterminate
+          color="#A9C46C"
+          size="64"
+        />
+        <p class="mt-4 text-grey">Preparing your personalized meal plan...</p>
+      </div>
 
-      <!-- Sections: Breakfast / Lunch / Dinner -->
-      <template v-if="!loading && !errorMsg && selectedDay === 'Day 1'">
+      <!-- Meal Sections -->
+      <template v-if="!loading && !errorMsg">
+        <!-- Date Header -->
+        <v-card
+          class="mb-4 text-center"
+          flat
+          color="transparent"
+        >
+          <v-card-text>
+            <h2 class="text-h5 font-weight-bold">{{ selectedDay.label }}</h2>
+            <p class="text-subtitle-2 text-grey">{{ formatDate(selectedDay.date) }}</p>
+          </v-card-text>
+        </v-card>
+
+        <!-- Meal Type Sections -->
         <v-card
           v-for="sec in sections"
           :key="sec.key"
@@ -202,70 +292,71 @@ const regenerateMealPlan = async () => {
           elevation="0"
           style="background-color: #E8F5C8;"
         >
-          <h3 class="text-center font-weight-bold mb-3">{{ sec.title }}</h3>
+          <div class="d-flex align-center justify-center mb-3">
+            <v-icon :icon="sec.icon" class="mr-2" />
+            <h3 class="font-weight-bold">{{ sec.title }}</h3>
+          </div>
 
+          <!-- Meals Carousel -->
           <v-slide-group
+            v-if="currentDayMeals[sec.key]?.length > 0"
             show-arrows
             class="px-2"
           >
             <v-slide-group-item
-              v-for="(meal, idx) in mealsByType[sec.key]"
-              :key="sec.key + '-' + idx"
+              v-for="(meal, idx) in currentDayMeals[sec.key]"
+              :key="`${selectedDay.date}-${sec.key}-${idx}`"
             >
               <v-card
-                class="ma-3 pa-4 d-flex flex-column align-center"
+                class="ma-3 pa-4 d-flex flex-column align-center meal-card"
                 max-width="280"
                 rounded="lg"
-                elevation="1"
+                elevation="2"
+                hover
               >
                 <v-img
-                  :src="'https://via.placeholder.com/280x180'"
+                  :src="getMealImage(meal, sec.key)"
                   width="100%"
                   height="180"
                   cover
                   class="rounded-lg mb-3"
                 />
-                <div class="text-center">
+                <div class="text-center flex-grow-1 d-flex flex-column">
                   <div class="font-weight-bold mb-1">{{ meal.name }}</div>
-                  <div class="text-grey-darken-1 mb-1">
-                    Time: {{ meal.preparation_time || 'N/A' }}
+                  <v-chip size="small" color="#A9C46C" class="mb-2 text-white">
+                    Option {{ idx + 1 }}
+                  </v-chip>
+                  <div class="text-caption text-grey-darken-1 mb-1">
+                    <v-icon size="x-small">mdi-clock-outline</v-icon>
+                    {{ meal.preparation_time || 'Quick' }}
                   </div>
-                  <div class="text-grey-darken-1">
-                    Calories:
-                    <span>
-                      {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'N/A' }}
-                    </span>
+                  <div class="text-caption text-grey-darken-1 mb-2">
+                    <v-icon size="x-small">mdi-fire</v-icon>
+                    {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'N/A' }}
                   </div>
+                  <v-spacer />
                   <v-btn
                     color="#5D8736"
                     rounded
-                    class="mt-3 text-white"
+                    size="small"
+                    class="mt-2 text-white"
                     @click="viewMeal(meal)"
                   >
-                    View
-                    <v-icon end>mdi-chevron-right</v-icon>
+                    View Details
+                    <v-icon end size="small">mdi-chevron-right</v-icon>
                   </v-btn>
                 </div>
               </v-card>
             </v-slide-group-item>
           </v-slide-group>
 
-          <div v-if="!mealsByType[sec.key]?.length" class="text-center py-6">
-            <em>No {{ sec.title.toLowerCase() }} options yet.</em>
+          <!-- Empty State -->
+          <div v-else class="text-center py-6">
+            <v-icon size="48" color="grey-lighten-1">mdi-food-off</v-icon>
+            <p class="mt-2 text-grey">No {{ sec.title.toLowerCase() }} options available for this day.</p>
           </div>
         </v-card>
       </template>
-
-      <!-- Message for other days -->
-      <v-card
-        v-if="!loading && !errorMsg && selectedDay !== 'Day 1'"
-        class="pa-6 text-center"
-        rounded="lg"
-        elevation="0"
-      >
-        <v-icon size="64" color="grey">mdi-calendar-clock</v-icon>
-        <p class="mt-4 text-grey">Meal plans for {{ selectedDay }} will be available soon.</p>
-      </v-card>
 
       <br><br>
     </v-container>
@@ -292,45 +383,34 @@ const regenerateMealPlan = async () => {
 </template>
 
 <style scoped>
-/* Horizontal Scroll for Days */
 .day-scroll {
+  padding: 0 16px;
   overflow-x: auto;
   white-space: nowrap;
-  padding: 10px;
-  background: white;
 }
+
 .day-buttons {
-  display: flex;
+  display: inline-flex;
   gap: 8px;
+  padding: 8px 0;
 }
 
-/* Scrollbar hidden for mobile */
-.day-scroll::-webkit-scrollbar {
-  display: none;
-}
-.day-scroll {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.meal-card {
+  transition: transform 0.2s;
 }
 
-/* Bottom Navigation */
-.nav-bar .v-btn {
+.meal-card:hover {
+  transform: translateY(-4px);
+}
+
+.nav-tab {
+  display: flex;
   flex-direction: column;
-  color: white;
-  font-family: 'Syne', sans-serif;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  color: white !important;
 }
-.nav-bar .v-btn:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-.nav-bar .v-btn:active {
-  transform: scale(0.96);
-}
-.nav-bar .v-icon {
-  font-size: 24px;
-}
-.nav-bar span {
-  font-size: 12px;
-  margin-top: 4px;
+
+.nav-tab span {
+  font-size: 10px;
+  margin-top: 2px;
 }
 </style>

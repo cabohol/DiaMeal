@@ -203,7 +203,7 @@ const getMealImage = (meal, mealType) => {
       </v-btn>
       <v-toolbar-title class="text-white">Weekly Menu</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-chip 
+      <!-- <v-chip 
         v-if="isExistingPlan" 
         size="small" 
         color="white"
@@ -211,15 +211,15 @@ const getMealImage = (meal, mealType) => {
       >
         <v-icon start size="small">mdi-check-circle</v-icon>
         Saved Plan
-      </v-chip>
-      <v-btn
+      </v-chip> -->
+      <!-- <v-btn
         icon
         @click="regenerateMealPlan"
         :loading="loading"
         title="Generate new meal plan"
       >
         <v-icon>mdi-refresh</v-icon>
-      </v-btn>
+      </v-btn> -->
     </v-app-bar>
 
     <br><br><br><br>
@@ -336,15 +336,17 @@ const getMealImage = (meal, mealType) => {
                   </div>
                   <v-spacer />
                   <v-btn
-                    color="#5D8736"
-                    rounded
-                    size="small"
-                    class="mt-2 text-white"
-                    @click="viewMeal(meal)"
-                  >
-                    View Details
-                    <v-icon end size="small">mdi-chevron-right</v-icon>
-                  </v-btn>
+                color="#5D8736"
+                rounded
+                size="small"
+                class="mt-2 text-white"
+                :disabled="new Date(selectedDay.date) > new Date()" 
+                @click="viewMeal(meal)"
+              >
+                View Details
+                <v-icon end size="small">mdi-chevron-right</v-icon>
+              </v-btn>
+
                 </div>
               </v-card>
             </v-slide-group-item>

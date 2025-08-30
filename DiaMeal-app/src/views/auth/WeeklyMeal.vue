@@ -30,6 +30,11 @@ const errorMsg = ref('')
 const mealPlansByDay = ref({})
 const isExistingPlan = ref(false)
 
+// Modal variables
+const mealDetailsDialog = ref(false)
+const selectedMeal = ref(null)
+const selectedMealType = ref('')
+
 // Get meals for selected day
 const currentDayMeals = computed(() => {
   const dateStr = selectedDay.value?.date
@@ -152,20 +157,40 @@ const sections = computed(() => ([
   { key: 'dinner', title: 'DINNER', icon: 'mdi-silverware-fork-knife' }
 ]))
 
+// Modal functions
 const viewMeal = (meal) => {
-  // You could navigate to a detailed meal view or show a dialog
-  const details = [
-    `Name: ${meal.name}`,
-    `Time: ${meal.preparation_time || 'N/A'}`,
-    `Calories: ${typeof meal.calories === 'number' ? `${meal.calories} kcal` : 'N/A'}`,
-    `\nIngredients:`,
-    ...(meal.ingredients || []).map(ing => `  • ${ing}`),
-    `\nProcedure:`,
-    meal.procedures || 'N/A'
-  ].join('\n')
-  
-  // For now using alert, but you should implement a proper modal/dialog
-  alert(details)
+  selectedMeal.value = meal
+  selectedMealType.value = getCurrentMealType(meal)
+  mealDetailsDialog.value = true
+}
+
+const closeMealDetails = () => {
+  mealDetailsDialog.value = false
+  selectedMeal.value = null
+  selectedMealType.value = ''
+}
+
+const getMealTypeFromKey = (key) => {
+  const types = {
+    breakfast: 'Breakfast',
+    lunch: 'Lunch', 
+    dinner: 'Dinner',
+    snack: 'Snack'
+  }
+  return types[key] || 'Meal'
+}
+
+const formatNutritionKey = (key) => {
+  return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
+}
+
+const getCurrentMealType = (meal) => {
+  for (const [key, meals] of Object.entries(currentDayMeals.value)) {
+    if (meals.includes(meal)) {
+      return key
+    }
+  }
+  return 'meal'
 }
 
 // Regenerate entire week meal plan
@@ -183,15 +208,15 @@ const formatDate = (dateStr) => {
 }
 
 // Get meal image placeholder (you can customize this)
-const getMealImage = (meal, mealType) => {
-  // You could generate different placeholders based on meal type or name
-  const images = {
-    breakfast: 'https://via.placeholder.com/280x180/FFF3E0/FF9800?text=Breakfast',
-    lunch: 'https://via.placeholder.com/280x180/E8F5E9/4CAF50?text=Lunch',
-    dinner: 'https://via.placeholder.com/280x180/F3E5F5/9C27B0?text=Dinner'
-  }
-  return images[mealType] || 'https://via.placeholder.com/280x180'
-}
+// const getMealImage = (meal, mealType) => {
+//   // You could generate different placeholders based on meal type or name
+//   const images = {
+//     breakfast: 'https://via.placeholder.com/280x180/FFF3E0/FF9800?text=Breakfast',
+//     lunch: 'https://via.placeholder.com/280x180/E8F5E9/4CAF50?text=Lunch',
+//     dinner: 'https://via.placeholder.com/280x180/F3E5F5/9C27B0?text=Dinner'
+//   }
+//   return images[mealType] || 'https://via.placeholder.com/280x180'
+// }
 </script>
 
 <template>
@@ -201,49 +226,33 @@ const getMealImage = (meal, mealType) => {
       <v-btn icon @click="goBack">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title class="text-white">Weekly Menu</v-toolbar-title>
+      <v-toolbar-title class="flex items-center gap-2 text-white" style="font-family: 'Syne', sans-serif; margin-left: 2px;">
+        <span>Weekly Menu</span>
+        <v-icon size="30" color="white" style="margin-left: 5px;">mdi-book-open-page-variant</v-icon>
+      </v-toolbar-title>
+
       <v-spacer></v-spacer>
-      <!-- <v-chip 
-        v-if="isExistingPlan" 
-        size="small" 
-        color="white"
-        class="mr-2"
-      >
-        <v-icon start size="small">mdi-check-circle</v-icon>
-        Saved Plan
-      </v-chip> -->
-      <!-- <v-btn
-        icon
-        @click="regenerateMealPlan"
-        :loading="loading"
-        title="Generate new meal plan"
-      >
-        <v-icon>mdi-refresh</v-icon>
-      </v-btn> -->
     </v-app-bar>
 
     <br><br><br><br>
 
-    <!-- Day Selector -->
+    <!--Day selection buttons (Day 1–7 with corresponding dates)-->
     <div class="day-scroll">
       <div class="day-buttons">
         <v-btn
           v-for="(day, index) in daysWithDates"
           :key="day.date"
           :color="selectedDayIndex === index ? '#A9C46C' : 'white'"
-          :class="selectedDayIndex === index ? 'text-white' : 'text-black'"
+          :class="selectedDayIndex === index ? 'text-white active-day-btn' : 'text-black day-btn'"
           rounded
           @click="selectedDayIndex = index"
-          style="min-width: 90px; border: 1px solid #A9C46C; flex-shrink: 0;"
-          class="ma-1"
         >
-          <div class="d-flex flex-column">
-            <span class="text-caption">{{ day.label }}</span>
-            <span class="text-caption" style="font-size: 10px;">{{ formatDate(day.date) }}</span>
+          <div class="day-content">
+            <span class="day-label">Day {{ index + 1 }}</span>
+            <span class="day-date">{{ formatDate(day.date) }}</span>
           </div>
         </v-btn>
       </div>
-      <br>
     </div>
 
     <v-container>
@@ -260,26 +269,28 @@ const getMealImage = (meal, mealType) => {
       </v-alert>
 
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-8">
-        <v-progress-circular
-          indeterminate
-          color="#A9C46C"
-          size="64"
-        />
-        <p class="mt-4 text-grey">Preparing your personalized meal plan...</p>
+      <div v-if="loading" class="loading-wrapper text-center py-10">
+        <div class="pot">
+          <div class="bubble"></div>
+          <div class="bubble"></div>
+          <div class="bubble"></div>
+          <div class="lid"></div>
+        </div>
+        <p class="mt-5 text-lg" style="font-family: 'Syne', sans-serif; font-size: 20px; color: #5B913B;">
+          Preparing your personalized meal plan!
+        </p>
       </div>
 
       <!-- Meal Sections -->
       <template v-if="!loading && !errorMsg">
         <!-- Date Header -->
-        <v-card
-          class="mb-4 text-center"
-          flat
-          color="transparent"
-        >
+        <v-card class="mb-4 text-center" flat color="transparent">
           <v-card-text>
-            <h2 class="text-h5 font-weight-bold">{{ selectedDay.label }}</h2>
-            <p class="text-subtitle-2 text-grey">{{ formatDate(selectedDay.date) }}</p>
+            <!-- Day label -->
+            <h2 class="meal-day-title text-h4 text-sm-h3 text-md-h2" style="font-family: 'Syne', sans-serif;">{{ selectedDay.label }}</h2>
+
+            <!-- Date -->
+            <p class="meal-day-date text-body-1 text-sm-h6" style="font-family: 'Syne', sans-serif;">{{ formatDate(selectedDay.date) }}</p>
           </v-card-text>
         </v-card>
 
@@ -287,75 +298,102 @@ const getMealImage = (meal, mealType) => {
         <v-card
           v-for="sec in sections"
           :key="sec.key"
-          class="pa-4 my-6"
+          class="pa-2 pa-sm-4 my-4 my-sm-6"
           rounded="lg"
           elevation="0"
-          style="background-color: #E8F5C8;"
+          style="background-color: #E8F5C8; font-family: 'Syne', sans-serif;"
         >
-          <div class="d-flex align-center justify-center mb-3">
-            <v-icon :icon="sec.icon" class="mr-2" />
-            <h3 class="font-weight-bold">{{ sec.title }}</h3>
+          <div class="d-flex align-center justify-center mb-2 mb-sm-3">
+            <v-icon :icon="sec.icon" class="mr-2" :size="$vuetify.display.xs ? 'default' : 'large'" />
+            <h3 class="font-weight-bold text-h6 text-sm-h5" style="font-family: 'Syne', sans-serif;">{{ sec.title }}</h3>
           </div>
 
           <!-- Meals Carousel -->
-          <v-slide-group
-            v-if="currentDayMeals[sec.key]?.length > 0"
-            show-arrows
-            class="px-2"
-          >
-            <v-slide-group-item
-              v-for="(meal, idx) in currentDayMeals[sec.key]"
-              :key="`${selectedDay.date}-${sec.key}-${idx}`"
+          <div v-if="currentDayMeals[sec.key]?.length > 0" class="d-flex justify-center">
+            <v-slide-group
+              show-arrows
+              :class="{
+                'px-1': $vuetify.display.xs,
+                'px-2': $vuetify.display.smAndUp
+              }"
             >
-              <v-card
-                class="ma-3 pa-4 d-flex flex-column align-center meal-card"
-                max-width="280"
-                rounded="lg"
-                elevation="2"
-                hover
+              <v-slide-group-item
+                v-for="(meal, idx) in currentDayMeals[sec.key]"
+                :key="`${selectedDay.date}-${sec.key}-${idx}`"
               >
-                <v-img
-                  :src="getMealImage(meal, sec.key)"
-                  width="100%"
-                  height="180"
-                  cover
-                  class="rounded-lg mb-3"
-                />
-                <div class="text-center flex-grow-1 d-flex flex-column">
-                  <div class="font-weight-bold mb-1">{{ meal.name }}</div>
-                  <v-chip size="small" color="#A9C46C" class="mb-2 text-white">
-                    Option {{ idx + 1 }}
-                  </v-chip>
-                  <div class="text-caption text-grey-darken-1 mb-1">
-                    <v-icon size="x-small">mdi-clock-outline</v-icon>
-                    {{ meal.preparation_time || 'Quick' }}
-                  </div>
-                  <div class="text-caption text-grey-darken-1 mb-2">
-                    <v-icon size="x-small">mdi-fire</v-icon>
-                    {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'N/A' }}
-                  </div>
-                  <v-spacer />
-                  <v-btn
-                color="#5D8736"
-                rounded
-                size="small"
-                class="mt-2 text-white"
-                :disabled="new Date(selectedDay.date) > new Date()" 
-                @click="viewMeal(meal)"
-              >
-                View Details
-                <v-icon end size="small">mdi-chevron-right</v-icon>
-              </v-btn>
+                <v-card
+                  class="meal-card pa-4 pa-sm-5 d-flex flex-column"
+                  :class="{
+                    'ma-1': $vuetify.display.xs,
+                    'ma-2': $vuetify.display.sm,
+                    'ma-3': $vuetify.display.mdAndUp
+                  }"
+                  :max-width="$vuetify.display.xs ? '240' : $vuetify.display.sm ? '260' : '280'"
+                  :min-width="$vuetify.display.xs ? '220' : $vuetify.display.sm ? '240' : '250'"
+                  :height="$vuetify.display.xs ? '220' : $vuetify.display.sm ? '240' : '260'"
+                  rounded="lg"
+                  elevation="2"
+                  hover
+                  style="font-family: 'Syne', sans-serif;"
+                >
+                  <!-- Card body with better spacing -->
+                  <div class="d-flex flex-column flex-grow-1 text-center">
+                    <!-- Meal name with more prominence -->
+                    <div class="font-weight-bold mb-3 text-h6 text-sm-h5" style="line-height: 1.2; font-family: 'Syne', sans-serif;">
+                      {{ meal.name }}
+                    </div>
 
-                </div>
-              </v-card>
-            </v-slide-group-item>
-          </v-slide-group>
+                    <v-chip 
+                      :size="$vuetify.display.xs ? 'small' : 'default'" 
+                      color="#A9C46C" 
+                      class="mb-4 text-white align-self-center"
+                      style="font-family: 'Syne', sans-serif;"
+                    >
+                      Option {{ idx + 1 }}
+                    </v-chip>
+
+                    <!-- Info section with better spacing -->
+                    <div class="mb-4">
+                      <div class="text-body-2 text-sm-body-1 mb-2 d-flex align-center justify-center">
+                        <v-icon size="small" class="mr-2" color="#5D8736">mdi-clock-outline</v-icon>
+                        <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">{{ meal.preparation_time || 'Quick prep' }}</span>
+                      </div>
+
+                      <div class="text-body-2 text-sm-body-1 d-flex align-center justify-center">
+                        <v-icon size="small" class="mr-2" color="#5D8736">mdi-fire</v-icon>
+                        <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">
+                          {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'Calories N/A' }}
+                        </span>
+                      </div>
+                    </div>
+                    <v-spacer />
+
+                    <!-- Button pinned sa ubos -->
+                    <v-btn
+                      color="#5D8736"
+                      rounded
+                      :size="$vuetify.display.xs ? 'small' : 'default'"
+                      block
+                      class="text-white"
+                      :disabled="new Date(selectedDay.date) > new Date()"
+                      @click="viewMeal(meal)"
+                      style="font-family: 'Syne', sans-serif;"
+                    >
+                      <span class="text-body-2 text-sm-body-1 font-weight-medium">View Details</span>
+                      <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
+                    </v-btn>
+                  </div>
+                </v-card>
+              </v-slide-group-item>
+            </v-slide-group>
+          </div>
 
           <!-- Empty State -->
-          <div v-else class="text-center py-6">
-            <v-icon size="48" color="grey-lighten-1">mdi-food-off</v-icon>
-            <p class="mt-2 text-grey">No {{ sec.title.toLowerCase() }} options available for this day.</p>
+          <div v-else class="text-center py-4 py-sm-6">
+            <v-icon :size="$vuetify.display.xs ? '36' : '48'" color="grey-lighten-1">mdi-food-off</v-icon>
+            <p class="mt-2 text-grey text-body-2 text-sm-body-1" style="font-family: 'Syne', sans-serif;">
+              No {{ sec.title.toLowerCase() }} options available for this day.
+            </p>
           </div>
         </v-card>
       </template>
@@ -363,39 +401,306 @@ const getMealImage = (meal, mealType) => {
       <br><br>
     </v-container>
 
-    <!-- Bottom Navigation -->
-    <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
-      <v-btn @click="$router.push('/home')" class="nav-tab">
-        <v-icon>mdi-home</v-icon><span>Home</span>
-      </v-btn>
+      <!-- Bottom Navigation -->
+      <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B; margin-bottom: -1px;">
+        <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
+          <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
+            <v-icon>mdi-home</v-icon>
+          </span>
+          <span>Home</span>
+        </v-btn>
 
-      <v-btn @click="$router.push('/meal-plan')" class="nav-tab">
-        <v-icon>mdi-heart-pulse</v-icon><span>Meal Plan</span>
-      </v-btn>
+        <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
+          <span class="icon-wrapper"  :class="{ active: $route.path === '/meal-plan' || $route.path === '/weekly-meal' }">
+            <v-icon>mdi-heart-pulse</v-icon>
+          </span>
+          <span>Meal Plan</span>
+        </v-btn>
 
-      <v-btn @click="$router.push('/profile')" class="nav-tab">
-        <v-icon>mdi-account</v-icon><span>Profile</span>
-      </v-btn>
+        <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
+          <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
+            <v-icon>mdi-account</v-icon>
+          </span>
+          <span>Profile</span>
+        </v-btn>
 
-      <v-btn @click="$router.push('/myprogress')" class="nav-tab">
-        <v-icon>mdi-chart-line</v-icon><span>Progress</span>
-      </v-btn>
-    </v-bottom-navigation>
-  </v-app>
+        <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
+          <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
+            <v-icon>mdi-chart-line</v-icon>
+          </span>
+          <span>Progress</span>
+        </v-btn>
+      </v-bottom-navigation>
+
+  <!-- Meal Details Dialog -->
+      <v-dialog
+        v-model="mealDetailsDialog"
+        max-width="900"
+        persistent
+        :fullscreen="$vuetify.display.xs">
+        
+        <v-card class="meal-details-card" :class="{ 'h-100': $vuetify.display.xs }"style="font-family: 'Syne', sans-serif;">
+          <!-- Header with close button -->
+          <v-card-title class="d-flex align-center justify-space-between pa-4 pa-sm-4" style="background: linear-gradient(135deg, #E8F5C8 0%, #D4E8A3 100%);">
+            <div class="d-flex align-center">
+              <v-icon color="#5D8736" size="large" class="mr-3">mdi-food</v-icon>
+              <span class="text-h5 text-sm-h4 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                Meal Details
+              </span>
+            </div>
+            <v-btn icon variant="text" color="#5D8736" @click="closeMealDetails">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-card-title>
+
+          <!-- Content -->
+          <v-card-text class="pa-4 pa-sm-6" v-if="selectedMeal">
+            <!-- Meal Name -->
+            <div class="text-center mb-6">
+              <h2 class="text-h4 text-sm-h3 font-weight-bold mb-2" style="color: #2C3E50; line-height: 1.2; font-family: 'Syne', sans-serif;">
+                {{ selectedMeal.name }}
+              </h2>
+              <v-chip
+                color="#A9C46C"
+                size="large"
+                class="text-white font-weight-medium"
+                style="font-family: 'Syne', sans-serif;"
+              >
+                {{ getMealTypeFromKey(selectedMealType) }} Option
+              </v-chip>
+            </div>
+
+            <!-- Quick Info Cards - Prep Time and Calories -->
+            <v-row class="mb-6 justify-center">
+              <v-col cols="6" sm="6">
+                <v-card class="pa-4 text-center" elevation="1" rounded="lg"color="#F8FDF0">
+                  <v-icon color="#5D8736" size="large" class="mb-2">mdi-clock-outline</v-icon>
+                  <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Prep Time</div>
+                  <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    {{ selectedMeal.preparation_time || 'Quick' }}
+                  </div>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="6" sm="6">
+                <v-card class="pa-4 text-center" elevation="1" rounded="lg" color="#F8FDF0">
+                  <v-icon color="#5D8736" size="large" class="mb-2">mdi-fire</v-icon>
+                  <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Calories</div>
+                  <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
+                  </div>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <!-- Ingredients -->
+            <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
+                Ingredients
+              </h3>
+              <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
+                <v-row>
+                  <v-col
+                    v-for="(ingredient, index) in selectedMeal.ingredients"
+                    :key="index"
+                    cols="12"
+                    sm="6"
+                  >
+                    <div class="d-flex align-center mb-2">
+                      <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
+                      <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ ingredient }}
+                      </span>
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </div>
+
+            <!-- Instructions (Procedure) -->
+            <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
+                Procedure
+              </h3>
+              <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
+                <!-- Handle string-based procedures -->
+                <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
+                  <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    {{ selectedMeal.procedures }}
+                  </p>
+                </div>
+                <!-- Handle array-based instructions -->
+                <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
+                  <div
+                    v-for="(instruction, index) in selectedMeal.instructions"
+                    :key="index"
+                    class="mb-3"
+                  >
+                    <div class="d-flex align-start">
+                      <v-chip
+                        color="#A9C46C"
+                        size="small"
+                        class="mr-3 mt-1 text-white font-weight-bold"
+                        style="min-width: 28px; font-family: 'Syne', sans-serif;"
+                      >
+                        {{ index + 1 }}
+                      </v-chip>
+                      <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ instruction }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </v-card>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+    </v-app>
 </template>
+
+
 
 <style scoped>
 .day-scroll {
-  padding: 0 16px;
   overflow-x: auto;
-  white-space: nowrap;
+  padding: 15px 10px;
+  display: flex;
+  justify-content: center;
+  border-radius: 12px;
 }
 
 .day-buttons {
-  display: inline-flex;
-  gap: 8px;
-  padding: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
 }
+
+.day-btn {
+  min-width: 140px;  
+  padding: 14px 20px;
+  border: 1px solid #A9C46C;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  text-align: center;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.day-btn:hover {
+  background-color: #A9C46C !important;
+  color: #fff !important;
+  transform: scale(1.05);
+}
+
+/* For the two-line layout */
+.day-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+
+.day-label {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 15px;
+}
+
+.day-date {
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #555;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .day-buttons {
+    gap: 10px;
+  }
+  .day-btn {
+    min-width: 85px;
+    font-size: 14px;
+    padding: 8px 14px;
+  }
+  .day-label {
+    font-size: 13px;
+  }
+  .day-date {
+    font-size: 12px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .day-buttons {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-bottom: 8px;
+    scrollbar-width: none; 
+  }
+  .day-buttons::-webkit-scrollbar {
+    display: none; 
+  }
+  .day-btn {
+    min-width: 75px;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+  .day-label {
+    font-size: 12px;
+  }
+  .day-date {
+    font-size: 11px;
+  }
+}
+
+/* Keep active button same size as others */
+.day-btn,
+.active-day-btn {
+  min-width: 140px !important;
+  padding: 14px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 28px !important;
+}
+
+/* Active button style */
+.active-day-btn {
+  background-color: #A9C46C !important;
+  color: #fff !important;
+  border: 1px solid #A9C46C !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  transform: none !important; 
+}
+
+
+.meal-day-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 35px;
+  font-weight: 300; 
+}
+
+.meal-day-date {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;  
+  color: #666; 
+}
+
 
 .meal-card {
   transition: transform 0.2s;
@@ -405,14 +710,104 @@ const getMealImage = (meal, mealType) => {
   transform: translateY(-4px);
 }
 
-.nav-tab {
+
+.loading-wrapper {
   display: flex;
   flex-direction: column;
-  color: white !important;
+  align-items: center;
+  justify-content: center;
 }
 
-.nav-tab span {
-  font-size: 10px;
-  margin-top: 2px;
+.pot {
+  position: relative;
+  width: 80px;
+  height: 60px;
+  background: #A9C46C;
+  border-radius: 0 0 20px 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.lid {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  width: 80px;
+  height: 20px;
+  background: #7a9b40;
+  border-radius: 12px 12px 0 0;
+}
+
+.bubble {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: bubble 1.5s infinite ease-in-out;
+}
+
+.bubble:nth-child(1) {
+  animation-delay: 0s;
+  left: 25%;
+}
+
+.bubble:nth-child(2) {
+  animation-delay: 0.4s;
+  left: 50%;
+}
+
+.bubble:nth-child(3) {
+  animation-delay: 0.8s;
+  left: 75%;
+}
+
+@keyframes bubble {
+  0% { transform: translateY(0) scale(1); opacity: 0.7; }
+  50% { transform: translateY(-25px) scale(1.2); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 0.7; }
+}
+
+
+.icon-wrapper {  /* start nav bar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;   
+  height: 30px;
+  border-radius: 50%;
+}
+
+.icon-wrapper.active {
+  background-color: white;
+  color: #5B913B;
+}
+
+.nav-bar .v-btn {
+  flex-direction: column;
+  color: white;
+  font-family: 'Syne', sans-serif;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-bar .v-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-bar .v-btn:active {
+  transform: scale(0.96);
+}
+
+.nav-bar .v-icon {
+  font-size: 24px;
+}
+
+.nav-bar span { /* end nav bar */
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>

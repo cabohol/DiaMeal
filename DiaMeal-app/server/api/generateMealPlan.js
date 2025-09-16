@@ -3,6 +3,48 @@ import { supabase } from "../utils/supabase.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// Helper function to filter ingredients based on user constraints
+function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, diabetesType) {
+  return ingredients.filter(ingredient => {
+    // Filter out allergens
+    if (allergies.length > 0) {
+      const allergenList = ingredient.common_allergens || [];
+      const hasAllergen = allergies.some(allergy => 
+        allergenList.some(allergen => 
+          allergen.toLowerCase().includes(allergy.toLowerCase()) ||
+          allergy.toLowerCase().includes(allergen.toLowerCase())
+        )
+      );
+      if (hasAllergen) return false;
+    }
+
+    // Filter based on religious dietary restrictions
+    for (const diet of religiousDiets) {
+      switch (diet.toLowerCase()) {
+        case 'halal':
+          if (!ingredient.is_halal) return false;
+          break;
+        case 'kosher':
+          if (!ingredient.is_kosher) return false;
+          break;
+        case 'vegetarian':
+          if (!ingredient.is_vegetarian) return false;
+          break;
+        case 'vegan':
+          if (!ingredient.is_vegan) return false;
+          break;
+      }
+    }
+
+    // Filter based on availability
+    if (ingredient.availability === 'unavailable') {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -21,10 +63,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: "Missing user_id" });
     }
 
-    // rest of your code unchanged...
-
-
-    // --- 2) Pull latest user profile & constraints from Supabase ---
+    // --- 2) Pull latest user profile, constraints, AND available ingredients ---
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -51,10 +90,31 @@ export default async function handler(req, res) {
       .select("diet_type")
       .eq("user_id", user_id);
 
+    // --- NEW: Fetch available ingredients from database ---
+    const { data: ingredientsData, error: ingredientsError } = await supabase
+      .from("ingredients")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (ingredientsError) {
+      console.error('Ingredients fetch error:', ingredientsError);
+      throw ingredientsError;
+    }
+
     const allergiesList = (allergiesData || []).map(a => a.allergy).filter(Boolean);
     const religiousList = (religiousData || []).map(r => r.diet_type).filter(Boolean);
 
-    // --- 3) Ask Groq for deterministic JSON (no streaming) ---
+    // --- Filter ingredients based on user constraints ---
+    const availableIngredients = filterIngredientsByConstraints(
+      ingredientsData || [],
+      allergiesList,
+      religiousList,
+      user.diabetes_type
+    );
+
+    console.log(`Using ${availableIngredients.length} filtered ingredients for daily meal planning...`);
+
+    // --- 3) Ask Groq for deterministic JSON (no streaming) with ingredients ---
     const systemSchema = `
 Return ONLY valid JSON (no markdown, no commentary), matching exactly this TypeScript type:
 
@@ -62,7 +122,7 @@ type Meal = {
   name: string;
   meal_type: "breakfast" | "lunch" | "dinner";
   calories: number;                // kcal
-  ingredients: string[];           // plain strings
+  ingredients: string[];           // MUST use ingredients from the provided available_ingredients list
   procedures: string;              // short steps or paragraph
   preparation_time: string;        // e.g., "15m"
 };
@@ -75,15 +135,18 @@ type Plan = {
   }
 };
 
-Rules:
-- Respect allergies and religious diets strictly (avoid forbidden items).
-- For diabetes-friendly meals: prioritize high fiber, lean protein, low added sugar; moderate carbs.
-- Fit roughly within user's budget context if provided (use affordable options).
+CRITICAL RULES:
+- Use ONLY ingredients from the provided available_ingredients list
+- Each meal's ingredients array must contain ingredient names that exist in available_ingredients
+- Consider ingredient categories, nutritional values, and diabetes-friendliness flags
+- For diabetes management: prioritize ingredients with is_diabetic_friendly=true, high fiber, lean protein
+- Respect budget constraints by balancing affordable and premium ingredients
+- Create balanced nutrition using the ingredient nutritional data
 - Keep names and fields concise.
 `;
 
     const content = {
-      instruction: "Generate 3 meal types with 3 alternatives each for the next day.",
+      instruction: "Generate 3 meal types with 3 alternatives each for the next day using ONLY the provided ingredients.",
       user_profile: {
         id: user.id,
         full_name: user.full_name,
@@ -96,7 +159,24 @@ Rules:
       },
       latest_lab_results: lab || {},
       allergies: allergiesList,
-      religious_diets: religiousList
+      religious_diets: religiousList,
+      available_ingredients: availableIngredients.map(ing => ({
+        name: ing.name,
+        category: ing.category,
+        calories_per_serving: ing.calories_per_serving,
+        protein_grams: ing.protein_grams,
+        carbs_grams: ing.carbs_grams,
+        fat_grams: ing.fat_grams,
+        fiber_grams: ing.fiber_grams,
+        is_diabetic_friendly: ing.is_diabetic_friendly,
+        is_halal: ing.is_halal,
+        is_kosher: ing.is_kosher,
+        is_vegetarian: ing.is_vegetarian,
+        is_vegan: ing.is_vegan,
+        common_allergens: ing.common_allergens,
+        typical_serving_size: ing.typical_serving_size,
+        availability: ing.availability
+      }))
     };
 
     const chat = await groq.chat.completions.create({
@@ -131,7 +211,22 @@ Rules:
       }
     }
 
-    // --- 5) Save all alternatives into DB ---
+    // --- 5) Validate ingredients in generated meals ---
+    const availableIngredientNames = new Set(availableIngredients.map(ing => ing.name.toLowerCase()));
+    
+    for (const mealType of ["breakfast", "lunch", "dinner"]) {
+      for (const meal of meals[mealType]) {
+        if (Array.isArray(meal.ingredients)) {
+          for (const ingredient of meal.ingredients) {
+            if (!availableIngredientNames.has(ingredient.toLowerCase())) {
+              console.warn(`Warning: Ingredient "${ingredient}" not found in database for meal "${meal.name}"`);
+            }
+          }
+        }
+      }
+    }
+
+    // --- 6) Save all alternatives into DB with ingredient relationships ---
     const today = new Date();
     const saved = [];
 
@@ -156,6 +251,38 @@ Rules:
           .single();
         if (mealErr) throw mealErr;
 
+        // --- NEW: Create meal-ingredient relationships ---
+        if (Array.isArray(alt.ingredients) && alt.ingredients.length > 0) {
+          const ingredientRelationships = [];
+          
+          for (const ingredientName of alt.ingredients) {
+            // Find the ingredient in our database
+            const dbIngredient = availableIngredients.find(
+              ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
+            );
+            
+            if (dbIngredient) {
+              ingredientRelationships.push({
+                meal_id: mealRow.id,
+                ingredient_id: dbIngredient.id,
+                quantity: 1, // Default quantity, could be enhanced later
+                unit: dbIngredient.typical_serving_size || 'serving'
+              });
+            }
+          }
+
+          if (ingredientRelationships.length > 0) {
+            const { error: relationError } = await supabase
+              .from("meal_ingredients")
+              .insert(ingredientRelationships);
+            
+            if (relationError) {
+              console.error('Meal ingredients relationship error:', relationError);
+              // Don't throw error, just log it as this is supplementary data
+            }
+          }
+        }
+
         const { data: planRow, error: planErr } = await supabase
           .from("meal_plans")
           .insert([
@@ -174,11 +301,13 @@ Rules:
       }
     }
 
-    // --- 6) Respond with clean JSON ---
+    // --- 7) Respond with clean JSON ---
     return res.status(200).json({
       success: true,
+      message: "Daily meal plan generated successfully using ingredient database",
       mealsByType: meals, // { breakfast: [3], lunch: [3], dinner: [3] }
-      saved
+      saved,
+      ingredientsUsed: availableIngredients.length
     });
   } catch (error) {
     console.error("generateMealPlan error:", error);
@@ -187,4 +316,3 @@ Rules:
       .json({ success: false, error: error?.message || "Internal server error" });
   }
 }
-

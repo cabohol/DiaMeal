@@ -27,7 +27,49 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Generate 7-Day Meal Plan endpoint
+// --- Helper function to filter ingredients based on user constraints ---
+function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, diabetesType) {
+  return ingredients.filter(ingredient => {
+    // Filter out allergens
+    if (allergies.length > 0) {
+      const allergenList = ingredient.common_allergens || [];
+      const hasAllergen = allergies.some(allergy => 
+        allergenList.some(allergen => 
+          allergen.toLowerCase().includes(allergy.toLowerCase()) ||
+          allergy.toLowerCase().includes(allergen.toLowerCase())
+        )
+      );
+      if (hasAllergen) return false;
+    }
+
+    // Filter based on religious dietary restrictions
+    for (const diet of religiousDiets) {
+      switch (diet.toLowerCase()) {
+        case 'halal':
+          if (!ingredient.is_halal) return false;
+          break;
+        case 'kosher':
+          if (!ingredient.is_kosher) return false;
+          break;
+        case 'vegetarian':
+          if (!ingredient.is_vegetarian) return false;
+          break;
+        case 'vegan':
+          if (!ingredient.is_vegan) return false;
+          break;
+      }
+    }
+
+    // Filter based on availability
+    if (ingredient.availability === 'unavailable') {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+// REPLACE YOUR EXISTING /api/generateMealPlan endpoint with this updated version:
 app.post('/api/generateMealPlan', async (req, res) => {
   try {
     // --- 1) Validate input ---
@@ -74,7 +116,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       }
     }
 
-    // --- 3) Pull latest user profile & constraints from Supabase ---
+    // --- 3) Pull latest user profile, constraints, AND available ingredients ---
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -103,8 +145,29 @@ app.post('/api/generateMealPlan', async (req, res) => {
       .select("diet_type")
       .eq("user_id", user_id);
 
+    // --- NEW: Fetch available ingredients from database ---
+    const { data: ingredientsData, error: ingredientsError } = await supabase
+      .from("ingredients")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (ingredientsError) {
+      console.error('Ingredients fetch error:', ingredientsError);
+      throw ingredientsError;
+    }
+
     const allergiesList = (allergiesData || []).map(a => a.allergy).filter(Boolean);
     const religiousList = (religiousData || []).map(r => r.diet_type).filter(Boolean);
+
+    // --- Filter ingredients based on user constraints ---
+    const availableIngredients = filterIngredientsByConstraints(
+      ingredientsData || [],
+      allergiesList,
+      religiousList,
+      user.diabetes_type
+    );
+
+    console.log(`Using ${availableIngredients.length} filtered ingredients for meal planning...`);
 
     // --- 4) Delete old meal plans if regenerating ---
     if (force_regenerate) {
@@ -135,7 +198,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       }
     }
 
-    // --- 5) Generate 7 days of meals using Groq ---
+    // --- 5) Generate 7 days of meals using Groq with ingredients ---
     const systemSchema = `
 Return ONLY valid JSON (no markdown, no commentary), matching exactly this TypeScript type:
 
@@ -143,7 +206,7 @@ type Meal = {
   name: string;
   meal_type: "breakfast" | "lunch" | "dinner";
   calories: number;                // kcal
-  ingredients: string[];           // plain strings
+  ingredients: string[];           // MUST use ingredients from the provided available_ingredients list
   procedures: string;              // short steps or paragraph
   preparation_time: string;        // e.g., "15m"
 };
@@ -186,17 +249,18 @@ type WeekPlan = {
   };
 };
 
-Rules:
+CRITICAL RULES:
+- Use ONLY ingredients from the provided available_ingredients list
+- Each meal's ingredients array must contain ingredient names that exist in available_ingredients
 - Generate UNIQUE meals for each day (avoid repeating the same meal across days)
-- Respect allergies and religious diets strictly (avoid forbidden items)
-- For diabetes-friendly meals: prioritize high fiber, lean protein, low added sugar; moderate carbs
-- Fit roughly within user's budget context if provided (use affordable options)
-- Keep names and fields concise
-- Provide variety across the week while maintaining nutritional balance
+- Consider ingredient categories, nutritional values, and diabetes-friendliness flags
+- For diabetes management: prioritize ingredients with is_diabetic_friendly=true, high fiber, lean protein
+- Respect budget constraints by balancing affordable and premium ingredients
+- Create balanced nutrition across all meals using the ingredient nutritional data
 `;
 
     const content = {
-      instruction: "Generate a complete 7-day meal plan with 3 meal types and 3 alternatives each per day. Ensure variety across days.",
+      instruction: "Generate a complete 7-day meal plan using ONLY the provided ingredients. Create nutritionally balanced, diabetes-friendly meals that respect user constraints.",
       user_profile: {
         id: user.id,
         full_name: user.full_name,
@@ -209,7 +273,24 @@ Rules:
       },
       latest_lab_results: lab || {},
       allergies: allergiesList,
-      religious_diets: religiousList
+      religious_diets: religiousList,
+      available_ingredients: availableIngredients.map(ing => ({
+        name: ing.name,
+        category: ing.category,
+        calories_per_serving: ing.calories_per_serving,
+        protein_grams: ing.protein_grams,
+        carbs_grams: ing.carbs_grams,
+        fat_grams: ing.fat_grams,
+        fiber_grams: ing.fiber_grams,
+        is_diabetic_friendly: ing.is_diabetic_friendly,
+        is_halal: ing.is_halal,
+        is_kosher: ing.is_kosher,
+        is_vegetarian: ing.is_vegetarian,
+        is_vegan: ing.is_vegan,
+        common_allergens: ing.common_allergens,
+        typical_serving_size: ing.typical_serving_size,
+        availability: ing.availability
+      }))
     };
 
     console.log('Calling Groq API for 7-day plan...');
@@ -238,10 +319,9 @@ Rules:
       throw new Error("AI response was not valid JSON.");
     }
 
-    // --- 7) Save all meals and plans into DB ---
-    const startDate = new Date();
-    const mealPlansByDay = {};
-
+    // --- 7) Validate ingredients in generated meals ---
+    const availableIngredientNames = new Set(availableIngredients.map(ing => ing.name.toLowerCase()));
+    
     for (let dayNum = 1; dayNum <= 7; dayNum++) {
       const dayKey = `day${dayNum}`;
       const dayMeals = weekPlan[dayKey];
@@ -250,6 +330,34 @@ Rules:
         throw new Error(`Missing meals for ${dayKey}`);
       }
 
+      for (const mealType of ["breakfast", "lunch", "dinner"]) {
+        const mealsForType = dayMeals[mealType];
+        
+        if (!Array.isArray(mealsForType) || mealsForType.length !== 3) {
+          throw new Error(`Invalid structure for ${dayKey} ${mealType}`);
+        }
+
+        // Validate ingredients exist in our database
+        for (const meal of mealsForType) {
+          if (Array.isArray(meal.ingredients)) {
+            for (const ingredient of meal.ingredients) {
+              if (!availableIngredientNames.has(ingredient.toLowerCase())) {
+                console.warn(`Warning: Ingredient "${ingredient}" not found in database for meal "${meal.name}"`);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // --- 8) Save all meals and plans into DB with ingredient relationships ---
+    const startDate = new Date();
+    const mealPlansByDay = {};
+
+    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+      const dayKey = `day${dayNum}`;
+      const dayMeals = weekPlan[dayKey];
+      
       // Calculate date for this day
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + (dayNum - 1));
@@ -260,10 +368,6 @@ Rules:
       // Process each meal type for this day
       for (const mealType of ["breakfast", "lunch", "dinner"]) {
         const mealsForType = dayMeals[mealType];
-        
-        if (!Array.isArray(mealsForType) || mealsForType.length !== 3) {
-          throw new Error(`Invalid structure for ${dayKey} ${mealType}`);
-        }
 
         // Save each meal alternative
         for (const meal of mealsForType) {
@@ -288,6 +392,38 @@ Rules:
             throw mealErr;
           }
 
+          // --- NEW: Create meal-ingredient relationships ---
+          if (Array.isArray(meal.ingredients) && meal.ingredients.length > 0) {
+            const ingredientRelationships = [];
+            
+            for (const ingredientName of meal.ingredients) {
+              // Find the ingredient in our database
+              const dbIngredient = availableIngredients.find(
+                ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
+              );
+              
+              if (dbIngredient) {
+                ingredientRelationships.push({
+                  meal_id: mealRow.id,
+                  ingredient_id: dbIngredient.id,
+                  quantity: 1, // Default quantity, could be enhanced later
+                  unit: dbIngredient.typical_serving_size || 'serving'
+                });
+              }
+            }
+
+            if (ingredientRelationships.length > 0) {
+              const { error: relationError } = await supabase
+                .from("meal_ingredients")
+                .insert(ingredientRelationships);
+              
+              if (relationError) {
+                console.error('Meal ingredients relationship error:', relationError);
+                // Don't throw error, just log it as this is supplementary data
+              }
+            }
+          }
+
           const { data: planRow, error: planErr } = await supabase
             .from("meal_plans")
             .insert([{
@@ -309,12 +445,13 @@ Rules:
       }
     }
 
-    // --- 8) Respond with structured JSON ---
+    // --- 9) Respond with structured JSON ---
     return res.status(200).json({
       success: true,
-      message: "7-day meal plan generated successfully",
+      message: "7-day meal plan generated successfully using ingredient database",
       mealPlansByDay,
-      isExisting: false
+      isExisting: false,
+      ingredientsUsed: availableIngredients.length
     });
 
   } catch (error) {
@@ -325,17 +462,99 @@ Rules:
   }
 });
 
-// Get existing meal plan endpoint
+// KEEP your existing /api/getMealPlan/:userId endpoint as is
+
+// ADD these new endpoints at the end, before app.listen():
+
+// Get ingredients endpoint
+app.get('/api/getIngredients', async (req, res) => {
+  try {
+    const { category, diabetic_friendly, search } = req.query;
+    
+    let query = supabase.from('ingredients').select('*');
+    
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+    
+    if (diabetic_friendly === 'true') {
+      query = query.eq('is_diabetic_friendly', true);
+    }
+    
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
+    
+    query = query.order('name', { ascending: true });
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    res.status(200).json({
+      success: true,
+      ingredients: data || []
+    });
+    
+  } catch (error) {
+    console.error("getIngredients error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error?.message || "Failed to fetch ingredients" 
+    });
+  }
+});
+
+// Get meal with ingredients endpoint
+app.get('/api/getMealWithIngredients/:mealId', async (req, res) => {
+  try {
+    const { mealId } = req.params;
+    
+    const { data: meal, error: mealError } = await supabase
+      .from('meals')
+      .select(`
+        *,
+        meal_ingredients (
+          quantity,
+          unit,
+          ingredients (*)
+        )
+      `)
+      .eq('id', mealId)
+      .single();
+    
+    if (mealError) throw mealError;
+    
+    res.status(200).json({
+      success: true,
+      meal
+    });
+    
+  } catch (error) {
+    console.error("getMealWithIngredients error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error?.message || "Failed to fetch meal with ingredients" 
+    });
+  }
+});
+
+// Add this endpoint to your server.js file, before app.listen()
+
 app.get('/api/getMealPlan/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    const startDate = new Date().toISOString().split('T')[0];
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 6);
-    const endDateStr = endDate.toISOString().split('T')[0];
+    if (!userId) {
+      return res.status(400).json({ success: false, error: "Missing userId" });
+    }
 
-    const { data: plans, error } = await supabase
+    // Get existing meal plans for today and the next 6 days
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 6);
+
+    const { data: mealPlans, error } = await supabase
       .from("meal_plans")
       .select(`
         *,
@@ -343,15 +562,18 @@ app.get('/api/getMealPlan/:userId', async (req, res) => {
       `)
       .eq("user_id", userId)
       .eq("recommended_by_ai", true)
-      .gte("date", startDate)
-      .lte("date", endDateStr)
+      .gte("date", startDate.toISOString().split('T')[0])
+      .lte("date", endDate.toISOString().split('T')[0])
       .order("date", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Meal plans fetch error:', error);
+      throw error;
+    }
 
-    // Group by date
+    // Group meal plans by date
     const mealPlansByDay = {};
-    plans.forEach(plan => {
+    (mealPlans || []).forEach(plan => {
       const dateStr = plan.date.split('T')[0];
       if (!mealPlansByDay[dateStr]) {
         mealPlansByDay[dateStr] = { breakfast: [], lunch: [], dinner: [] };
@@ -364,21 +586,24 @@ app.get('/api/getMealPlan/:userId', async (req, res) => {
       }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      mealPlansByDay
+      mealPlansByDay,
+      hasPlans: Object.keys(mealPlansByDay).length > 0
     });
 
   } catch (error) {
     console.error("getMealPlan error:", error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       success: false, 
-      error: error?.message || "Failed to fetch meal plan" 
+      error: error?.message || "Failed to fetch meal plans" 
     });
   }
 });
 
-// Health check endpoint
+
+
+// Keep your existing health check and app.listen() as they are
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });

@@ -8,6 +8,8 @@ const user = ref(null);
 const profileImageUrl = ref('');
 const uploading = ref(false);
 const router = useRouter();
+const logoutDialog = ref(false); 
+
 
 // Alert messages
 const formSuccessMessage = ref('');
@@ -163,8 +165,41 @@ onMounted(fetchUser);
               prepend-icon="mdi-logout"
               size="large"
               style="width: 100%; max-width: 300px; font-family: 'Syne', sans-serif;"
-              @click="handleLogout"> Logout
+              @click="logoutDialog = true"> Logout
             </v-btn>
+
+            <v-dialog v-model="logoutDialog" max-width="400" persistent>
+              <v-card class="pa-4" style="border-radius: 20px;">
+                <v-card-title class="d-flex align-center justify-center" style="color: #5D8736; font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 600;">
+                  <v-icon size="28" color="#5D8736" class="mr-2">mdi-logout</v-icon>
+                  Confirm Logout
+                </v-card-title>
+
+                <v-card-text class="text-center" style="font-family: 'Syne', sans-serif; font-size: 15px; color: #444;">
+                  Are you sure you want to log out from your account?
+                </v-card-text>
+
+                <v-card-actions class="d-flex justify-center mt-4">
+                  <v-btn
+                    variant="outlined"
+                    style="border-radius: 12px; border: 1px solid #5D8736; color: #5D8736; font-family: 'Syne', sans-serif;"
+                    @click="logoutDialog = false"
+                  >
+                    Cancel
+                  </v-btn>
+
+                  <v-btn
+                    class="ml-4"
+                    color="#5D8736"
+                    variant="flat"
+                    style="border-radius: 12px; color: white; font-family: 'Syne', sans-serif;"
+                    @click="handleLogout"
+                  >
+                    Logout
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
           </v-col>
         </v-row>
 

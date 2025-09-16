@@ -268,15 +268,30 @@ const formatDate = (dateStr) => {
         {{ errorMsg }}
       </v-alert>
 
-      <!-- Loading State -->
+      <!-- RoboLoading -->
       <div v-if="loading" class="loading-wrapper text-center py-10">
-        <div class="pot">
-          <div class="bubble"></div>
-          <div class="bubble"></div>
-          <div class="bubble"></div>
-          <div class="lid"></div>
+        <div class="video-container">
+          <video
+            autoplay
+            muted
+            loop
+            playsinline
+            class="loading-video"
+            src="/src/assets/roboloading.mp4"
+          >
+            <!-- Fallback if video doesn't load -->
+            <div class="video-fallback">
+              <div class="pot">
+                <div class="bubble"></div>
+                <div class="bubble"></div>
+                <div class="bubble"></div>
+                <div class="lid"></div>
+              </div>
+            </div>
+          </video>
         </div>
-        <p class="mt-5 text-lg" style="font-family: 'Syne', sans-serif; font-size: 20px; color: #5B913B;">
+        
+        <p class="mt-5 text-lg" style="font-family: 'Syne', sans-serif; font-size: 20px; color: #5B913B; font-weight: 400;">
           Preparing your personalized meal plan!
         </p>
       </div>
@@ -328,35 +343,42 @@ const formatDate = (dateStr) => {
                     'ma-2': $vuetify.display.sm,
                     'ma-3': $vuetify.display.mdAndUp
                   }"
-                  :max-width="$vuetify.display.xs ? '240' : $vuetify.display.sm ? '260' : '280'"
-                  :min-width="$vuetify.display.xs ? '220' : $vuetify.display.sm ? '240' : '250'"
-                  :height="$vuetify.display.xs ? '220' : $vuetify.display.sm ? '240' : '260'"
+                  :width="$vuetify.display.xs ? 240 : $vuetify.display.sm ? 260 : 280"
+                  :height="$vuetify.display.xs ? 280 : $vuetify.display.sm ? 300 : 320"
                   rounded="lg"
                   elevation="2"
                   hover
                   style="font-family: 'Syne', sans-serif;"
                 >
                   <!-- Card body with better spacing -->
-                  <div class="d-flex flex-column flex-grow-1 text-center">
-                    <!-- Meal name with more prominence -->
-                    <div class="font-weight-bold mb-3 text-h6 text-sm-h5" style="line-height: 1.2; font-family: 'Syne', sans-serif;">
-                      {{ meal.name }}
+                  <div class="d-flex flex-column h-100">
+                    <!-- Meal name with consistent height -->
+                    <div class="meal-name-container mb-3">
+                      <div class="font-weight-bold text-h6 text-sm-h5 text-center" 
+                          style="line-height: 1.2; font-family: 'Syne', sans-serif; min-height: 48px; display: flex; align-items: center; justify-content: center;">
+                        {{ meal.name }}
+                      </div>
                     </div>
 
-                    <v-chip 
-                      :size="$vuetify.display.xs ? 'small' : 'default'" 
-                      color="#A9C46C" 
-                      class="mb-4 text-white align-self-center"
-                      style="font-family: 'Syne', sans-serif;"
-                    >
-                      Option {{ idx + 1 }}
-                    </v-chip>
+                    <!-- Option chip -->
+                    <div class="d-flex justify-center mb-4">
+                      <v-chip 
+                        :size="$vuetify.display.xs ? 'small' : 'default'" 
+                        color="#A9C46C" 
+                        class="text-white"
+                        style="font-family: 'Syne', sans-serif;"
+                      >
+                        Option {{ idx + 1 }}
+                      </v-chip>
+                    </div>
 
-                    <!-- Info section with better spacing -->
-                    <div class="mb-4">
-                      <div class="text-body-2 text-sm-body-1 mb-2 d-flex align-center justify-center">
+                    <!-- Info section with consistent spacing -->
+                    <div class="info-section mb-4 flex-grow-1">
+                      <div class="text-body-2 text-sm-body-1 mb-3 d-flex align-center justify-center">
                         <v-icon size="small" class="mr-2" color="#5D8736">mdi-clock-outline</v-icon>
-                        <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">{{ meal.preparation_time || 'Quick prep' }}</span>
+                        <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">
+                          {{ meal.preparation_time || 'Quick prep' }}
+                        </span>
                       </div>
 
                       <div class="text-body-2 text-sm-body-1 d-flex align-center justify-center">
@@ -366,22 +388,23 @@ const formatDate = (dateStr) => {
                         </span>
                       </div>
                     </div>
-                    <v-spacer />
 
-                    <!-- Button pinned sa ubos -->
-                    <v-btn
-                      color="#5D8736"
-                      rounded
-                      :size="$vuetify.display.xs ? 'small' : 'default'"
-                      block
-                      class="text-white"
-                      :disabled="new Date(selectedDay.date) > new Date()"
-                      @click="viewMeal(meal)"
-                      style="font-family: 'Syne', sans-serif;"
-                    >
-                      <span class="text-body-2 text-sm-body-1 font-weight-medium">View Details</span>
-                      <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
-                    </v-btn>
+                    <!-- Button always at bottom -->
+                    <div class="mt-auto">
+                      <v-btn
+                        color="#5D8736"
+                        rounded
+                        :size="$vuetify.display.xs ? 'small' : 'default'"
+                        block
+                        class="text-white"
+                        :disabled="new Date(selectedDay.date) > new Date()"
+                        @click="viewMeal(meal)"
+                        style="font-family: 'Syne', sans-serif;"
+                      >
+                        <span class="text-body-2 text-sm-body-1 font-weight-medium">View Details</span>
+                        <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
+                      </v-btn>
+                    </div>
                   </div>
                 </v-card>
               </v-slide-group-item>
@@ -432,132 +455,132 @@ const formatDate = (dateStr) => {
         </v-btn>
       </v-bottom-navigation>
 
-  <!-- Meal Details Dialog -->
-      <v-dialog
-        v-model="mealDetailsDialog"
-        max-width="900"
-        persistent
-        :fullscreen="$vuetify.display.xs">
-        
-        <v-card class="meal-details-card" :class="{ 'h-100': $vuetify.display.xs }"style="font-family: 'Syne', sans-serif;">
-          <!-- Header with close button -->
-          <v-card-title class="d-flex align-center justify-space-between pa-4 pa-sm-4" style="background: linear-gradient(135deg, #E8F5C8 0%, #D4E8A3 100%);">
-            <div class="d-flex align-center">
-              <v-icon color="#5D8736" size="large" class="mr-3">mdi-food</v-icon>
-              <span class="text-h5 text-sm-h4 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                Meal Details
-              </span>
-            </div>
-            <v-btn icon variant="text" color="#5D8736" @click="closeMealDetails">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </v-card-title>
+      <!-- Meal Details Dialog -->
+          <v-dialog
+            v-model="mealDetailsDialog"
+            max-width="900"
+            persistent
+            :fullscreen="$vuetify.display.xs">
+            
+            <v-card class="meal-details-card" :class="{ 'h-100': $vuetify.display.xs }"style="font-family: 'Syne', sans-serif;">
+              <!-- Header with close button -->
+              <v-card-title class="d-flex align-center justify-space-between pa-4 pa-sm-4" style="background: linear-gradient(135deg, #E8F5C8 0%, #D4E8A3 100%);">
+                <div class="d-flex align-center">
+                  <v-icon color="#5D8736" size="large" class="mr-3">mdi-food</v-icon>
+                  <span class="text-h5 text-sm-h4 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    Meal Details
+                  </span>
+                </div>
+                <v-btn icon variant="text" color="#5D8736" @click="closeMealDetails">
+                  <v-icon>mdi-close</v-icon>
+                </v-btn>
+              </v-card-title>
 
-          <!-- Content -->
-          <v-card-text class="pa-4 pa-sm-6" v-if="selectedMeal">
-            <!-- Meal Name -->
-            <div class="text-center mb-6">
-              <h2 class="text-h4 text-sm-h3 font-weight-bold mb-2" style="color: #2C3E50; line-height: 1.2; font-family: 'Syne', sans-serif;">
-                {{ selectedMeal.name }}
-              </h2>
-              <v-chip
-                color="#A9C46C"
-                size="large"
-                class="text-white font-weight-medium"
-                style="font-family: 'Syne', sans-serif;"
-              >
-                {{ getMealTypeFromKey(selectedMealType) }} Option
-              </v-chip>
-            </div>
-
-            <!-- Quick Info Cards - Prep Time and Calories -->
-            <v-row class="mb-6 justify-center">
-              <v-col cols="6" sm="6">
-                <v-card class="pa-4 text-center" elevation="1" rounded="lg"color="#F8FDF0">
-                  <v-icon color="#5D8736" size="large" class="mb-2">mdi-clock-outline</v-icon>
-                  <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Prep Time</div>
-                  <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    {{ selectedMeal.preparation_time || 'Quick' }}
-                  </div>
-                </v-card>
-              </v-col>
-              
-              <v-col cols="6" sm="6">
-                <v-card class="pa-4 text-center" elevation="1" rounded="lg" color="#F8FDF0">
-                  <v-icon color="#5D8736" size="large" class="mb-2">mdi-fire</v-icon>
-                  <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Calories</div>
-                  <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
-                  </div>
-                </v-card>
-              </v-col>
-            </v-row>
-
-            <!-- Ingredients -->
-            <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
-              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
-                Ingredients
-              </h3>
-              <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
-                <v-row>
-                  <v-col
-                    v-for="(ingredient, index) in selectedMeal.ingredients"
-                    :key="index"
-                    cols="12"
-                    sm="6"
+              <!-- Content -->
+              <v-card-text class="pa-4 pa-sm-6" v-if="selectedMeal">
+                <!-- Meal Name -->
+                <div class="text-center mb-6">
+                  <h2 class="text-h4 text-sm-h3 font-weight-bold mb-2" style="color: #2C3E50; line-height: 1.2; font-family: 'Syne', sans-serif;">
+                    {{ selectedMeal.name }}
+                  </h2>
+                  <v-chip
+                    color="#A9C46C"
+                    size="large"
+                    class="text-white font-weight-medium"
+                    style="font-family: 'Syne', sans-serif;"
                   >
-                    <div class="d-flex align-center mb-2">
-                      <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
-                      <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ ingredient }}
-                      </span>
-                    </div>
+                    {{ getMealTypeFromKey(selectedMealType) }} Option
+                  </v-chip>
+                </div>
+
+                <!-- Quick Info Cards - Prep Time and Calories -->
+                <v-row class="mb-6 justify-center">
+                  <v-col cols="6" sm="6">
+                    <v-card class="pa-4 text-center" elevation="1" rounded="lg"color="#F8FDF0">
+                      <v-icon color="#5D8736" size="large" class="mb-2">mdi-clock-outline</v-icon>
+                      <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Prep Time</div>
+                      <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ selectedMeal.preparation_time || 'Quick' }}
+                      </div>
+                    </v-card>
+                  </v-col>
+                  
+                  <v-col cols="6" sm="6">
+                    <v-card class="pa-4 text-center" elevation="1" rounded="lg" color="#F8FDF0">
+                      <v-icon color="#5D8736" size="large" class="mb-2">mdi-fire</v-icon>
+                      <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Calories</div>
+                      <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
+                      </div>
+                    </v-card>
                   </v-col>
                 </v-row>
-              </v-card>
-            </div>
 
-            <!-- Instructions (Procedure) -->
-            <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
-              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
-                Procedure
-              </h3>
-              <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
-                <!-- Handle string-based procedures -->
-                <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
-                  <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    {{ selectedMeal.procedures }}
-                  </p>
-                </div>
-                <!-- Handle array-based instructions -->
-                <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
-                  <div
-                    v-for="(instruction, index) in selectedMeal.instructions"
-                    :key="index"
-                    class="mb-3"
-                  >
-                    <div class="d-flex align-start">
-                      <v-chip
-                        color="#A9C46C"
-                        size="small"
-                        class="mr-3 mt-1 text-white font-weight-bold"
-                        style="min-width: 28px; font-family: 'Syne', sans-serif;"
+                <!-- Ingredients -->
+                <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
+                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
+                    Ingredients
+                  </h3>
+                  <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
+                    <v-row>
+                      <v-col
+                        v-for="(ingredient, index) in selectedMeal.ingredients"
+                        :key="index"
+                        cols="12"
+                        sm="6"
                       >
-                        {{ index + 1 }}
-                      </v-chip>
-                      <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ instruction }}
+                        <div class="d-flex align-center mb-2">
+                          <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
+                          <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                            {{ ingredient }}
+                          </span>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </v-card>
+                </div>
+
+                <!-- Instructions (Procedure) -->
+                <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
+                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
+                    Procedure
+                  </h3>
+                  <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
+                    <!-- Handle string-based procedures -->
+                    <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
+                      <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ selectedMeal.procedures }}
                       </p>
                     </div>
-                  </div>
+                    <!-- Handle array-based instructions -->
+                    <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
+                      <div
+                        v-for="(instruction, index) in selectedMeal.instructions"
+                        :key="index"
+                        class="mb-3"
+                      >
+                        <div class="d-flex align-start">
+                          <v-chip
+                            color="#A9C46C"
+                            size="small"
+                            class="mr-3 mt-1 text-white font-weight-bold"
+                            style="min-width: 28px; font-family: 'Syne', sans-serif;"
+                          >
+                            {{ index + 1 }}
+                          </v-chip>
+                          <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                            {{ instruction }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </v-card>
                 </div>
-              </v-card>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-dialog>
+              </v-card-text>
+            </v-card>
+          </v-dialog>
     </v-app>
 </template>
 
@@ -701,79 +724,66 @@ const formatDate = (dateStr) => {
   color: #666; 
 }
 
-
 .meal-card {
   transition: transform 0.2s;
+  background-color: #fff;
+  border: 1px solid rgba(169, 196, 108, 0.2);
 }
 
 .meal-card:hover {
   transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-
-.loading-wrapper {
+.meal-name-container {
+  min-height: 60px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.pot {
-  position: relative;
-  width: 80px;
-  height: 60px;
-  background: #A9C46C;
-  border-radius: 0 0 20px 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+.info-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 80px;
 }
 
-.lid {
-  position: absolute;
-  top: -20px;
-  left: 0;
-  width: 80px;
-  height: 20px;
-  background: #7a9b40;
-  border-radius: 12px 12px 0 0;
+@media (max-width: 480px) {
+  .meal-name-container {
+    min-height: 50px;
+  }
+  
+  .info-section {
+    min-height: 70px;
+  }
 }
 
-.bubble {
-  position: absolute;
-  bottom: 5px;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  background: #fff;
-  border-radius: 50%;
-  opacity: 0.7;
-  animation: bubble 1.5s infinite ease-in-out;
+@media (min-width: 481px) and (max-width: 768px) {
+  .meal-name-container {
+    min-height: 55px;
+  }
+  
+  .info-section {
+    min-height: 75px;
+  }
 }
 
-.bubble:nth-child(1) {
-  animation-delay: 0s;
-  left: 25%;
+.v-slide-group__prev,
+.v-slide-group__next {
+  min-width: 48px !important;
+  background: rgba(169, 196, 108, 0.9) !important;
+  color: white !important;
+  border-radius: 50% !important;
 }
 
-.bubble:nth-child(2) {
-  animation-delay: 0.4s;
-  left: 50%;
+.v-slide-group__prev:hover,
+.v-slide-group__next:hover {
+  background: rgba(169, 196, 108, 1) !important;
 }
 
-.bubble:nth-child(3) {
-  animation-delay: 0.8s;
-  left: 75%;
-}
-
-@keyframes bubble {
-  0% { transform: translateY(0) scale(1); opacity: 0.7; }
-  50% { transform: translateY(-25px) scale(1.2); opacity: 1; }
-  100% { transform: translateY(0) scale(1); opacity: 0.7; }
-}
-
-
-.icon-wrapper {  /* start nav bar */
+/* start nav bar */
+.icon-wrapper {  
   display: flex;
   align-items: center;
   justify-content: center;
@@ -806,8 +816,134 @@ const formatDate = (dateStr) => {
   font-size: 24px;
 }
 
-.nav-bar span { /* end nav bar */
+.nav-bar span { 
   font-size: 12px;
   margin-top: 4px;
 }
+/* end nav bar */
+
+/* RoboLoading Start */
+.loading-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Small responsive video sizing */
+@media (max-width: 480px) {
+  /* Mobile phones */
+  .loading-video {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  /* Tablets */
+  .loading-video {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (min-width: 769px) {
+  /* Desktop and up */
+  .loading-video {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+.video-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 90px;
+}
+
+.video-fallback .pot {
+  position: relative;
+  width: 40px;
+  height: 30px;
+  background: #A9C46C;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.video-fallback .lid {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 40px;
+  height: 10px;
+  background: #7a9b40;
+  border-radius: 5px 5px 0 0;
+}
+
+.video-fallback .bubble {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: bubble 1.5s infinite ease-in-out;
+}
+
+.video-fallback .bubble:nth-child(1) {
+  animation-delay: 0s;
+  left: 25%;
+}
+
+.video-fallback .bubble:nth-child(2) {
+  animation-delay: 0.4s;
+  left: 50%;
+}
+
+.video-fallback .bubble:nth-child(3) {
+  animation-delay: 0.8s;
+  left: 75%;
+}
+
+.video-container:hover {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+.loading-wrapper p {
+  max-width: 90%;
+  text-align: center;
+  line-height: 1.3;
+  margin-top: 10px !important;
+}
+
+@media (max-width: 480px) {
+  .loading-wrapper p {
+    font-size: 16px !important;
+  }
+}
+
+.loading-wrapper {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+/* RoboLoading End */
 </style>

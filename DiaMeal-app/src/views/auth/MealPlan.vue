@@ -542,7 +542,7 @@ async function submitForm() {
                             @click="glucoseToleranceDialog = true" style="cursor: pointer"> mdi-information
                     </v-icon>
                   </template>
-  </v-text-field>
+                </v-text-field>
             </v-col>
 
             <!-- Dialog for Glucose Tolerance Info -->

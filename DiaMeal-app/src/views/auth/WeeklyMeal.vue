@@ -5,14 +5,14 @@ import { supabase } from '@/utils/supabase'
 // API base URL - change this for production
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-// Generate day labels with actual dates
-const generateDaysWithDates = () => {
+// Generate day labels with actual dates based on user's last_submission_date
+const generateDaysWithDates = (startDate) => {
   const days = []
-  const today = new Date()
+  const baseDate = new Date(startDate)
   
   for (let i = 0; i < 7; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() + i)
+    const date = new Date(baseDate)
+    date.setDate(baseDate.getDate() + i)
     const dateStr = date.toISOString().split('T')[0]
     const dayLabel = `Day ${i + 1}`
     days.push({ label: dayLabel, date: dateStr })
@@ -21,14 +21,20 @@ const generateDaysWithDates = () => {
   return days
 }
 
-const daysWithDates = ref(generateDaysWithDates())
+const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
-const selectedDay = computed(() => daysWithDates.value[selectedDayIndex.value])
+const selectedDay = computed(() => {
+  if (!daysWithDates.value || daysWithDates.value.length === 0) {
+    return { label: 'Loading...', date: new Date().toISOString().split('T')[0] }
+  }
+  return daysWithDates.value[selectedDayIndex.value] || daysWithDates.value[0]
+})
 
 const loading = ref(false)
 const errorMsg = ref('')
 const mealPlansByDay = ref({})
 const isExistingPlan = ref(false)
+const userStartDate = ref(null)
 
 // Modal variables
 const mealDetailsDialog = ref(false)
@@ -43,6 +49,49 @@ const currentDayMeals = computed(() => {
   }
   return mealPlansByDay.value[dateStr]
 })
+
+// Fetch user's last_submission_date
+const fetchUserStartDate = async () => {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('User not authenticated')
+
+    // Fetch user row to get last_submission_date
+    const { data: userRow, error: userRowErr } = await supabase
+      .from('users')
+      .select('last_submission_date')
+      .eq('email', user.email)
+      .single()
+    
+    if (userRowErr || !userRow) {
+      console.error('User row error:', userRowErr)
+      throw userRowErr || new Error('User row not found')
+    }
+
+    if (!userRow.last_submission_date) {
+      throw new Error('User has no submission date. Please complete your profile first.')
+    }
+
+    userStartDate.value = userRow.last_submission_date
+    // Generate days based on user's submission date
+    const generatedDays = generateDaysWithDates(userRow.last_submission_date)
+    if (generatedDays && generatedDays.length > 0) {
+      daysWithDates.value = generatedDays
+      selectedDayIndex.value = 0 // Reset to first day
+    } else {
+      throw new Error('Failed to generate days')
+    }
+    
+    console.log('User start date:', userRow.last_submission_date)
+    console.log('Generated days:', daysWithDates.value)
+    
+  } catch (err) {
+    console.error('Error fetching user start date:', err)
+    errorMsg.value = err.message || 'Failed to fetch user data'
+    // Provide fallback data
+    daysWithDates.value = []
+  }
+}
 
 // Fetch or generate meal plan
 const fetchMealPlan = async (forceRegenerate = false) => {
@@ -145,7 +194,10 @@ async function testAPIConnection() {
 onMounted(async () => {
   await testAPIConnection()
   if (!errorMsg.value) {
-    await fetchMealPlan()
+    await fetchUserStartDate() // Fetch user's start date first
+    if (!errorMsg.value) {
+      await fetchMealPlan() // Then fetch meal plan
+    }
   }
 })
 
@@ -302,10 +354,14 @@ const formatDate = (dateStr) => {
         <v-card class="mb-4 text-center" flat color="transparent">
           <v-card-text>
             <!-- Day label -->
-            <h2 class="meal-day-title text-h4 text-sm-h3 text-md-h2" style="font-family: 'Syne', sans-serif;">{{ selectedDay.label }}</h2>
+            <h2 class="meal-day-title text-h4 text-sm-h3 text-md-h2" style="font-family: 'Syne', sans-serif;">
+              {{ selectedDay?.label || 'Loading...' }}
+            </h2>
 
             <!-- Date -->
-            <p class="meal-day-date text-body-1 text-sm-h6" style="font-family: 'Syne', sans-serif;">{{ formatDate(selectedDay.date) }}</p>
+            <p class="meal-day-date text-body-1 text-sm-h6" style="font-family: 'Syne', sans-serif;">
+              {{ selectedDay?.date ? formatDate(selectedDay.date) : '' }}
+            </p>
           </v-card-text>
         </v-card>
 

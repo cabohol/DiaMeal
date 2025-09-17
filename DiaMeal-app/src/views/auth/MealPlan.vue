@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/utils/supabase';
 
@@ -34,6 +34,27 @@ const labResults = ref({
 });
 
 const mealPlanText = ref(''); // Holds the streamed meal plan
+
+// Add computed property to check if basic info is complete
+const isBasicInfoComplete = computed(() => {
+  return basicInfo.value.gender && 
+         basicInfo.value.age && 
+         basicInfo.value.height && 
+         basicInfo.value.weight && 
+         basicInfo.value.diabetesType && 
+         basicInfo.value.budget &&
+         // If "Other" is selected for allergies, check if otherAllergy is filled
+         (!basicInfo.value.allergies.includes('Other') || basicInfo.value.otherAllergy) &&
+         // If "Other" is selected for religious diet, check if otherReligiousDiet is filled
+         (!basicInfo.value.religiousDiet.includes('Other') || basicInfo.value.otherReligiousDiet);
+});
+
+// Add method to handle next button click
+const nextToLabResults = () => {
+  if (isBasicInfoComplete.value) {
+    tab.value = 1;
+  }
+};
 
 // On mount → get logged-in user
 onMounted(async () => {
@@ -306,6 +327,7 @@ async function submitForm() {
                 <v-select
                   v-model="basicInfo.allergies"
                   :items="[
+                    'None',
                     'Peanuts', 
                     'Shrimp',
                     'Crab',
@@ -341,6 +363,7 @@ async function submitForm() {
                 <v-select
                   v-model="basicInfo.religiousDiet"
                   :items="[
+                    'None',
                     'Catholic (No meat on Fridays/Lent)', 
                     'Islam (Halal)', 
                     'Vegetarian', 

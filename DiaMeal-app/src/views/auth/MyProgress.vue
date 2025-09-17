@@ -66,31 +66,43 @@ const goBack = () => {
         <!-- Avatar -->
         <v-avatar size="100" class="mr-3">
           <v-img v-if="avatarUrl" :src="avatarUrl" alt="User Avatar" />
-          <v-icon v-else size="56" color="white">mdi-account-circle</v-icon>
+          <v-icon v-else size="85" color="white">mdi-account-circle</v-icon>
         </v-avatar>
 
         <div>
-          <p class="mb-0" style="color: white; font-family: 'Syne', sans-serif; font-size: 20px;">
+          <p class="mb-0" style="color: white; font-size: 20px;">
             {{ userFirstName }}! Here’s your progress update.
           </p>
 
         </div>
       </div>
 
-      <!-- Progress Card -->
-      <v-card class="mx-4 mt-4 pa-4 text-center" rounded="lg" elevation="2" style="background-color: #f9fff2;">
-        <div class="d-flex align-center justify-center mb-2">
-          <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
-          <p class="mb-0" style="font-weight: 500; font-family: 'Syne', sans-serif; font-size: 18px;">
-            Your Meal Plan Progress
-          </p>
-        </div>
-        
-        <p class="mb-2" style="color: gray; font-family: 'Syne', sans-serif;">2 out of 3 meals completed today!</p>
-        <v-progress-linear :model-value="progress" color="green" height="10" class="rounded-pill"/>
-        <div class="mt-2" style="font-weight: bold;">{{ progress }}%</div>
-      </v-card>
+      <div class="progress-container">
+          <!-- Image -->
+          <div class="image-wrapper">
+            <img src="/src/assets/veg.png" alt="Broccoli" class="progress-image" />
+          </div>
 
+          <!-- Card -->
+          <v-card class="progress-card" rounded="lg" elevation="3">
+            <div class="d-flex align-center justify-center mb-2">
+              <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
+              <p class="mb-0 font-weight-bold">Your Meal Plan Progress</p>
+            </div>
+            <p class="mb-2 text-caption">2 out of 3 meals completed today!</p>
+
+            <v-progress-linear
+              :model-value="66"
+              color="green"
+              height="10"
+              class="rounded-pill"
+            />
+
+            <div class="mt-2 font-weight-bold">66%</div>
+          </v-card>
+      </div>
+
+        
         <!-- Meal Cards -->
         <v-container class="mt-4">
           <v-card
@@ -99,20 +111,19 @@ const goBack = () => {
             class="mb-4 px-4 py-2 d-flex align-center"
             :color="meal.color"
             rounded="lg"
-            style="font-family: 'Syne', sans-serif;"
             elevation="1"
           >
             <v-img :src="meal.icon" width="50" height="50" class="mr-4" />
             <div class="flex-grow-1">
-              <p class="mb-1 font-weight-bold" style="font-size: 16px; font-family: 'Syne', sans-serif;">{{ meal.name }}</p>
-              <p class="mb-1" style="color: #555; font-family: 'Syne', sans-serif;">
+              <p class="mb-1 font-weight-bold" style="font-size: 16px;">{{ meal.name }}</p>
+              <p class="mb-1" style="color: #555;">
                 <v-icon small :color="meal.status === 'Completed' ? 'green' : 'yellow'">
                   {{ meal.status === 'Completed' ? 'mdi-check-circle' : 'mdi-progress-clock' }}
                 </v-icon>
                 {{ meal.status }}
               </p>
-              <p v-if="meal.time" class="text-caption" style="font-family: 'Syne', sans-serif;">Completed : {{ meal.time }}</p>
-              <p v-else class="text-caption" style="font-family: 'Syne', sans-serif;">Completed : ---</p>
+              <p v-if="meal.time" class="text-caption">Completed : {{ meal.time }}</p>
+              <p v-else class="text-caption">Completed : ---</p>
             </div>
           </v-card>
         </v-container>
@@ -155,6 +166,10 @@ const goBack = () => {
 
 
 <style scoped>
+body, p, span, div, button, h1, h2, h3, h4, h5, h6 {
+  font-family: 'Syne', sans-serif !important;
+}
+
 .icon-wrapper {  /* start nav bar */
   display: flex;
   align-items: center;
@@ -172,7 +187,6 @@ const goBack = () => {
 .nav-bar .v-btn {
   flex-direction: column;
   color: white;
-  font-family: 'Syne', sans-serif;
   transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
@@ -191,5 +205,37 @@ const goBack = () => {
 .nav-bar span { /* end nav bar */
   font-size: 12px;
   margin-top: 4px;
+}
+
+
+.progress-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 120px;
+}
+
+.image-wrapper {
+  position: absolute;
+  top: -140px; 
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.progress-image {
+  width: clamp(250px, 40vw, 200px); 
+  height: auto;
+  object-fit: contain;
+}
+
+.progress-card {
+  position: relative;
+  z-index: 2;
+  width: 90%;
+  max-width: 750px;
+  padding: 16px;
+  text-align: center;
 }
 </style>

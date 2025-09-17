@@ -77,13 +77,20 @@ const fetchUserStartDate = async () => {
     const generatedDays = generateDaysWithDates(userRow.last_submission_date)
     if (generatedDays && generatedDays.length > 0) {
       daysWithDates.value = generatedDays
-      selectedDayIndex.value = 0 // Reset to first day
+      
+      // Calculate which day should be selected based on today's date
+      const today = new Date().toISOString().split('T')[0]
+      const todayIndex = generatedDays.findIndex(day => day.date === today)
+      
+      // If today matches one of the generated days, select it; otherwise default to Day 1
+      selectedDayIndex.value = todayIndex >= 0 ? todayIndex : 0
     } else {
       throw new Error('Failed to generate days')
     }
     
     console.log('User start date:', userRow.last_submission_date)
     console.log('Generated days:', daysWithDates.value)
+    console.log('Selected day index:', selectedDayIndex.value)
     
   } catch (err) {
     console.error('Error fetching user start date:', err)

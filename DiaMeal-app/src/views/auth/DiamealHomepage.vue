@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const userFirstName = ref('');
-const progress = ref(33); // Example static progress
+const progress = ref(66); // Example static progress
 
 // Fetch user metadata
 onMounted(async () => {
@@ -23,39 +23,39 @@ onMounted(async () => {
   <v-app>
     <v-main >
       <v-container fluid class="pa-0" style="position: relative; overflow: hidden;">
-<div class="py-8 rounded-bottom animated-bg"
-  style="z-index: 1; position: relative;">
-  <v-container class="d-flex justify-space-between align-center">
-      <div>
-        <p
-          class="text-left"
-          style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white; font-size: 35px;"
-        >
-          Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
-        </p>
-      </div>
+      <div class="py-8 rounded-bottom animated-bg"
+          style="z-index: 1; position: relative;">
+          <v-container class="d-flex justify-space-between align-center">
+              <div>
+                <p
+                  class="text-left"
+                  style="font-family: 'Syne', sans-serif; font-size: clamp(22px, 2.5vw, 30px); color: white; font-size: 35px;"
+                >
+                  Hi, <span style="font-family: 'Syne', sans-serif;">{{ userFirstName }}</span>!
+                </p>
+              </div>
 
-      <!-- GIF -->
-      <div style="margin-top: -50px;">
-        <img
-          src="/src/assets/giphy.gif"
-          alt="Food Mascot"
-          class="gif"
-        />
-      </div>
-  </v-container>
+              <!-- GIF -->
+              <div style="margin-top: -50px;">
+                <img
+                  src="/src/assets/giphy.gif"
+                  alt="Food Mascot"
+                  class="gif"
+                />
+              </div>
+          </v-container>
 
-  <!-- Welcome Message -->
-  <v-container>
-    <p
-      class="text-center"
-      style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -35px;"
-    >
-      “ Welcome to DiaMeal - an AI meal planner for healthier living.
-      Get personalized meal plans tailored to your health, preferences, and budget! ”
-    </p>
-  </v-container>
-</div>
+          <!-- Welcome Message -->
+          <v-container>
+            <p
+              class="text-center"
+              style="font-size: clamp(16px, 2vw, 18px); font-family: 'Syne', sans-serif; color: white; margin-top: -35px;"
+            >
+              “ Welcome to DiaMeal - an AI meal planner for healthier living.
+              Get personalized meal plans tailored to your health, preferences, and budget! ”
+            </p>
+          </v-container>
+      </div>
 
           <!-- Food Images -->
           <br>
@@ -84,13 +84,18 @@ onMounted(async () => {
             <v-icon size="36" color="#5D8736" class="mb-2">mdi-silverware-fork-knife</v-icon>
           
             <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">
-              Your Meal Plan Progress
+              Meal Plan Progress
             </p>
             <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
-              1 out of 3 meals completed this day!
+              2 out of 3 meals completed this day!
             </p>
 
-            <v-progress-linear :model-value="progress" color="green" height="12" class="rounded-pill mt-2"/>
+            <v-progress-linear
+            color="#66BB6A"
+            height="10"
+            :model-value="66"
+            striped
+            ></v-progress-linear>
 
             <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">
               {{ progress }}%

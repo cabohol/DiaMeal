@@ -438,14 +438,14 @@ const formatDate = (dateStr) => {
                     <!-- Info section with consistent spacing -->
                     <div class="info-section mb-4 flex-grow-1">
                       <div class="text-body-2 text-sm-body-1 mb-3 d-flex align-center justify-center">
-                        <v-icon size="small" class="mr-2" color="#5D8736">mdi-clock-outline</v-icon>
+                        <v-icon size="small" class="mr-2" color="#124170">mdi-clock-outline</v-icon>
                         <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">
                           {{ meal.preparation_time || 'Quick prep' }}
                         </span>
                       </div>
 
                       <div class="text-body-2 text-sm-body-1 d-flex align-center justify-center">
-                        <v-icon size="small" class="mr-2" color="#5D8736">mdi-fire</v-icon>
+                        <v-icon size="small" class="mr-2" color="#EF7722">mdi-fire</v-icon>
                         <span class="text-grey-darken-2" style="font-family: 'Syne', sans-serif;">
                           {{ typeof meal.calories === 'number' ? meal.calories + ' kcal' : 'Calories N/A' }}
                         </span>
@@ -464,7 +464,7 @@ const formatDate = (dateStr) => {
                         @click="viewMeal(meal)"
                         style="font-family: 'Syne', sans-serif;"
                       >
-                        <span class="text-body-2 text-sm-body-1 font-weight-medium">View Details</span>
+                        <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">View Details</span>
                         <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
                       </v-btn>
                     </div>

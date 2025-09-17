@@ -13,21 +13,18 @@ const completedMeals = ref([
     name: 'BREAKFAST',
     status: 'Completed',
     time: 'Apr 22, 2025 – 9:30 AM',
-    icon: '/src/assets/h4.jpg',
     color: '#e7f5d9'
   },
   {
     name: 'LUNCH',
     status: 'Completed',
     time: 'Apr 22, 2025 – 12:30 AM',
-    icon: '/src/assets/h1.jpg',
     color: '#fff7d9'
   },
   {
     name: 'DINNER',
     status: 'In Progress',
     time: null,
-    icon: '/src/assets/h2.jpg',
     color: '#e7f5d9'
   }
 ]);
@@ -62,70 +59,89 @@ const goBack = () => {
   <v-app>
     <v-main>
       <v-container fluid class="pa-0">
-      <div class="d-flex align-center px-4 py-3" style="background-color: #5D8736; height: 130px;">
-        <!-- Avatar -->
-        <v-avatar size="100" class="mr-3">
-          <v-img v-if="avatarUrl" :src="avatarUrl" alt="User Avatar" />
-          <v-icon v-else size="85" color="white">mdi-account-circle</v-icon>
-        </v-avatar>
+        <div class="d-flex align-center px-4 py-3" style="background-color: #5D8736; height: 130px;">
+          <!-- Avatar -->
+          <v-avatar size="100" class="mr-3">
+            <v-img v-if="avatarUrl" :src="avatarUrl" alt="User Avatar" />
+            <v-icon v-else size="85" color="white">mdi-account-circle</v-icon>
+          </v-avatar>
 
-        <div>
-          <p class="mb-0" style="color: white; font-size: 20px;">
-            {{ userFirstName }}! Here’s your progress update.
-          </p>
+          <div>
+            <p class="mb-0" style="color: white; font-size: 20px;">
+              {{ userFirstName }}! Here’s your progress update.
+            </p>
 
-        </div>
-      </div>
-
-      <div class="progress-container">
-          <!-- Image -->
-          <div class="image-wrapper">
-            <img src="/src/assets/veg.png" alt="Broccoli" class="progress-image" />
           </div>
+        </div>
 
-          <!-- Card -->
-          <v-card class="progress-card" rounded="lg" elevation="3">
-            <div class="d-flex align-center justify-center mb-2">
-              <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
-              <p class="mb-0 font-weight-bold">Your Meal Plan Progress</p>
+        <div class="progress-container">
+            <!-- Image -->
+            <div class="image-wrapper">
+              <img src="/src/assets/veg.png" alt="Broccoli" class="progress-image" />
             </div>
-            <p class="mb-2 text-caption">2 out of 3 meals completed today!</p>
 
-            <v-progress-linear
-              :model-value="66"
-              color="green"
-              height="10"
-              class="rounded-pill"
-            />
+            <!-- Card -->
+            <v-card class="progress-card" rounded="lg" elevation="3">
+              <div class="d-flex align-center justify-center mb-2">
+                <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
+                <h3 class="mb-0 font-extrabold text-2xl text-gray-900"> Your Meal Plan Progress </h3>
+              </div>
+               <p class="mb-2 text-lg">2 out of 3 meals completed today!</p>
 
-            <div class="mt-2 font-weight-bold">66%</div>
-          </v-card>
-      </div>
+              <v-progress-linear
+                color="#66BB6A"
+                height="10"
+                :model-value="66"
+                striped
+              ></v-progress-linear>
+
+              <div class="mt-2 font-weight-bold">66%</div>
+            </v-card>
+        </div>
 
         
         <!-- Meal Cards -->
         <v-container class="mt-4">
-          <v-card
-            v-for="meal in completedMeals"
-            :key="meal.name"
-            class="mb-4 px-4 py-2 d-flex align-center"
-            :color="meal.color"
-            rounded="lg"
-            elevation="1"
-          >
-            <v-img :src="meal.icon" width="50" height="50" class="mr-4" />
-            <div class="flex-grow-1">
-              <p class="mb-1 font-weight-bold" style="font-size: 16px;">{{ meal.name }}</p>
-              <p class="mb-1" style="color: #555;">
-                <v-icon small :color="meal.status === 'Completed' ? 'green' : 'yellow'">
-                  {{ meal.status === 'Completed' ? 'mdi-check-circle' : 'mdi-progress-clock' }}
-                </v-icon>
-                {{ meal.status }}
-              </p>
-              <p v-if="meal.time" class="text-caption">Completed : {{ meal.time }}</p>
-              <p v-else class="text-caption">Completed : ---</p>
-            </div>
-          </v-card>
+          <v-row>
+            <v-col
+              v-for="meal in completedMeals"
+              :key="meal.name"
+              cols="12"
+              sm="4"
+              md="4"
+              lg="4"
+            >
+              <v-card
+                class="meal-progress-card px-4 py-4 d-flex flex-column h-100 text-center"
+                :color="meal.color"
+                rounded="lg"
+                elevation="2"
+              >
+                
+                <!-- Meal name -->
+                <p class="mb-3 font-weight-bold text-h6">{{ meal.name }}</p>
+                
+                <!-- Status -->
+                <div class="d-flex align-center justify-center mb-2">
+                  <v-icon 
+                    small 
+                    :color="meal.status === 'Completed' ? 'green' : 'orange'" 
+                    class="mr-2"
+                  >
+                    {{ meal.status === 'Completed' ? 'mdi-check-circle' : 'mdi-progress-clock' }}
+                  </v-icon>
+                  <span class="font-weight-medium" :class="meal.status === 'Completed' ? 'text-green' : 'text-orange'">
+                    {{ meal.status }}
+                  </span>
+                </div>
+                
+                <p class="text-xl mb-0 mt-auto">
+                  <strong>Completed:</strong> {{ meal.time || '---' }}
+                </p>
+
+              </v-card>
+            </v-col>
+          </v-row>
         </v-container>
 
         <!-- Bottom Navigation -->
@@ -168,6 +184,30 @@ const goBack = () => {
 <style scoped>
 body, p, span, div, button, h1, h2, h3, h4, h5, h6 {
   font-family: 'Syne', sans-serif !important;
+}
+
+.meal-progress-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 150px;
+}
+
+.meal-progress-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Mobile */
+@media (max-width: 599px) {
+  .meal-progress-card {
+    min-height: 120px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 600px) {
+  .meal-progress-card {
+    min-height: 160px;
+  }
 }
 
 .icon-wrapper {  /* start nav bar */

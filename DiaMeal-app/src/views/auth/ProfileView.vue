@@ -10,6 +10,8 @@ const uploading = ref(false);
 const router = useRouter();
 const logoutDialog = ref(false); 
 
+// Timeout for success messages
+let successTimeout = null;
 
 // Alert messages
 const formSuccessMessage = ref('');
@@ -83,8 +85,21 @@ const handleLogout = async () => {
 
 // Alert Notif Message
 const showSuccess = (message) => {
+  // Clear any existing timeout
+  if (successTimeout) {
+    clearTimeout(successTimeout);
+  }
+  
   formSuccessMessage.value = message;
   formErrorMessage.value = '';
+  
+  // Auto-hide after 4 seconds for profile image update
+  if (message === 'Profile Image Updated Successfully!') {
+    successTimeout = setTimeout(() => {
+      formSuccessMessage.value = '';
+      successTimeout = null;
+    }, 4000);
+  }
 };
 
 const showError = (message) => {

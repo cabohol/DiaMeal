@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/utils/supabase'
 
 // API base URL - change this for production
@@ -44,6 +44,15 @@ const mealDetailsDialog = ref(false)
 const selectedMeal = ref(null)
 const selectedMealType = ref('')
 
+// Nutrition calculation variables
+const nutritionTotals = ref({
+  calories: 0,
+  carbs: 0,
+  protein: 0,
+  fats: 0,
+  fiber: 0
+})
+
 // Get meals for selected day
 const currentDayMeals = computed(() => {
   const dateStr = selectedDay.value?.date
@@ -84,6 +93,130 @@ const fetchWithCors = async (url, options = {}) => {
     throw error
   }
 }
+
+// Function to calculate nutrition when meal changes
+const calculateNutrition = async () => {
+  console.log('calculateNutrition called')
+  
+  if (!selectedMeal.value || !selectedMeal.value.ingredients) {
+    console.log('No selectedMeal or ingredients found')
+    nutritionTotals.value = {
+      calories: 0,
+      carbs: 0,
+      protein: 0,
+      fats: 0,
+      fiber: 0
+    }
+    return
+  }
+
+  let ingredients = selectedMeal.value.ingredients
+  console.log('Selected meal ingredients:', ingredients)
+
+  try {
+    // If ingredients are strings, fetch nutrition data from Supabase
+    if (Array.isArray(ingredients) && typeof ingredients[0] === 'string') {
+      console.log('Fetching nutrition for ingredients:', ingredients)
+      
+      const { data: nutritionData, error } = await supabase
+        .from('ingredients')
+        .select(`
+          name,
+          calories_per_serving,
+          carbs_grams,
+          protein_grams,
+          fat_grams,
+          fiber_grams
+        `)
+        .in('name', ingredients)
+
+      if (error) {
+        console.error('Error fetching ingredients:', error)
+        return
+      }
+
+      console.log('Nutrition data from Supabase:', nutritionData)
+
+      // Calculate totals
+      const totals = nutritionData.reduce((acc, ingredient) => {
+        const calories = parseFloat(ingredient.calories_per_serving) || 0
+        const carbs = parseFloat(ingredient.carbs_grams) || 0
+        const protein = parseFloat(ingredient.protein_grams) || 0
+        const fats = parseFloat(ingredient.fat_grams) || 0
+        const fiber = parseFloat(ingredient.fiber_grams) || 0
+
+        console.log(`${ingredient.name}: Calories: ${calories}, Carbs: ${carbs}, Protein: ${protein}, Fats: ${fats}, Fiber: ${fiber}`)
+
+        return {
+          calories: acc.calories + calories,
+          carbs: acc.carbs + carbs,
+          protein: acc.protein + protein,
+          fats: acc.fats + fats,
+          fiber: acc.fiber + fiber
+        }
+      }, {
+        calories: 0,
+        carbs: 0,
+        protein: 0,
+        fats: 0,
+        fiber: 0
+      })
+
+      console.log('Calculated totals:', totals)
+
+      nutritionTotals.value = {
+        calories: Math.round(totals.calories),
+        carbs: Math.round(totals.carbs * 10) / 10,
+        protein: Math.round(totals.protein * 10) / 10,
+        fats: Math.round(totals.fats * 10) / 10,
+        fiber: Math.round(totals.fiber * 10) / 10
+      }
+    }
+    // If ingredients already have nutrition data
+    else if (Array.isArray(ingredients) && typeof ingredients[0] === 'object') {
+      console.log('Processing ingredients with nutrition data')
+      
+      const totals = ingredients.reduce((acc, ingredient) => {
+        return {
+          calories: acc.calories + (parseFloat(ingredient.calories_per_serving) || 0),
+          carbs: acc.carbs + (parseFloat(ingredient.carbs_grams) || 0),
+          protein: acc.protein + (parseFloat(ingredient.protein_grams) || 0),
+          fats: acc.fats + (parseFloat(ingredient.fat_grams || ingredient.fats_grams) || 0),
+          fiber: acc.fiber + (parseFloat(ingredient.fiber_grams) || 0)
+        }
+      }, {
+        calories: 0,
+        carbs: 0,
+        protein: 0,
+        fats: 0,
+        fiber: 0
+      })
+
+      nutritionTotals.value = {
+        calories: Math.round(totals.calories),
+        carbs: Math.round(totals.carbs * 10) / 10,
+        protein: Math.round(totals.protein * 10) / 10,
+        fats: Math.round(totals.fats * 10) / 10,
+        fiber: Math.round(totals.fiber * 10) / 10
+      }
+    }
+  } catch (err) {
+    console.error('Error calculating nutrition:', err)
+  }
+}
+
+// Computed property to return the nutrition totals
+const totalNutrition = computed(() => {
+  return nutritionTotals.value
+})
+
+// Watch for changes in selectedMeal and recalculate nutrition
+watch(selectedMeal, () => {
+  if (selectedMeal.value) {
+    calculateNutrition()
+  }
+})
+
 
 // Fetch user's last_submission_date
 const fetchUserStartDate = async () => {
@@ -260,17 +393,27 @@ const sections = computed(() => ([
   { key: 'dinner', title: 'DINNER', icon: 'mdi-silverware-fork-knife' }
 ]))
 
-// Modal functions
-const viewMeal = (meal) => {
+// Updated Modal functions to include nutrition calculation
+const viewMeal = async (meal) => {
   selectedMeal.value = meal
   selectedMealType.value = getCurrentMealType(meal)
+  await calculateNutrition() // Calculate nutrition data
   mealDetailsDialog.value = true
 }
+
 
 const closeMealDetails = () => {
   mealDetailsDialog.value = false
   selectedMeal.value = null
   selectedMealType.value = ''
+  // Reset nutrition totals
+  nutritionTotals.value = {
+    calories: 0,
+    carbs: 0,
+    protein: 0,
+    fats: 0,
+    fiber: 0
+  }
 }
 
 const getMealTypeFromKey = (key) => {
@@ -590,27 +733,85 @@ const formatDate = (dateStr) => {
                 </div>
 
                 <!-- Quick Info Cards - Prep Time and Calories -->
-                <v-row class="mb-6 justify-center">
-                  <v-col cols="6" sm="6">
-                    <v-card class="pa-4 text-center" elevation="1" rounded="lg"color="#F8FDF0">
-                      <v-icon color="#5D8736" size="large" class="mb-2">mdi-clock-outline</v-icon>
-                      <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Prep Time</div>
-                      <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ selectedMeal.preparation_time || 'Quick' }}
-                      </div>
-                    </v-card>
-                  </v-col>
-                  
-                  <v-col cols="6" sm="6">
-                    <v-card class="pa-4 text-center" elevation="1" rounded="lg" color="#F8FDF0">
-                      <v-icon color="#5D8736" size="large" class="mb-2">mdi-fire</v-icon>
-                      <div class="text-body-2 text-grey-darken-1 mb-1" style="font-family: 'Syne', sans-serif;">Calories</div>
-                      <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
-                      </div>
+                <!-- Quick Info Card - Calories and Nutrition -->
+                <v-row class="mb-7 justify-center">
+                  <v-col cols="12" sm="10" md="12" lg="10" xl="8">
+                    <v-card class="pa-4 text-center nutrition-card" elevation="1" rounded="lg" color="#F8FDF0">
+                      <v-row class="nutrition-grid">
+                        <!-- Calories -->
+                        <v-col class="nutrition-item">
+                          <v-icon color="#EF7722" size="32" class="mb-2">mdi-fire</v-icon>
+                          <div class="label">Calories</div>
+                          <div class="value">
+                            {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
+                          </div>
+                        </v-col>
+
+                        <!-- Carbs -->
+                        <v-col class="nutrition-item">
+                          <v-icon color="#B87C4C" size="28" class="mb-2">mdi-barley</v-icon>
+                          <div class="label">Carbs</div>
+                          <div class="value">{{ totalNutrition.carbs }}g</div>
+                        </v-col>
+
+                        <!-- Protein -->
+                        <v-col class="nutrition-item">
+                          <v-icon color="#1C6EA4" size="28" class="mb-2">mdi-dumbbell</v-icon>
+                          <div class="label">Protein</div>
+                          <div class="value">{{ totalNutrition.protein }}g</div>
+                        </v-col>
+
+                        <!-- Fats -->
+                        <v-col class="nutrition-item">
+                          <v-icon color="#FFC107" size="28" class="mb-2">mdi-water-circle</v-icon>
+                          <div class="label">Fats</div>
+                          <div class="value">{{ totalNutrition.fats }}g</div>
+                        </v-col>
+
+                        <!-- Fiber -->
+                        <v-col class="nutrition-item">
+                          <v-icon color="#8C1007" size="28" class="mb-2">mdi-leaf</v-icon>
+                          <div class="label">Fiber</div>
+                          <div class="value">{{ totalNutrition.fiber }}g</div>
+                        </v-col>
+                      </v-row>
                     </v-card>
                   </v-col>
                 </v-row>
+
+                <!-- Ingredients -->
+                <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
+                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center"
+                      style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
+                    Ingredients
+                  </h3>
+                  <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
+                    <v-row>
+                      <v-col
+                        v-for="(ingredient, index) in selectedMeal.ingredients"
+                        :key="index"
+                        cols="12"
+                        sm="6"
+                      >
+                        <div class="d-flex justify-space-between align-center mb-2">
+                          <!-- Ingredient name -->
+                          <div class="d-flex align-center">
+                            <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
+                            <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                              {{ typeof ingredient === 'string' ? ingredient : ingredient.name }}
+                            </span>
+                          </div>
+
+                          <!-- Ingredient price placeholder data -->
+                          <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                            {{ ingredient.price ? '₱' + ingredient.price : '₱ --' }}
+                          </span>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </v-card>
+                </div>
 
                 <!-- Ingredients -->
                 <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
@@ -1039,6 +1240,44 @@ const formatDate = (dateStr) => {
   to { 
     opacity: 1; 
     transform: translateY(0); 
+  }
+}
+
+
+.nutrition-card {
+  font-family: 'Syne', sans-serif;
+}
+
+.nutrition-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+}
+
+.nutrition-item {
+  flex: 1 1 50%; 
+  max-width: 50%;
+  padding: 10px;
+}
+
+.nutrition-item .label {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.nutrition-item .value {
+  font-weight: 300;
+  color: #2C3E50;
+  font-size: 1.1rem;
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .nutrition-item {
+    flex: 1 1 20%; 
+    max-width: 20%;
   }
 }
 /* RoboLoading End */

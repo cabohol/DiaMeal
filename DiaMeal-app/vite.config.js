@@ -1,27 +1,30 @@
-import { fileURLToPath, URL } from 'node:url'
-
+// vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import vueDevTools from 'vite-plugin-vue-devtools'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueJsx(),
-  ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
+  plugins: [vue()],
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000', // backend
-        changeOrigin: true
+        target: 'https://meal-plan-bijahf3o2-claire-annes-projects.vercel.app',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path, // Keep the path as-is
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('Proxying request:', req.method, req.url, '→', options.target + req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('Proxy response:', proxyRes.statusCode, req.url);
+          });
+        }
       }
+    }
+  },
+  resolve: {
+    alias: {
+      '@': '/src'
     }
   }
 })

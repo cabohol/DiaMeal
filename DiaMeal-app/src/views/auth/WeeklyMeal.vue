@@ -3,7 +3,10 @@ import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/utils/supabase'
 
 // API base URL - change this for production
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const isDev = import.meta.env.DEV
+const API_BASE_URL = isDev 
+  ? '' // Use relative URLs in development (requires proxy)
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-bijahf3o2-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -49,6 +52,38 @@ const currentDayMeals = computed(() => {
   }
   return mealPlansByDay.value[dateStr]
 })
+
+// Enhanced fetchWithCors function with better error handling
+const fetchWithCors = async (url, options = {}) => {
+  const fetchOptions = {
+    ...options,
+    mode: 'cors',
+    credentials: 'omit',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  }
+  
+  console.log('Making request to:', url, 'with options:', fetchOptions)
+  
+  try {
+    const response = await fetch(url, fetchOptions)
+    console.log('Response status:', response.status, 'URL:', url)
+    
+    if (!response.ok) {
+      // Try to get error details from response
+      const errorText = await response.text()
+      console.error('Error response:', errorText)
+      throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`)
+    }
+    
+    return response
+  } catch (error) {
+    console.error('Fetch error for URL:', url, 'Error:', error)
+    throw error
+  }
+}
 
 // Fetch user's last_submission_date
 const fetchUserStartDate = async () => {
@@ -124,9 +159,8 @@ const fetchMealPlan = async (forceRegenerate = false) => {
 
     // First try to get existing meal plan
     if (!forceRegenerate) {
-      const getResp = await fetch(`${API_BASE_URL}/api/getMealPlan/${userRow.id}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+      const getResp = await fetchWithCors(`${API_BASE_URL}/api/getMealPlan/${userRow.id}`, {
+        method: 'GET'
       })
 
       if (getResp.ok) {
@@ -141,9 +175,8 @@ const fetchMealPlan = async (forceRegenerate = false) => {
     }
 
     // Generate new meal plan
-    const resp = await fetch(`${API_BASE_URL}/api/generateMealPlan`, {
+    const resp = await fetchWithCors(`${API_BASE_URL}/api/generateMealPlan`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         user_id: userRow.id,
         force_regenerate: forceRegenerate 
@@ -182,29 +215,40 @@ const fetchMealPlan = async (forceRegenerate = false) => {
   }
 }
 
-// Test API connection
-async function testAPIConnection() {
+// Optional health check - doesn't fail the app if it fails
+const testAPIConnection = async () => {
   try {
     console.log("Testing API at:", `${API_BASE_URL}/api/health`)
-    const response = await fetch(`${API_BASE_URL}/api/health`)
+    const response = await fetchWithCors(`${API_BASE_URL}/api/health`)
     if (!response.ok) {
-      throw new Error(`Server responded with ${response.status}`)
+      console.warn(`Health check failed with ${response.status}, but continuing...`)
+      return false
     }
     const data = await response.json()
     console.log("API Health Check:", data)
+    return true
   } catch (error) {
-    console.error("Cannot connect to API server:", error)
-    errorMsg.value = "Cannot connect to API server. Please ensure the server is running."
+    console.warn("Health check failed, but continuing:", error)
+    return false
   }
 }
 
+// Single onMounted function that handles everything
 onMounted(async () => {
-  await testAPIConnection()
+  console.log('Initializing WeeklyMeal component...')
+  
+  // Optional health check
+  const healthOk = await testAPIConnection()
+  if (healthOk) {
+    console.log('API health check passed')
+  } else {
+    console.log('API health check failed, but continuing with meal plan fetch')
+  }
+  
+  // Always try to fetch meal plan regardless of health check
+  await fetchUserStartDate()
   if (!errorMsg.value) {
-    await fetchUserStartDate() // Fetch user's start date first
-    if (!errorMsg.value) {
-      await fetchMealPlan() // Then fetch meal plan
-    }
+    await fetchMealPlan()
   }
 })
 
@@ -265,17 +309,6 @@ const formatDate = (dateStr) => {
   const options = { month: 'short', day: 'numeric' }
   return date.toLocaleDateString('en-US', options)
 }
-
-// Get meal image placeholder (you can customize this)
-// const getMealImage = (meal, mealType) => {
-//   // You could generate different placeholders based on meal type or name
-//   const images = {
-//     breakfast: 'https://via.placeholder.com/280x180/FFF3E0/FF9800?text=Breakfast',
-//     lunch: 'https://via.placeholder.com/280x180/E8F5E9/4CAF50?text=Lunch',
-//     dinner: 'https://via.placeholder.com/280x180/F3E5F5/9C27B0?text=Dinner'
-//   }
-//   return images[mealType] || 'https://via.placeholder.com/280x180'
-// }
 </script>
 
 <template>

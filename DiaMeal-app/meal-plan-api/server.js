@@ -21,8 +21,14 @@ const groq = new Groq({
 });
 
 // Middleware
+// app.use(cors({
+//   origin: 'http://localhost:5173', // Your Vue app URL
+//   credentials: true
+// }));
+// app.use(express.json());
+
 app.use(cors({
-  origin: 'http://localhost:5173', // Your Vue app URL
+  origin: true, // Allow all origins for now
   credentials: true
 }));
 app.use(express.json());

@@ -732,7 +732,6 @@ const formatDate = (dateStr) => {
                   </v-chip>
                 </div>
 
-                <!-- Quick Info Cards - Prep Time and Calories -->
                 <!-- Quick Info Card - Calories and Nutrition -->
                 <v-row class="mb-7 justify-center">
                   <v-col cols="12" sm="10" md="12" lg="10" xl="8">
@@ -806,31 +805,6 @@ const formatDate = (dateStr) => {
                           <!-- Ingredient price placeholder data -->
                           <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
                             {{ ingredient.price ? '₱' + ingredient.price : '₱ --' }}
-                          </span>
-                        </div>
-                      </v-col>
-                    </v-row>
-                  </v-card>
-                </div>
-
-                <!-- Ingredients -->
-                <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
-                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
-                    Ingredients
-                  </h3>
-                  <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
-                    <v-row>
-                      <v-col
-                        v-for="(ingredient, index) in selectedMeal.ingredients"
-                        :key="index"
-                        cols="12"
-                        sm="6"
-                      >
-                        <div class="d-flex align-center mb-2">
-                          <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
-                          <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                            {{ ingredient }}
                           </span>
                         </div>
                       </v-col>

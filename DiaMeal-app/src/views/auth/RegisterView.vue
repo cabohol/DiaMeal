@@ -4,6 +4,8 @@ import { requiredValidator, emailValidator, passwordValidator, confirmedValidato
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AlertNotification from '@/components/AlertNotification.vue';
+import Logo1 from "@/assets/logo1.png";
+
 
 const router = useRouter();
 
@@ -76,7 +78,7 @@ const onSubmit = async () => {
         style="min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;"
       >
         <!-- Logo -->
-        <v-img src="/src/assets/logo1.png" width="100" style="z-index: 1; margin-top: 15px;" />
+        <v-img :src="Logo1" width="100" style="z-index: 1; margin-top: 15px;" />
 
         <!-- Slogan -->
         <p

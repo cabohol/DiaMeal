@@ -4,6 +4,8 @@ import { requiredValidator, emailValidator } from '@/utils/validator';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AlertNotification from '@/components/AlertNotification.vue'; 
+import Logo1 from "@/assets/logo1.png";
+import Header from "@/assets/diameal-header.jpg";
 
 const router = useRouter();
 
@@ -62,10 +64,10 @@ const onSubmit = async () => {
         style="min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
 
         <!-- Top Image -->
-        <v-img src="/src/assets/diameal-header.jpg" cover height="40%" class="position-absolute top-0 left-0 w-100" style="z-index: 0; opacity: 0.70" />
+        <v-img :src="Header" cover height="40%" class="position-absolute top-0 left-0 w-100" style="z-index: 0; opacity: 0.70" />
 
         <!-- Logo -->
-        <v-img src="/src/assets/logo1.png" width="150" style="z-index: 1; margin-top: 220px;" />
+        <v-img :src="Logo1" width="150" style="z-index: 1; margin-top: 220px;" />
 
         <!-- Slogan -->
         <p style="font-family: 'Syne', sans-serif; font-weight: 500; font-size: 1.2rem; margin-bottom: 50px; color: black; display: inline-block;">

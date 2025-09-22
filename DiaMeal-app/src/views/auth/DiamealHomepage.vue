@@ -2,6 +2,12 @@
 import { ref, onMounted } from 'vue';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'vue-router';
+import H1 from "@/assets/h1.jpg";
+import H2 from "@/assets/h2.jpg";
+import H3 from "@/assets/h3.jpg";
+import H4 from "@/assets/h4.jpg";
+import H5 from "@/assets/h5.jpg";
+
 
 const router = useRouter();
 const userFirstName = ref('');
@@ -62,18 +68,18 @@ onMounted(async () => {
           <div class="infinite-scroll-wrapper">
             <div class="infinite-scroll-track">
               <!-- First Set of Images -->
-              <v-img src="/src/assets/h1.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h2.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h3.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h4.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h5.jpg" class="scroll-img" cover />
+              <v-img :src="H1" class="scroll-img" cover />
+              <v-img :src="H2" class="scroll-img" cover />
+              <v-img :src="H3" class="scroll-img" cover />
+              <v-img :src="H4"class="scroll-img" cover />
+              <v-img :src="H5"class="scroll-img" cover />
 
               <!-- Duplicate Set for seamless loop -->
-              <v-img src="/src/assets/h1.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h2.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h3.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h4.jpg" class="scroll-img" cover />
-              <v-img src="/src/assets/h5.jpg" class="scroll-img" cover />
+              <v-img :src="H1" class="scroll-img" cover />
+              <v-img :src="H2" class="scroll-img" cover />
+              <v-img :src="H3" class="scroll-img" cover />
+              <v-img :src="H4"class="scroll-img" cover />
+              <v-img :src="H5"class="scroll-img" cover />
             </div>
           </div>
 

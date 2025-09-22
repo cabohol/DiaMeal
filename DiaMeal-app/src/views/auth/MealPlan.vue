@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/utils/supabase';
+import Mp1 from "@/assets/mp1.jpg";
+
 
 const router = useRouter();
 const tab = ref(0);
@@ -235,7 +237,7 @@ async function submitForm() {
       <!-- IMAGE SECTION -->
      <v-container fluid class="pa-0">
         <v-img
-            src="/src/assets/mp1.jpg"
+            :src="Mp1"
             class="mb-6 rounded-lg"
             cover
             width="100%"

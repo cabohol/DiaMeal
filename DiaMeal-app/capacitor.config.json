@@ -1,6 +1,6 @@
 {
   "appId": "com.diameal.app",
-  "appName": "diameal",
+  "appName": "DiaMeal",
   "webDir": "dist",
   "bundledWebRuntime": false
 }

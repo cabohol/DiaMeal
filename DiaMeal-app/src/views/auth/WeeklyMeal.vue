@@ -268,6 +268,13 @@ const fetchUserStartDate = async () => {
   }
 }
 
+// Add this before your existing fetchMealPlan try block
+console.log('Environment check:', {
+  isDev,
+  API_BASE_URL,
+  userStartDate: userStartDate.value,
+  selectedDay: selectedDay.value
+})
 // Fetch or generate meal plan
 const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true
@@ -277,7 +284,6 @@ const fetchMealPlan = async (forceRegenerate = false) => {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('User not authenticated')
 
-    // Fetch user row to get its id
     const { data: userRow, error: userRowErr } = await supabase
       .from('users')
       .select('id')
@@ -307,41 +313,70 @@ const fetchMealPlan = async (forceRegenerate = false) => {
       }
     }
 
+    // Enhanced logging before making the API call
+    const requestBody = { 
+      user_id: userRow.id,
+      force_regenerate: forceRegenerate 
+    }
+    console.log('🚀 Making API request with body:', JSON.stringify(requestBody, null, 2))
+    console.log('🌐 API URL:', `${API_BASE_URL}/api/generateMealPlan`)
+
     // Generate new meal plan
     const resp = await fetchWithCors(`${API_BASE_URL}/api/generateMealPlan`, {
       method: 'POST',
-      body: JSON.stringify({ 
-        user_id: userRow.id,
-        force_regenerate: forceRegenerate 
-      })
+      body: JSON.stringify(requestBody)
     })
 
+    console.log('📡 Response received - Status:', resp.status)
+    console.log('📡 Response headers:', Object.fromEntries(resp.headers.entries()))
+
     if (!resp.ok) {
-      console.error('Response status:', resp.status)
       const text = await resp.text()
-      console.error('Response text:', text)
+      console.error('❌ Error response body:', text)
       
       try {
         const errorJson = JSON.parse(text)
+        console.error('❌ Parsed error:', errorJson)
         throw new Error(errorJson.error || `Server error: ${resp.status}`)
-      } catch {
-        throw new Error(`Server error: ${resp.status}`)
+      } catch (parseError) {
+        console.error('❌ Failed to parse error response:', parseError)
+        throw new Error(`Server error: ${resp.status} - ${text}`)
       }
     }
 
     const json = await resp.json()
-    console.log('API response:', json)
+    console.log('✅ Success response:', JSON.stringify(json, null, 2))
 
+    // Validate the response structure
     if (!json.success) {
       throw new Error(json.error || 'Failed to generate meal plan')
+    }
+
+    // Check if mealPlansByDay has the expected structure
+    if (json.mealPlansByDay) {
+      console.log('📋 Meal plans structure check:')
+      Object.keys(json.mealPlansByDay).forEach(day => {
+        const dayPlan = json.mealPlansByDay[day]
+        console.log(`  ${day}:`, {
+          breakfast: Array.isArray(dayPlan.breakfast) ? dayPlan.breakfast.length : 'NOT ARRAY',
+          lunch: Array.isArray(dayPlan.lunch) ? dayPlan.lunch.length : 'NOT ARRAY',
+          dinner: Array.isArray(dayPlan.dinner) ? dayPlan.dinner.length : 'NOT ARRAY'
+        })
+        
+        // Check first breakfast item structure if it exists
+        if (dayPlan.breakfast && dayPlan.breakfast[0]) {
+          console.log(`  ${day} breakfast[0] structure:`, Object.keys(dayPlan.breakfast[0]))
+        }
+      })
     }
 
     mealPlansByDay.value = json.mealPlansByDay || {}
     isExistingPlan.value = json.isExisting || false
     
-    console.log('Meal plans loaded successfully:', mealPlansByDay.value)
+    console.log('✅ Meal plans loaded successfully')
   } catch (err) {
-    console.error('Error fetching meal plan:', err)
+    console.error('💥 Error in fetchMealPlan:', err)
+    console.error('💥 Error stack:', err.stack)
     errorMsg.value = err.message || 'Something went wrong'
   } finally {
     loading.value = false

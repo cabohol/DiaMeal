@@ -246,11 +246,12 @@ async function submitForm() {
      </v-container>
 
       <v-container style="margin-top: -30px">
-        <!-- Tabs -->
-        <v-tabs v-model="tab" bg-color="#A9C46C" class="mb-4" grow>
-          <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;">Basic Information</v-tab>
-          <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;">Lab Results</v-tab>
-        </v-tabs>
+      <!-- Tabs -->
+      <v-tabs v-model="tab" bg-color="#A9C46C" class="mb-4" grow>
+        <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;">Basic Information</v-tab>
+        <v-tab class="text-center" style=" font-family: 'Syne', sans-serif; color: #0B2E33; min-width: 160px; flex: 1 1 auto;":disabled="!isBasicInfoComplete"
+               @click="preventTabClick">Lab Results</v-tab>
+      </v-tabs>
 
         <!-- Tab Content -->
         <v-window v-model="tab">
@@ -409,10 +410,15 @@ async function submitForm() {
               </v-col>
             </v-row>
 
-            <!-- NEXT BUTTON -->
+            <!-- next button-->
             <div class="d-flex justify-end">
-              <v-btn color="#5D8736" class="mt-4 text-white" style="font-family: 'Syne', sans-serif; 
-                     width: 200px;" @click="tab = 1" append-icon="mdi-arrow-right"> Next
+              <v-btn 
+                :color="isBasicInfoComplete ? '#5D8736' : '#cccccc'" 
+                :disabled="!isBasicInfoComplete"
+                class="mt-4 text-white" 
+                style="font-family: 'Syne', sans-serif; width: 200px;" 
+                @click="nextToLabResults" 
+                append-icon="mdi-arrow-right"> Next
               </v-btn>
             </div>
           </v-form>

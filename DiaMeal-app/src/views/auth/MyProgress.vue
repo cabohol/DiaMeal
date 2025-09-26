@@ -1,49 +1,133 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const userFirstName = ref('User');
 const avatarUrl = ref(null); 
-const progress = ref(66);
 
-const completedMeals = ref([
-  {
-    name: 'BREAKFAST',
-    status: 'Completed',
-    time: 'Apr 22, 2025 – 9:30 AM',
-    color: '#e7f5d9'
-  },
-  {
-    name: 'LUNCH',
-    status: 'Completed',
-    time: 'Apr 22, 2025 – 12:30 AM',
-    color: '#fff7d9'
-  },
-  {
-    name: 'DINNER',
-    status: 'In Progress',
-    time: null,
-    color: '#e7f5d9'
+// Computed total calories for TODAY
+const totalCalories = computed(() => {
+  const completions = loadMealCompletions()
+  let total = 0
+
+  Object.keys(completions).forEach(key => {
+    const completion = completions[key]
+    if (
+      completion &&
+      completion.completed &&
+      completion.date === today &&
+      typeof completion.calories === 'number'
+    ) {
+      total += completion.calories
+    }
+  })
+
+  return total
+})
+
+
+// Load meal completions from localStorage
+const loadMealCompletions = () => {
+  const stored = localStorage.getItem('mealCompletions')
+  return stored ? JSON.parse(stored) : {}
+}
+
+// Get today's date in YYYY-MM-DD format
+const today = new Date().toISOString().split('T')[0]
+
+// Computed progress based on actual completions for TODAY only
+const todayProgress = computed(() => {
+  const completions = loadMealCompletions()
+  
+  // Count unique meal types completed TODAY only
+  const todayMealTypes = new Set()
+  
+  Object.keys(completions).forEach(key => {
+    const completion = completions[key]
+    // Check if completion exists, is marked as completed, and date matches today
+    if (completion && 
+        completion.completed && 
+        completion.date === today) {
+      
+      const mealType = completion.mealType?.toLowerCase() || ''
+      if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
+        todayMealTypes.add(mealType)
+      }
+    }
+  })
+  
+  const totalMeals = 3 // breakfast, lunch, dinner
+  const completedMeals = todayMealTypes.size
+  const percentage = totalMeals > 0 ? Math.round((completedMeals / totalMeals) * 100) : 0
+  
+  return {
+    completed: completedMeals,
+    total: totalMeals,
+    percentage: percentage
   }
-]);
+})
+
+// Generate meal status array for TODAY only
+const completedMeals = computed(() => {
+  const completions = loadMealCompletions()
+  const mealTypes = ['breakfast', 'lunch', 'dinner']
+  const mealNames = ['BREAKFAST', 'LUNCH', 'DINNER']
+  const colors = ['#e7f5d9', '#fff7d9', '#e7f5d9']
+  
+  return mealTypes.map((type, index) => {
+    // Find completion for this meal type TODAY only
+    let todayCompletion = null
+    
+    Object.keys(completions).forEach(key => {
+      const completion = completions[key]
+      if (completion && 
+          completion.completed && 
+          completion.date === today && 
+          completion.mealType === mealNames[index]) {
+        todayCompletion = completion
+      }
+    })
+    
+    if (todayCompletion) {
+      const completedDate = new Date(todayCompletion.timestamp)
+      const timeString = completedDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }) + ' – ' + completedDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+      
+      return {
+        name: mealNames[index],
+        status: 'Completed',
+        time: timeString,
+        color: colors[index]
+      }
+    }
+    
+    return {
+      name: mealNames[index],
+      status: 'Not Started',
+      time: null,
+      color: colors[index]
+    }
+  })
+})
 
 // Fetch user metadata
 onMounted(async () => {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
-    router.push('/login'); // redirect if not logged in
+    router.push('/login');
   } else {
     const meta = data.user.user_metadata;
-
-    // Get full name or fallback
     const fullName = meta.full_name || 'User';
-
-    // Extract first name only
     userFirstName.value = fullName.split(' ')[0];
-
-    // Avatar (if you store one in metadata)
     avatarUrl.value = meta.avatar_url || null;
   }
 });
@@ -68,35 +152,39 @@ const goBack = () => {
 
           <div>
             <p class="mb-0" style="color: white; font-size: 20px;">
-              {{ userFirstName }}! Here’s your progress update.
+              {{ userFirstName }}! Here's your progress update.
             </p>
-
           </div>
         </div>
 
         <div class="progress-container">
-            <!-- Image -->
-            <div class="image-wrapper">
-              <img src="/src/assets/veg.png" alt="Broccoli" class="progress-image" />
-            </div>
+          <!-- Image -->
+          <div class="image-wrapper">
+            <img src="/src/assets/veg.png" alt="Broccoli" class="progress-image" />
+          </div>
 
-            <!-- Card -->
-            <v-card class="progress-card" rounded="lg" elevation="3">
+          <!-- Card -->
+          <v-card class="progress-card" rounded="lg" elevation="3">
+            <!-- <div class="d-flex align-center justify-center mb-2">
+              <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
+              <h3 class="mb-0 font-extrabold text-2xl text-gray-900"> Your Meal Plan Progress </h3>
+            </div> -->
+
+              <!-- Calories Line -->
               <div class="d-flex align-center justify-center mb-2">
-                <v-icon color="green" class="mr-2">mdi-trophy</v-icon>
-                <h3 class="mb-0 font-extrabold text-2xl text-gray-900"> Your Meal Plan Progress </h3>
+                <v-icon color="red" class="mr-2">mdi-fire</v-icon>
+                <h3 class="mb-0 text-lg font-semibold">{{ totalCalories }} kcal consumed today</h3>
               </div>
-               <p class="mb-2 text-lg">2 out of 3 meals completed today!</p>
 
-              <v-progress-linear
-                color="#66BB6A"
-                height="10"
-                :model-value="66"
-                striped
-              ></v-progress-linear>
+            <p class="mb-2 text-lg">
+              {{ todayProgress.completed }} out of {{ todayProgress.total }} meals completed today!
+            </p>
 
-              <div class="mt-2 font-weight-bold">66%</div>
-            </v-card>
+            <v-progress-linear color="#66BB6A" height="10" :model-value="todayProgress.percentage" striped></v-progress-linear>
+
+            <div class="mt-2 font-weight-bold">{{ todayProgress.percentage }}%</div>
+          </v-card>
+
         </div>
 
         
@@ -117,7 +205,6 @@ const goBack = () => {
                 rounded="lg"
                 elevation="2"
               >
-                
                 <!-- Meal name -->
                 <p class="mb-3 font-weight-bold text-h6">{{ meal.name }}</p>
                 
@@ -138,7 +225,6 @@ const goBack = () => {
                 <p class="text-xl mb-0 mt-auto">
                   <strong>Completed:</strong> {{ meal.time || '---' }}
                 </p>
-
               </v-card>
             </v-col>
           </v-row>
@@ -178,6 +264,7 @@ const goBack = () => {
     </v-main>
   </v-app>
 </template>
+
 
 
 
@@ -246,7 +333,6 @@ body, p, span, div, button, h1, h2, h3, h4, h5, h6 {
   font-size: 12px;
   margin-top: 4px;
 }
-
 
 .progress-container {
   position: relative;

@@ -1,18 +1,19 @@
-// agents/index.js
+// src/agents/index.js
 // Central export file for all AI agents
 
-import DiabetesAnalysisAgent from './DiabetesAnalysisAgent.js'
-import NutritionalCalculatorAgent from './NutritionalCalculatorAgent.js'
-import IngredientScoringAgent from './IngredientScoringAgent.js'
-import MealCompositionAgent from './MealCompositionAgent.js'
+// Import named exports from agent files
+import { DiabetesAnalysisAgent } from './DiabetesAnalysisAgent.js'
+import { NutritionalCalculatorAgent } from './NutritionalCalculatorAgent.js'
+import { IngredientScoringAgent } from './IngredientScoringAgent.js'
+import { MealCompositionAgent } from './MealCompositionAgent.js'
 
-
-// Export all agents
-// src/agents/index.js
-export { default as DiabetesAnalysisAgent } from './DiabetesAnalysisAgent.js'
-export { default as NutritionalCalculatorAgent } from './NutritionalCalculatorAgent.js'
-export { default as IngredientScoringAgent } from './IngredientScoringAgent.js'
-export { default as MealCompositionAgent } from './MealCompositionAgent.js'
+// Re-export as named exports
+export {
+  DiabetesAnalysisAgent,
+  NutritionalCalculatorAgent,
+  IngredientScoringAgent,
+  MealCompositionAgent
+}
 
 // Export default object with all agents for easy destructuring
 export default {

@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' 
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-gl4plrx1f-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-api-gamma.vercel.app')
 
 
 // Generate day labels with actual dates based on user's last_submission_date

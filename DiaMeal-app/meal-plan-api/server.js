@@ -1,6 +1,3 @@
-SERVER.JS //WITH AGENTIC
-
-
 import express from 'express'
 import cors from 'cors'
 import { Groq } from 'groq-sdk'

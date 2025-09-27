@@ -2,8 +2,9 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/utils/supabase'
 
-// API base URL - change this for production
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meal-plan-api-gamma.vercel.app'
+const API_BASE_URL = import.meta.env.PROD 
+  ? 'https://meal-plan-api-gamma.vercel.app'
+  : '' // Use empty string for development proxy
 
 
 // Generate day labels with actual dates based on user's last_submission_date
@@ -286,6 +287,18 @@ console.log('Environment check:', {
   userStartDate: userStartDate.value,
   selectedDay: selectedDay.value
 })
+
+// Add this before your fetchMealPlan function
+const testCORS = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/health`, {
+      method: 'OPTIONS'
+    })
+    console.log('CORS preflight test:', response.status, response.headers)
+  } catch (error) {
+    console.log('CORS preflight failed:', error)
+  }
+}
 // Fetch or generate meal plan
 const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true

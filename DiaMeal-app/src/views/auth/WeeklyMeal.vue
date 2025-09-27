@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-bijahf3o2-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-f2y6b7oim-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -24,11 +24,15 @@ const generateDaysWithDates = (startDate) => {
   return days
 }
 
+
+
+
+
 const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
 const selectedDay = computed(() => {
   if (!daysWithDates.value || daysWithDates.value.length === 0) {
-    return { label: 'Loading...', date: new Date().toISOString().split('T')[0] }
+    return { label: 'Loading...', date: getLocalDateString() }
   }
   return daysWithDates.value[selectedDayIndex.value] || daysWithDates.value[0]
 })
@@ -219,6 +223,15 @@ watch(selectedMeal, () => {
 
 
 // Fetch user's last_submission_date
+// Helper function to get local date string (YYYY-MM-DD format)
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Updated fetchUserStartDate function
 const fetchUserStartDate = async () => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -246,12 +259,16 @@ const fetchUserStartDate = async () => {
     if (generatedDays && generatedDays.length > 0) {
       daysWithDates.value = generatedDays
       
-      // Calculate which day should be selected based on today's date
-      const today = new Date().toISOString().split('T')[0]
-      const todayIndex = generatedDays.findIndex(day => day.date === today)
+      const todayLocal = getLocalDateString() // This gets local date correctly
+      const todayIndex = generatedDays.findIndex(day => day.date === todayLocal)
       
       // If today matches one of the generated days, select it; otherwise default to Day 1
       selectedDayIndex.value = todayIndex >= 0 ? todayIndex : 0
+      
+      console.log('Today (local):', todayLocal)
+      console.log('Generated days:', generatedDays.map(d => d.date))
+      console.log('Today index found:', todayIndex)
+      console.log('Selected day index:', selectedDayIndex.value)
     } else {
       throw new Error('Failed to generate days')
     }
@@ -671,7 +688,7 @@ const formatDate = (dateStr) => {
                         :size="$vuetify.display.xs ? 'small' : 'default'"
                         block
                         class="text-white"
-                        :disabled="new Date(selectedDay.date) > new Date()"
+                        :disabled="selectedDay.date > getLocalDateString()"
                         @click="viewMeal(meal)"
                         style="font-family: 'Syne', sans-serif;"
                       >

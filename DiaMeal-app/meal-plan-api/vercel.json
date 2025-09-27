@@ -1,6 +1,6 @@
 {
   "name": "meal-plan-api",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "DiaMeal API with Agentic AI",
   "main": "server.js",
@@ -19,5 +19,11 @@
   },
   "engines": {
     "node": "22.x"
-  }
+  },
+    "functions": {
+        "api/**/*.js": {
+        "maxDuration": 30
+        }
+    }
+
 }

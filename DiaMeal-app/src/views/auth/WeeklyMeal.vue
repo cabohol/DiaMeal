@@ -2,9 +2,9 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/utils/supabase'
 
-const API_BASE_URL = import.meta.env.PROD 
-  ? 'https://meal-plan-api-gamma.vercel.app'
-  : '' // Use empty string for development proxy
+// TEMPORARY: Direct API calls to test if the API works
+const API_BASE_URL = 'https://meal-plan-api-gamma.vercel.app'
+
 
 
 // Generate day labels with actual dates based on user's last_submission_date
@@ -74,19 +74,11 @@ const fetchWithCors = async (url, options = {}) => {
     }
   }
   
-  console.log('Making request to:', url)
+  console.log('Making direct request to:', url)
+  console.log('Request options:', fetchOptions)
   
   try {
-    // For development, you might want to add a timeout
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-    
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal
-    })
-    
-    clearTimeout(timeoutId)
+    const response = await fetch(url, fetchOptions)
     
     console.log('Response status:', response.status)
     console.log('Response headers:', Object.fromEntries(response.headers.entries()))
@@ -99,14 +91,10 @@ const fetchWithCors = async (url, options = {}) => {
     
     return response
   } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - API took too long to respond')
-    }
-    console.error('Fetch error for URL:', url, 'Error:', error)
+    console.error('Direct fetch error for URL:', url, 'Error:', error)
     throw error
   }
 }
-
 // Function to calculate nutrition when meal changes
 const calculateNutrition = async () => {
   console.log('calculateNutrition called')

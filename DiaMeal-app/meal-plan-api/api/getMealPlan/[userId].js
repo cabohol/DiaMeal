@@ -3,17 +3,22 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 
-// CORS headers function
-const setCorsHeaders = (res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  res.setHeader('Access-Control-Max-Age', '86400')
-}
+// // CORS headers function
+// const setCorsHeaders = (res) => {
+//   res.setHeader('Access-Control-Allow-Origin', '*')
+//   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+//   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+//   res.setHeader('Access-Control-Max-Age', '86400')
+// }
 
 export default async function handler(req, res) {
-  // Set CORS headers for all requests
-  setCorsHeaders(res)
+  console.log('API called:', req.method, req.url);
+  console.log('Query params:', req.query);
+  
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {

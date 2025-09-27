@@ -1,6 +1,5 @@
+// api/getMealPlan/[userId].js
 import { createClient } from '@supabase/supabase-js'
-import { DiabetesAnalysisAgent } from  '../../src/agents/DiabetesAnalysisAgent.js'
-import { NutritionalCalculatorAgent } from '../../src/agents/NutritionalCalculatorAgent.js'
 
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY)
 

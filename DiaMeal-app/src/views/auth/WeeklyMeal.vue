@@ -65,9 +65,10 @@ const fetchWithCors = async (url, options = {}) => {
   const fetchOptions = {
     ...options,
     mode: 'cors',
-    credentials: 'omit', // Try without credentials first
+    credentials: 'omit',
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...options.headers
     }
   }
@@ -75,8 +76,19 @@ const fetchWithCors = async (url, options = {}) => {
   console.log('Making request to:', url)
   
   try {
-    const response = await fetch(url, fetchOptions)
+    // For development, you might want to add a timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+    
+    const response = await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal
+    })
+    
+    clearTimeout(timeoutId)
+    
     console.log('Response status:', response.status)
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()))
     
     if (!response.ok) {
       const errorText = await response.text()
@@ -86,6 +98,9 @@ const fetchWithCors = async (url, options = {}) => {
     
     return response
   } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - API took too long to respond')
+    }
     console.error('Fetch error for URL:', url, 'Error:', error)
     throw error
   }

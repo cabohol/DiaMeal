@@ -2,5 +2,16 @@
   "appId": "com.diameal.app",
   "appName": "DiaMeal",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "backgroundColor": "#ffffffff",
+      "androidScaleType": "CENTER_INSIDE",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
 }

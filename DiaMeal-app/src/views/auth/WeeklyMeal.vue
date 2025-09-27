@@ -2,10 +2,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/utils/supabase'
 
-// TEMPORARY: Direct API calls to test if the API works
-const API_BASE_URL = 'https://meal-plan-api-gamma.vercel.app'
-
-
+// API base URL - change this for production
+const isDev = import.meta.env.DEV
+const API_BASE_URL = isDev 
+  ? '' // Use relative URLs in development (requires proxy)
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-bijahf3o2-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -69,21 +70,18 @@ const fetchWithCors = async (url, options = {}) => {
     credentials: 'omit',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
       ...options.headers
     }
   }
   
-  console.log('Making direct request to:', url)
-  console.log('Request options:', fetchOptions)
+  console.log('Making request to:', url, 'with options:', fetchOptions)
   
   try {
     const response = await fetch(url, fetchOptions)
-    
-    console.log('Response status:', response.status)
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+    console.log('Response status:', response.status, 'URL:', url)
     
     if (!response.ok) {
+      // Try to get error details from response
       const errorText = await response.text()
       console.error('Error response:', errorText)
       throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`)
@@ -91,10 +89,11 @@ const fetchWithCors = async (url, options = {}) => {
     
     return response
   } catch (error) {
-    console.error('Direct fetch error for URL:', url, 'Error:', error)
+    console.error('Fetch error for URL:', url, 'Error:', error)
     throw error
   }
 }
+
 // Function to calculate nutrition when meal changes
 const calculateNutrition = async () => {
   console.log('calculateNutrition called')
@@ -271,22 +270,11 @@ const fetchUserStartDate = async () => {
 
 // Add this before your existing fetchMealPlan try block
 console.log('Environment check:', {
+  isDev,
   API_BASE_URL,
   userStartDate: userStartDate.value,
   selectedDay: selectedDay.value
 })
-
-// Add this before your fetchMealPlan function
-const testCORS = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/health`, {
-      method: 'OPTIONS'
-    })
-    console.log('CORS preflight test:', response.status, response.headers)
-  } catch (error) {
-    console.log('CORS preflight failed:', error)
-  }
-}
 // Fetch or generate meal plan
 const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true

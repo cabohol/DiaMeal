@@ -636,6 +636,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// app.listen(PORT, () => {
-//   console.log(`API Server running on http://localhost:${PORT}`);
-// });
+app.listen(PORT, () => {
+  console.log(`API Server running on http://localhost:${PORT}`);
+});

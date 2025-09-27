@@ -1,17 +1,11 @@
-// server.js - Clean and Modular with Agentic AI
+SERVER.JS //WITH AGENTIC
+
 
 import express from 'express'
 import cors from 'cors'
 import { Groq } from 'groq-sdk'
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
-
-// Import AI Agents - FIXED PATHS
-import DiabetesAnalysisAgent from './src/agents/DiabetesAnalysisAgent.js'
-import NutritionalCalculatorAgent from './src/agents/NutritionalCalculatorAgent.js'
-import IngredientScoringAgent from './src/agents/IngredientScoringAgent.js'
-import MealCompositionAgent from './src/agents/MealCompositionAgent.js'
-import { filterIngredientsByConstraints } from './src/utils/filterIngredients.js'
 
 dotenv.config()
 
@@ -26,31 +20,298 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 })
 
-
-app.use((req, res, next) => {
-  // Allow all origins during development
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-  res.header('Access-Control-Allow-Credentials', 'true')
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end()
-    return
-  }
-  
-  next()
-})
-
-// Then your existing CORS middleware
+// Middleware
 app.use(
   cors({
     origin: true,
     credentials: true,
-  })
+  }),
 )
 app.use(express.json())
+
+// === AGENTIC AI COMPONENTS ===
+
+class DiabetesAnalysisAgent {
+  static calculateGlycemicLoad(ingredients, portions) {
+    // Calculate glycemic load based on ingredients
+    let totalGL = 0
+    ingredients.forEach((ing, index) => {
+      const portion = portions[index] || 1
+      const carbs = ing.carbs_grams || 0
+      const gi = ing.glycemic_index || 50 // Default moderate GI
+      const gl = (gi * carbs * portion) / 100
+      totalGL += gl
+    })
+    return Math.round(totalGL * 10) / 10
+  }
+
+  static analyzeLabResults(labResults) {
+    const analysis = {
+      severity: 'normal',
+      recommendations: [],
+      carbLimit: 45, // grams per meal (default)
+      caloryLimit: 600, // calories per meal (default)
+      riskFactors: [],
+    }
+
+    if (!labResults) return analysis
+
+    const { hba1c, fbs, ppbs, glucose_tolerance } = labResults
+
+    // HbA1c Analysis (in %)
+    if (hba1c) {
+      if (hba1c >= 10) {
+        analysis.severity = 'severe'
+        analysis.carbLimit = 25
+        analysis.caloryLimit = 450
+        analysis.recommendations.push('Severely elevated HbA1c requires strict carb restriction')
+        analysis.riskFactors.push('high_hba1c')
+      } else if (hba1c >= 8) {
+        analysis.severity = 'moderate'
+        analysis.carbLimit = 35
+        analysis.caloryLimit = 500
+        analysis.recommendations.push('Elevated HbA1c needs moderate carb restriction')
+        analysis.riskFactors.push('moderate_hba1c')
+      } else if (hba1c >= 6.5) {
+        analysis.severity = 'mild'
+        analysis.carbLimit = 40
+        analysis.caloryLimit = 550
+        analysis.recommendations.push('Mildly elevated HbA1c requires careful monitoring')
+      }
+    }
+
+    // Fasting Blood Sugar Analysis (mg/dL)
+    if (fbs) {
+      if (fbs >= 200) {
+        analysis.riskFactors.push('very_high_fbs')
+        analysis.recommendations.push('Dangerously high fasting glucose - minimize fast carbs')
+      } else if (fbs >= 140) {
+        analysis.riskFactors.push('high_fbs')
+        analysis.recommendations.push('High fasting glucose - avoid simple sugars')
+      } else if (fbs >= 110) {
+        analysis.recommendations.push('Elevated fasting glucose - prefer complex carbs')
+      }
+    }
+
+    // Post-prandial Blood Sugar Analysis (mg/dL)
+    if (ppbs) {
+      if (ppbs >= 250) {
+        analysis.riskFactors.push('very_high_ppbs')
+        analysis.recommendations.push('Extreme post-meal spikes - strict portion control needed')
+      } else if (ppbs >= 200) {
+        analysis.riskFactors.push('high_ppbs')
+        analysis.recommendations.push('High post-meal glucose - limit meal portions')
+      }
+    }
+
+    return analysis
+  }
+}
+
+class NutritionalCalculatorAgent {
+  static calculateBMR(weight, height, age, gender) {
+    // Mifflin-St Jeor Equation
+    const bmr =
+      gender === 'male'
+        ? 10 * weight + 6.25 * height - 5 * age + 5
+        : 10 * weight + 6.25 * height - 5 * age - 161
+    return Math.round(bmr)
+  }
+
+  static calculateDailyCalories(bmr, activityLevel = 1.2) {
+    // Sedentary lifestyle multiplier for diabetic patients
+    return Math.round(bmr * activityLevel)
+  }
+
+  static calculateMacroTargets(dailyCalories, diabetesAnalysis) {
+    const targets = {
+      calories: Math.round(dailyCalories / 3), // Per meal
+      carbs: diabetesAnalysis.carbLimit,
+      protein: Math.round((dailyCalories * 0.25) / 4), // 25% of calories from protein
+      fat: Math.round((dailyCalories * 0.35) / 9), // 35% of calories from fat
+      fiber: 10, // grams minimum per meal
+    }
+    return targets
+  }
+}
+
+class IngredientScoringAgent {
+  static scoreIngredientForDiabetes(ingredient, diabetesAnalysis) {
+    let score = 50 // Base score
+
+    // Diabetic-friendly flag
+    if (ingredient.is_diabetic_friendly) score += 20
+
+    // Fiber content (high fiber is good)
+    const fiber = ingredient.fiber_grams || 0
+    score += Math.min(fiber * 3, 15)
+
+    // Glycemic impact
+    const carbs = ingredient.carbs_grams || 0
+    const gi = ingredient.glycemic_index || 50
+    const gl = (gi * carbs) / 100
+    if (gl < 10) score += 10
+    else if (gl < 20) score += 5
+    else score -= Math.min(gl, 20)
+
+    // Protein content (good for satiety)
+    const protein = ingredient.protein_grams || 0
+    score += Math.min(protein * 2, 20)
+
+    // Penalize high carb ingredients for severe diabetes
+    if (diabetesAnalysis.severity === 'severe' && carbs > 20) {
+      score -= 15
+    }
+
+    return Math.max(0, Math.min(100, score))
+  }
+
+  static scoreIngredientForBudget(ingredient, budget) {
+    const cost = ingredient.cost_per_serving || 1
+    let score = 50
+
+    if (budget === 'low' && cost <= 0.5) score += 30
+    else if (budget === 'low' && cost > 2) score -= 30
+    else if (budget === 'medium' && cost <= 1.5) score += 20
+    else if (budget === 'medium' && cost > 3) score -= 20
+    else if (budget === 'high') score += 10 // Less budget constraint
+
+    return Math.max(0, Math.min(100, score))
+  }
+}
+
+class MealCompositionAgent {
+  static generateMealStructure(mealType, macroTargets, availableIngredients, constraints) {
+    const structure = {
+      primaryProtein: null,
+      secondaryProtein: null,
+      primaryCarb: null,
+      vegetables: [],
+      healthyFats: null,
+      fiber: null,
+      flavor: null,
+    }
+
+    const categorizedIngredients = this.categorizeIngredients(availableIngredients)
+    const { diabetesAnalysis, budget } = constraints
+
+    // Score and rank ingredients
+    const scoredIngredients = availableIngredients.map((ing) => ({
+      ...ing,
+      diabetesScore: IngredientScoringAgent.scoreIngredientForDiabetes(ing, diabetesAnalysis),
+      budgetScore: IngredientScoringAgent.scoreIngredientForBudget(ing, budget),
+      overallScore: 0,
+    }))
+
+    // Calculate overall scores
+    scoredIngredients.forEach((ing) => {
+      ing.overallScore = ing.diabetesScore * 0.6 + ing.budgetScore * 0.4
+    })
+
+    // Select ingredients based on meal type requirements
+    if (mealType === 'breakfast') {
+      structure.primaryProtein = this.selectBestIngredient(
+        categorizedIngredients.protein.filter((p) => p.breakfast_suitable !== false),
+        scoredIngredients,
+      )
+      structure.primaryCarb = this.selectBestIngredient(
+        categorizedIngredients.grains.filter((g) => g.breakfast_suitable !== false),
+        scoredIngredients,
+      )
+    } else {
+      structure.primaryProtein = this.selectBestIngredient(
+        categorizedIngredients.protein,
+        scoredIngredients,
+      )
+      structure.primaryCarb = this.selectBestIngredient(
+        categorizedIngredients.grains,
+        scoredIngredients,
+      )
+    }
+
+    structure.vegetables = this.selectMultipleIngredients(
+      categorizedIngredients.vegetables,
+      scoredIngredients,
+      2,
+    )
+    structure.healthyFats = this.selectBestIngredient(
+      categorizedIngredients.fats,
+      scoredIngredients,
+    )
+
+    return structure
+  }
+
+  static categorizeIngredients(ingredients) {
+    return {
+      protein: ingredients.filter((i) => i.category === 'Protein' || (i.protein_grams || 0) > 15),
+      grains: ingredients.filter((i) => i.category === 'Grains' || i.category === 'Starches'),
+      vegetables: ingredients.filter((i) => i.category === 'Vegetables'),
+      fruits: ingredients.filter((i) => i.category === 'Fruits'),
+      dairy: ingredients.filter((i) => i.category === 'Dairy'),
+      fats: ingredients.filter((i) => i.category === 'Fats' || i.category === 'Oils'),
+      spices: ingredients.filter((i) => i.category === 'Spices' || i.category === 'Herbs'),
+    }
+  }
+
+  static selectBestIngredient(categoryIngredients, scoredIngredients) {
+    const availableScored = categoryIngredients
+      .map((ing) => scoredIngredients.find((s) => s.id === ing.id))
+      .filter(Boolean)
+
+    availableScored.sort((a, b) => b.overallScore - a.overallScore)
+    return availableScored[0] || null
+  }
+
+  static selectMultipleIngredients(categoryIngredients, scoredIngredients, count) {
+    const availableScored = categoryIngredients
+      .map((ing) => scoredIngredients.find((s) => s.id === ing.id))
+      .filter(Boolean)
+
+    availableScored.sort((a, b) => b.overallScore - a.overallScore)
+    return availableScored.slice(0, count)
+  }
+}
+
+// Helper function to filter ingredients (keep existing)
+function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, diabetesType) {
+  return ingredients.filter((ingredient) => {
+    if (allergies.length > 0) {
+      const allergenList = ingredient.common_allergens || []
+      const hasAllergen = allergies.some((allergy) =>
+        allergenList.some(
+          (allergen) =>
+            allergen.toLowerCase().includes(allergy.toLowerCase()) ||
+            allergy.toLowerCase().includes(allergen.toLowerCase()),
+        ),
+      )
+      if (hasAllergen) return false
+    }
+
+    for (const diet of religiousDiets) {
+      switch (diet.toLowerCase()) {
+        case 'halal':
+          if (!ingredient.is_halal) return false
+          break
+        case 'kosher':
+          if (!ingredient.is_kosher) return false
+          break
+        case 'vegetarian':
+          if (!ingredient.is_vegetarian) return false
+          break
+        case 'vegan':
+          if (!ingredient.is_vegan) return false
+          break
+      }
+    }
+
+    if (ingredient.availability === 'unavailable') {
+      return false
+    }
+
+    return true
+  })
+}
 
 // === ENHANCED MEAL PLAN GENERATION ENDPOINT ===
 app.post('/api/generateMealPlan', async (req, res) => {
@@ -60,7 +321,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing user_id' })
     }
 
-    // Check existing plans (unless force regenerating)
+    // Check existing plans (keep existing logic)
     if (!force_regenerate) {
       const { data: existingPlans, error: checkError } = await supabase
         .from('meal_plans')
@@ -94,7 +355,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       }
     }
 
-    // Fetch user data
+    // Fetch user data (keep existing logic)
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -132,15 +393,9 @@ app.post('/api/generateMealPlan', async (req, res) => {
 
     // === AGENTIC AI ANALYSIS ===
 
-    console.log('🧠 Starting Agentic AI Analysis...')
-
     // 1. Analyze diabetes condition
     const diabetesAnalysis = DiabetesAnalysisAgent.analyzeLabResults(lab)
-    console.log('📊 Diabetes Analysis:', {
-      severity: diabetesAnalysis.severity,
-      carbLimit: diabetesAnalysis.carbLimit,
-      riskFactors: diabetesAnalysis.riskFactors
-    })
+    console.log('Diabetes Analysis:', diabetesAnalysis)
 
     // 2. Calculate nutritional requirements
     const bmr = NutritionalCalculatorAgent.calculateBMR(
@@ -155,7 +410,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       diabetesAnalysis,
     )
 
-    console.log('🎯 Nutritional Targets:', macroTargets)
+    console.log('Nutritional Targets:', macroTargets)
 
     // 3. Filter and score ingredients
     const availableIngredients = filterIngredientsByConstraints(
@@ -172,9 +427,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       religiousDiets: religiousList,
     }
 
-    console.log(`🥗 Filtered Ingredients: ${availableIngredients.length} available`)
-
-    // Delete old plans if regenerating
+    // Delete old plans if regenerating (keep existing logic)
     if (force_regenerate) {
       const { data: oldPlans } = await supabase
         .from('meal_plans')
@@ -199,75 +452,64 @@ app.post('/api/generateMealPlan', async (req, res) => {
 
     // === ENHANCED AI PROMPT WITH AGENTIC ANALYSIS ===
     const agenticSystemPrompt = `
-You are an advanced diabetic meal planning AI with comprehensive health analysis capabilities.
+You are an advanced diabetic meal planning AI agent with access to comprehensive user health data and ingredient analysis.
 
-HEALTH ANALYSIS RESULTS:
-- Diabetes Severity: ${diabetesAnalysis.severity.toUpperCase()}
-- Lab-Based Carb Limit: ${diabetesAnalysis.carbLimit}g per meal (STRICT)
+CRITICAL HEALTH ANALYSIS:
+- Diabetes Severity: ${diabetesAnalysis.severity}
+- Lab-based Carb Limit: ${diabetesAnalysis.carbLimit}g per meal
 - Calorie Target: ${macroTargets.calories} per meal
-- Fiber Minimum: ${macroTargets.fiber}g per meal
-- Protein Target: ${macroTargets.protein}g per meal
+- Key Recommendations: ${diabetesAnalysis.recommendations.join('; ')}
+- Risk Factors: ${diabetesAnalysis.riskFactors.join(', ')}
 
-CRITICAL RECOMMENDATIONS:
-${diabetesAnalysis.recommendations.map(rec => `- ${rec}`).join('\n')}
-
-RISK FACTORS IDENTIFIED:
-${diabetesAnalysis.riskFactors.length > 0 ? diabetesAnalysis.riskFactors.map(risk => `- ${risk}`).join('\n') : '- None detected'}
-
-NUTRITIONAL PARAMETERS (Per Meal):
+NUTRITIONAL TARGETS PER MEAL:
 - Calories: ${macroTargets.calories}
-- Max Carbohydrates: ${macroTargets.carbs}g (NEVER EXCEED)
-- Min Protein: ${macroTargets.protein}g (for blood sugar stability)
-- Min Fiber: ${macroTargets.fiber}g (to slow glucose absorption)
+- Carbohydrates: MAX ${macroTargets.carbs}g
+- Protein: MIN ${macroTargets.protein}g  
+- Fiber: MIN ${macroTargets.fiber}g
 - Healthy Fats: ~${macroTargets.fat}g
 
-CONSTRAINTS:
-- Available Ingredients: ${availableIngredients.length} (pre-filtered)
+INGREDIENT CONSTRAINTS:
+- Total Available: ${availableIngredients.length} ingredients
 - Budget Level: ${user.budget}
 - Dietary Restrictions: ${[...allergiesList, ...religiousList].join(', ') || 'None'}
-- User Profile: ${user.gender}, ${user.age}y, ${user.weight_kg}kg, ${user.diabetes_type}
 
-MEAL GENERATION RULES:
-1. NEVER exceed carb limits - this is based on actual lab results
-2. Prioritize low-glycemic ingredients (GI < 55 when possible)
-3. Include high-fiber ingredients in every meal
-4. Balance meals with adequate protein for satiety
-5. Calculate realistic glycemic loads for each meal
-6. Provide health justifications for ingredient choices
-7. Consider budget constraints in selections
-8. Ensure all ingredients are from the approved list
+Generate meals that STRICTLY adhere to these lab-based parameters. Prioritize ingredients with high diabetes scores and appropriate glycemic loads.
 
-Return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON matching this schema:
 
-{
-  "day1": {
-    "breakfast": [
-      {
-        "name": "string",
-        "meal_type": "breakfast",
-        "calories": number,
-        "carbohydrates": number,    // <= ${macroTargets.carbs}
-        "protein": number,          // >= ${macroTargets.protein}
-        "fiber": number,           // >= ${macroTargets.fiber}
-        "glycemic_load": number,
-        "ingredients": ["string"], // Only from provided list
-        "procedures": "string",
-        "preparation_time": "string",
-        "health_notes": "string"
-      },
-      // 2 more breakfast options
-    ],
-    "lunch": [
-      // 3 lunch options with same structure
-    ],
-    "dinner": [
-      // 3 dinner options with same structure
-    ]
-  },
-  // Continue for day2 through day7
-}
+type Meal = {
+  name: string;
+  meal_type: "breakfast" | "lunch" | "dinner";
+  calories: number;
+  carbohydrates: number;     // MUST be <= ${macroTargets.carbs}g
+  protein: number;           // MUST be >= ${macroTargets.protein}g  
+  fiber: number;            // MUST be >= ${macroTargets.fiber}g
+  glycemic_load: number;    // Calculate based on ingredients
+  ingredients: string[];    // Only from provided list
+  procedures: string;
+  preparation_time: string;
+  health_notes: string;     // Explain why this meal is suitable for user's condition
+};
 
-Generate meals that STRICTLY respect the health analysis and provide variety across the 7 days.
+type WeekPlan = {
+  day1: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day2: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day3: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day4: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day5: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day6: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+  day7: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+};
+
+STRICT REQUIREMENTS:
+1. Never exceed carb limits based on lab results
+2. Ensure adequate protein for blood sugar stability  
+3. Include high-fiber ingredients to slow glucose absorption
+4. Calculate realistic glycemic loads
+5. Provide health justifications for each meal
+6. Use only available ingredients from the database
+7. Consider budget constraints in ingredient selection
+8. Respect all dietary restrictions and allergies
 `
 
     const content = {
@@ -283,8 +525,8 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
         bmr: bmr,
         daily_calories: dailyCalories,
       },
-      health_analysis: {
-        lab_results: lab || {},
+      lab_analysis: {
+        raw_results: lab || {},
         diabetes_analysis: diabetesAnalysis,
         macro_targets: macroTargets,
       },
@@ -306,7 +548,6 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
         cost_per_serving: ing.cost_per_serving || 1,
         is_halal: ing.is_halal,
         is_kosher: ing.is_kosher,
-        is_catholic: ing.is_catholic,
         is_vegetarian: ing.is_vegetarian,
         is_vegan: ing.is_vegan,
         common_allergens: ing.common_allergens,
@@ -315,10 +556,10 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
       })),
     }
 
-    console.log('🤖 Calling Groq API with agentic analysis...')
+    console.log('Calling Groq API with agentic analysis...')
     const chat = await groq.chat.completions.create({
       model: 'deepseek-r1-distill-llama-70b',
-      temperature: 0.3,
+      temperature: 0.3, // Lower temperature for more consistent health-focused results
       top_p: 0.9,
       max_completion_tokens: 8192,
       stream: false,
@@ -329,12 +570,12 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
       ],
     })
 
-    // Parse and validate AI response
+    // Parse and validate AI response (keep existing logic but add health validation)
     let weekPlan
     try {
       weekPlan = JSON.parse(chat.choices?.[0]?.message?.content || '{}')
     } catch (e) {
-      console.error('❌ AI response parse error:', e)
+      console.error('AI response parse error:', e)
       throw new Error('AI response was not valid JSON.')
     }
 
@@ -343,7 +584,6 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
       availableIngredients.map((ing) => ing.name.toLowerCase()),
     )
 
-    console.log('🔍 Validating meal plan with health constraints...')
     for (let dayNum = 1; dayNum <= 7; dayNum++) {
       const dayKey = `day${dayNum}`
       const dayMeals = weekPlan[dayKey]
@@ -359,17 +599,11 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
 
         // Health validation for each meal
         for (const meal of mealsForType) {
-          // Validate carb limits (critical for diabetes)
+          // Validate carb limits
           if (meal.carbohydrates > macroTargets.carbs + 5) {
+            // 5g tolerance
             console.warn(
-              `⚠️  WARNING: ${meal.name} exceeds carb limit: ${meal.carbohydrates}g > ${macroTargets.carbs}g`,
-            )
-          }
-
-          // Validate protein minimum
-          if (meal.protein < macroTargets.protein * 0.8) {
-            console.warn(
-              `⚠️  WARNING: ${meal.name} below protein target: ${meal.protein}g < ${macroTargets.protein}g`,
+              `WARNING: ${meal.name} exceeds carb limit: ${meal.carbohydrates}g > ${macroTargets.carbs}g`,
             )
           }
 
@@ -378,7 +612,7 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
             for (const ingredient of meal.ingredients) {
               if (!availableIngredientNames.has(ingredient.toLowerCase())) {
                 console.warn(
-                  `⚠️  WARNING: Ingredient "${ingredient}" not found in database for meal "${meal.name}"`,
+                  `WARNING: Ingredient "${ingredient}" not found in database for meal "${meal.name}"`,
                 )
               }
             }
@@ -387,11 +621,10 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
       }
     }
 
-    // Save meals to database
+    // Save meals with enhanced data (keep existing save logic but add health fields)
     const startDate = new Date()
     const mealPlansByDay = {}
 
-    console.log('💾 Saving meal plan to database...')
     for (let dayNum = 1; dayNum <= 7; dayNum++) {
       const dayKey = `day${dayNum}`
       const dayMeals = weekPlan[dayKey]
@@ -428,11 +661,11 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
             .single()
 
           if (mealErr) {
-            console.error('❌ Meal insert error:', mealErr)
+            console.error('Meal insert error:', mealErr)
             throw mealErr
           }
 
-          // Create meal-ingredient relationships
+          // Create meal-ingredient relationships (keep existing)
           if (Array.isArray(meal.ingredients) && meal.ingredients.length > 0) {
             const ingredientRelationships = []
 
@@ -472,11 +705,9 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
       }
     }
 
-    console.log('✅ Agentic AI meal plan generated successfully!')
-
     return res.status(200).json({
       success: true,
-      message: 'Agentic AI meal plan generated successfully with comprehensive health analysis',
+      message: 'Agentic AI meal plan generated successfully with health analysis',
       mealPlansByDay,
       isExisting: false,
       healthAnalysis: {
@@ -485,16 +716,10 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
         bmr,
         dailyCalories,
         ingredientsUsed: availableIngredients.length,
-        agentAnalysis: {
-          diabetesAgent: 'Analyzed lab results and risk factors',
-          nutritionAgent: 'Calculated personalized macro targets',
-          scoringAgent: 'Evaluated ingredients for diabetes suitability',
-          compositionAgent: 'Generated balanced meal structures'
-        }
       },
     })
   } catch (error) {
-    console.error('❌ generateMealPlan error:', error)
+    console.error('generateMealPlan error:', error)
     return res.status(500).json({
       success: false,
       error: error?.message || 'Internal server error',
@@ -502,8 +727,7 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
   }
 })
 
-// === EXISTING ENDPOINTS (Kept for compatibility) ===
-
+// Keep your existing endpoints
 app.get('/api/getIngredients', async (req, res) => {
   try {
     const { category, diabetic_friendly, search } = req.query
@@ -574,411 +798,27 @@ app.get('/api/getMealWithIngredients/:mealId', async (req, res) => {
   }
 })
 
-// === NEW AGENTIC ENDPOINTS ===
-
-// Analyze user's diabetes condition
-app.post('/api/analyzeDiabetes', async (req, res) => {
-  try {
-    const { user_id } = req.body
-    if (!user_id) {
-      return res.status(400).json({ success: false, error: 'Missing user_id' })
-    }
-
-    const { data: lab } = await supabase
-      .from('lab_results')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('age, diabetes_type')
-      .eq('id', user_id)
-      .single()
-
-    const diabetesAnalysis = DiabetesAnalysisAgent.analyzeLabResults(lab)
-    const timingRecommendations = DiabetesAnalysisAgent.getMealTimingRecommendations(diabetesAnalysis)
-    const glucoseTargets = DiabetesAnalysisAgent.getPersonalizedGlucoseTargets(
-      user?.age || 30, 
-      user?.diabetes_type || 'Type 2', 
-      []
-    )
-
-    return res.status(200).json({
-      success: true,
-      analysis: {
-        diabetesAnalysis,
-        timingRecommendations,
-        glucoseTargets,
-        recommendations: diabetesAnalysis.recommendations
-      }
-    })
-  } catch (error) {
-    console.error('analyzeDiabetes error:', error)
-    return res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to analyze diabetes condition'
-    })
-  }
-})
-
-// Get personalized nutrition targets
-app.post('/api/getNutritionTargets', async (req, res) => {
-  try {
-    const { user_id } = req.body
-    if (!user_id) {
-      return res.status(400).json({ success: false, error: 'Missing user_id' })
-    }
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user_id)
-      .single()
-
-    const { data: lab } = await supabase
-      .from('lab_results')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!user) throw new Error('User not found')
-
-    const diabetesAnalysis = DiabetesAnalysisAgent.analyzeLabResults(lab)
-    const bmr = NutritionalCalculatorAgent.calculateBMR(
-      user.weight_kg,
-      user.height_cm,
-      user.age,
-      user.gender
-    )
-    const dailyCalories = NutritionalCalculatorAgent.calculateDailyCalories(bmr, 1.3)
-    const macroTargets = NutritionalCalculatorAgent.calculateMacroTargets(dailyCalories, diabetesAnalysis)
-    const waterIntake = NutritionalCalculatorAgent.calculateWaterIntake(
-      user.weight_kg,
-      'moderate',
-      user.diabetes_type
-    )
-    const micronutrients = NutritionalCalculatorAgent.calculateMicronutrientTargets(
-      user.age,
-      user.gender,
-      diabetesAnalysis
-    )
-
-    return res.status(200).json({
-      success: true,
-      targets: {
-        bmr,
-        dailyCalories,
-        macroTargets,
-        waterIntake,
-        micronutrients,
-        diabetesAnalysis
-      }
-    })
-  } catch (error) {
-    console.error('getNutritionTargets error:', error)
-    return res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to calculate nutrition targets'
-    })
-  }
-})
-
-// Score ingredients for a specific user
-app.post('/api/scoreIngredients', async (req, res) => {
-  try {
-    const { user_id, ingredient_ids } = req.body
-    if (!user_id) {
-      return res.status(400).json({ success: false, error: 'Missing user_id' })
-    }
-
-    // Get user data and constraints
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user_id)
-      .single()
-
-    const { data: lab } = await supabase
-      .from('lab_results')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    const { data: allergiesData } = await supabase
-      .from('allergies')
-      .select('allergy')
-      .eq('user_id', user_id)
-
-    const { data: religiousData } = await supabase
-      .from('religious_diets')
-      .select('diet_type')
-      .eq('user_id', user_id)
-
-    // Get ingredients to score
-    let ingredientQuery = supabase.from('ingredients').select('*')
-    if (ingredient_ids && ingredient_ids.length > 0) {
-      ingredientQuery = ingredientQuery.in('id', ingredient_ids)
-    }
-    
-    const { data: ingredients } = await ingredientQuery
-
-    const diabetesAnalysis = DiabetesAnalysisAgent.analyzeLabResults(lab)
-    const allergiesList = (allergiesData || []).map(a => a.allergy).filter(Boolean)
-    const religiousList = (religiousData || []).map(r => r.diet_type).filter(Boolean)
-
-    const constraints = {
-      diabetesAnalysis,
-      budget: user?.budget || 'medium',
-      allergies: allergiesList,
-      religiousDiets: religiousList
-    }
-
-    const scoredIngredients = ingredients.map(ingredient => ({
-      ...ingredient,
-      scoringProfile: IngredientScoringAgent.createScoringProfile(ingredient, constraints)
-    })).sort((a, b) => b.scoringProfile.overallScore - a.scoringProfile.overallScore)
-
-    return res.status(200).json({
-      success: true,
-      scoredIngredients,
-      constraints: {
-        diabetesSeverity: diabetesAnalysis.severity,
-        budget: user?.budget,
-        restrictionsCount: allergiesList.length + religiousList.length
-      }
-    })
-  } catch (error) {
-    console.error('scoreIngredients error:', error)
-    return res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to score ingredients'
-    })
-  }
-})
-
-// Generate meal composition
-app.post('/api/composeMeal', async (req, res) => {
-  try {
-    const { user_id, meal_type, ingredient_ids } = req.body
-    if (!user_id || !meal_type) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing required fields: user_id, meal_type' 
-      })
-    }
-
-    // Get user data
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user_id)
-      .single()
-
-    const { data: lab } = await supabase
-      .from('lab_results')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    const { data: allergiesData } = await supabase
-      .from('allergies')
-      .select('allergy')
-      .eq('user_id', user_id)
-
-    const { data: religiousData } = await supabase
-      .from('religious_diets')
-      .select('diet_type')
-      .eq('user_id', user_id)
-
-    // Get available ingredients
-    let ingredientQuery = supabase.from('ingredients').select('*')
-    if (ingredient_ids && ingredient_ids.length > 0) {
-      ingredientQuery = ingredientQuery.in('id', ingredient_ids)
-    }
-    
-    const { data: availableIngredients } = await ingredientQuery
-
-    // Calculate nutritional requirements
-    const diabetesAnalysis = DiabetesAnalysisAgent.analyzeLabResults(lab)
-    const bmr = NutritionalCalculatorAgent.calculateBMR(
-      user.weight_kg,
-      user.height_cm,
-      user.age,
-      user.gender
-    )
-    const dailyCalories = NutritionalCalculatorAgent.calculateDailyCalories(bmr)
-    const macroTargets = NutritionalCalculatorAgent.calculateMacroTargets(dailyCalories, diabetesAnalysis)
-
-    const allergiesList = (allergiesData || []).map(a => a.allergy).filter(Boolean)
-    const religiousList = (religiousData || []).map(r => r.diet_type).filter(Boolean)
-
-    const constraints = {
-      diabetesAnalysis,
-      budget: user?.budget || 'medium',
-      allergies: allergiesList,
-      religiousDiets: religiousList
-    }
-
-    // Filter ingredients
-    const filteredIngredients = filterIngredientsByConstraints(
-      availableIngredients,
-      allergiesList,
-      religiousList,
-      user.diabetes_type
-    )
-
-    // Generate meal composition
-    const mealStructure = MealCompositionAgent.generateMealStructure(
-      meal_type,
-      macroTargets,
-      filteredIngredients,
-      constraints
-    )
-
-    // Validate the meal
-    const validation = MealCompositionAgent.validateMealStructure(
-      mealStructure,
-      macroTargets,
-      constraints
-    )
-
-    return res.status(200).json({
-      success: true,
-      mealStructure,
-      validation,
-      targets: macroTargets,
-      message: validation.isValid ? 'Meal composition generated successfully' : 'Meal generated with warnings'
-    })
-  } catch (error) {
-    console.error('composeMeal error:', error)
-    return res.status(500).json({
-      success: false,
-      error: error?.message || 'Failed to compose meal'
-    })
-  }
-})
-
-
-// Add this endpoint to your server.js
-app.get('/api/getMealPlan/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    if (!userId) {
-      return res.status(400).json({ success: false, error: "Missing userId" });
-    }
-
-    // Get existing meal plans for today and the next 6 days
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + 6);
-
-    const { data: mealPlans, error } = await supabase
-      .from("meal_plans")
-      .select(`
-        *,
-        meals (*)
-      `)
-      .eq("user_id", userId)
-      .eq("recommended_by_ai", true)
-      .gte("date", startDate.toISOString().split('T')[0])
-      .lte("date", endDate.toISOString().split('T')[0])
-      .order("date", { ascending: true });
-
-    if (error) {
-      console.error('Meal plans fetch error:', error);
-      throw error;
-    }
-
-    // Group meal plans by date
-    const mealPlansByDay = {};
-    (mealPlans || []).forEach(plan => {
-      const dateStr = plan.date.split('T')[0];
-      if (!mealPlansByDay[dateStr]) {
-        mealPlansByDay[dateStr] = { breakfast: [], lunch: [], dinner: [] };
-      }
-      if (plan.meals) {
-        const mealType = plan.meals.meal_type;
-        if (mealPlansByDay[dateStr][mealType]) {
-          mealPlansByDay[dateStr][mealType].push(plan.meals);
-        }
-      }
-    });
-
-    return res.status(200).json({
-      success: true,
-      mealPlansByDay,
-      hasPlans: Object.keys(mealPlansByDay).length > 0
-    });
-
-  } catch (error) {
-    console.error("getMealPlan error:", error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error?.message || "Failed to fetch meal plans" 
-    });
-  }
-});
-
-
-// Health status endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '2.0.0',
-    architecture: 'Modular Agentic AI',
-    activeAgents: [
-      'DiabetesAnalysisAgent - Lab analysis & risk assessment',
-      'NutritionalCalculatorAgent - Personalized nutrition targets',
-      'IngredientScoringAgent - Diabetes-friendly ingredient evaluation',
-      'MealCompositionAgent - Optimal meal structure generation'
-    ],
+    agenticAI: 'Active',
     features: [
-      'Advanced Diabetes Analysis',
-      'Personalized Nutritional Calculation',
-      'Intelligent Ingredient Scoring',
-      'Optimized Meal Composition',
+      'Diabetes Analysis',
+      'Nutritional Calculation',
+      'Ingredient Scoring',
+      'Meal Composition',
       'Health Validation',
-      'Modular Architecture',
-      'Comprehensive Logging'
+      'Smart Shopping Lists',
     ],
-    endpoints: {
-      core: ['/api/generateMealPlan'],
-      analysis: ['/api/analyzeDiabetes', '/api/getNutritionTargets'],
-      ingredients: ['/api/scoreIngredients', '/api/getIngredients'],
-      composition: ['/api/composeMeal', '/api/getMealWithIngredients'],
-      utility: ['/api/health']
-    }
   })
 })
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🤖 Modular Agentic AI Meal Planning Server running on http://localhost:${PORT}`)
-  console.log('')
-  console.log('🧠 AI Agent Architecture:')
-  console.log('   ├── DiabetesAnalysisAgent    → Lab analysis & risk assessment')
-  console.log('   ├── NutritionalCalculatorAgent → Personalized nutrition targets')  
-  console.log('   ├── IngredientScoringAgent   → Diabetes-friendly evaluation')
-  console.log('   └── MealCompositionAgent     → Optimal meal structure')
-  console.log('')
-  console.log('🔗 Available Endpoints:')
-  console.log('   ├── POST /api/generateMealPlan    → Generate 7-day meal plan')
-  console.log('   ├── POST /api/analyzeDiabetes     → Analyze diabetes condition')
-  console.log('   ├── POST /api/getNutritionTargets → Get nutrition targets')
-  console.log('   ├── POST /api/scoreIngredients    → Score ingredient suitability')
-  console.log('   ├── POST /api/composeMeal         → Generate meal composition')
-  console.log('   └── GET  /api/health              → System health status')
-  console.log('')
-  console.log('✅ Server ready for agentic AI meal planning!')
+  console.log(`🤖 Agentic AI Meal Planning Server running on http://localhost:${PORT}`)
+  console.log('🧠 AI Agents Active:')
+  console.log('   - DiabetesAnalysisAgent')
+  console.log('   - NutritionalCalculatorAgent')
+  console.log('   - IngredientScoringAgent')
+  console.log('   - MealCompositionAgent')
 })

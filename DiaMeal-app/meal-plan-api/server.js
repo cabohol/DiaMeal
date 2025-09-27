@@ -293,6 +293,7 @@ Generate meals that STRICTLY respect the health analysis and provide variety acr
         cost_per_serving: ing.cost_per_serving || 1,
         is_halal: ing.is_halal,
         is_kosher: ing.is_kosher,
+        is_catholic: ing.is_catholic,
         is_vegetarian: ing.is_vegetarian,
         is_vegan: ing.is_vegan,
         common_allergens: ing.common_allergens,

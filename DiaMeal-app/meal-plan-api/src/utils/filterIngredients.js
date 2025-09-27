@@ -38,6 +38,9 @@ export function filterIngredientsByConstraints(ingredients, allergies = [], reli
         case 'kosher':
           if (!ingredient.is_kosher) return false
           break
+        case 'catholic':
+          if (!ingredient.is_catholic) return false
+          break
         case 'vegetarian':
           if (!ingredient.is_vegetarian) return false
           break
@@ -436,7 +439,7 @@ export function validateIngredientData(ingredients) {
     }
 
     // Check dietary flags
-    const dietaryFlags = ['is_diabetic_friendly', 'is_vegetarian', 'is_vegan', 'is_halal', 'is_kosher']
+    const dietaryFlags = ['is_diabetic_friendly', 'is_vegetarian', 'is_vegan', 'is_halal', 'is_kosher', 'is_catholic']
     const missingFlags = dietaryFlags.filter(flag => 
       ingredient[flag] === undefined || ingredient[flag] === null
     )

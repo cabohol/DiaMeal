@@ -369,6 +369,7 @@ async function submitForm() {
                     'None',
                     'Catholic (No meat on Fridays/Lent)', 
                     'Islam (Halal)', 
+                    'Judaism (Kosher)',
                     'Vegetarian', 
                     'Vegan',
                     'Other']"

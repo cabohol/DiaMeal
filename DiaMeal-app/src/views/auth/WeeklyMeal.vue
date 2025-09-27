@@ -3,10 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/utils/supabase'
 
 // API base URL - change this for production
-const isDev = import.meta.env.DEV
-const API_BASE_URL = isDev 
-  ? '' 
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-api-gamma.vercel.app')
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://meal-plan-api-gamma.vercel.app'
 
 
 // Generate day labels with actual dates based on user's last_submission_date
@@ -68,21 +65,20 @@ const fetchWithCors = async (url, options = {}) => {
   const fetchOptions = {
     ...options,
     mode: 'cors',
-    credentials: 'omit',
+    credentials: 'omit', // Try without credentials first
     headers: {
       'Content-Type': 'application/json',
       ...options.headers
     }
   }
   
-  console.log('Making request to:', url, 'with options:', fetchOptions)
+  console.log('Making request to:', url)
   
   try {
     const response = await fetch(url, fetchOptions)
-    console.log('Response status:', response.status, 'URL:', url)
+    console.log('Response status:', response.status)
     
     if (!response.ok) {
-      // Try to get error details from response
       const errorText = await response.text()
       console.error('Error response:', errorText)
       throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`)
@@ -271,7 +267,6 @@ const fetchUserStartDate = async () => {
 
 // Add this before your existing fetchMealPlan try block
 console.log('Environment check:', {
-  isDev,
   API_BASE_URL,
   userStartDate: userStartDate.value,
   selectedDay: selectedDay.value

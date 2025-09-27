@@ -26,12 +26,29 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 })
 
-// Middleware
+
+app.use((req, res, next) => {
+  // Allow all origins during development
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+  
+  next()
+})
+
+// Then your existing CORS middleware
 app.use(
   cors({
     origin: true,
     credentials: true,
-  }),
+  })
 )
 app.use(express.json())
 

@@ -1,29 +1,92 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { supabase } from '@/utils/supabase';
-import { useRouter } from 'vue-router';
-import H1 from "@/assets/h1.jpg";
-import H2 from "@/assets/h2.jpg";
-import H3 from "@/assets/h3.jpg";
-import H4 from "@/assets/h4.jpg";
-import H5 from "@/assets/h5.jpg";
+import { ref, onMounted, computed } from 'vue'
+import { supabase } from '@/utils/supabase'
+import { useRouter } from 'vue-router'
+import H1 from "@/assets/h1.jpg"
+import H2 from "@/assets/h2.jpg"
+import H3 from "@/assets/h3.jpg"
+import H4 from "@/assets/h4.jpg"
+import H5 from "@/assets/h5.jpg"
 
+const router = useRouter()
+const userFirstName = ref('')
+const progress = ref(66) // fallback example progress
 
-const router = useRouter();
-const userFirstName = ref('');
-const progress = ref(66); // Example static progress
+// For progress card
+const currentUserId = ref(null)
+const today = new Date().toISOString().split('T')[0]
+const dbProgressData = ref(null)
 
-// Fetch user metadata
+// Fetch user + name
 onMounted(async () => {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser()
   if (error || !data?.user) {
-    router.push('/login'); // redirect if not logged in
-  } else {
-    const fullName = data.user.user_metadata.full_name || 'User';
-    userFirstName.value = fullName.split(' ')[0]; // Get only the first name
+    router.push('/login') // redirect if not logged in
+    return
   }
-});
+
+  const fullName = data.user.user_metadata.full_name || 'User'
+  userFirstName.value = fullName.split(' ')[0] // first name only
+
+  // Fetch corresponding user row
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', data.user.email)
+    .single()
+
+  if (userRow) {
+    currentUserId.value = userRow.id
+  }
+})
+
+// LocalStorage meal completions
+const loadMealCompletions = () => {
+  if (!currentUserId.value) return {}
+  const key = `mealCompletions_${currentUserId.value}`
+  const stored = localStorage.getItem(key)
+  return stored ? JSON.parse(stored) : {}
+}
+
+// Total calories today
+const totalCalories = computed(() => {
+  if (dbProgressData.value?.calories_consumed) {
+    return dbProgressData.value.calories_consumed
+  }
+
+  const completions = loadMealCompletions()
+  let total = 0
+  Object.values(completions).forEach(c => {
+    if (c?.completed && c.date === today && typeof c.calories === 'number') {
+      total += c.calories
+    }
+  })
+  return total
+})
+
+// Meals completed today
+const todayProgress = computed(() => {
+  const completions = loadMealCompletions()
+  const types = new Set()
+  Object.values(completions).forEach(c => {
+    if (c?.completed && c.date === today) {
+      const type = c.mealType?.toLowerCase()
+      if (['breakfast', 'lunch', 'dinner'].includes(type)) {
+        types.add(type)
+      }
+    }
+  })
+  const total = 3
+  const done = types.size
+  return {
+    completed: done,
+    total,
+    percentage: total ? Math.round((done / total) * 100) : 0
+  }
+})
+
 </script>
+
 
 <template>
   <v-app>
@@ -86,32 +149,58 @@ onMounted(async () => {
           <!-- Meal Plan Progress -->
           <br>
           <v-card
-            class="mx-4 mt-4 pa-4 text-center progress-card floating-card" elevation="4" rounded="xl">
-            <v-icon size="36" color="#5D8736" class="mb-2">mdi-silverware-fork-knife</v-icon>
-          
-            <p class="text-h6 mb-1" style="font-family:'Syne', sans-serif; font-weight: 600;">
+            class="mx-4 mt-4 pa-4 text-center progress-card floating-card"
+            elevation="4"
+            rounded="xl"
+          >
+            
+            <p
+              class="text-h6 mb-1"
+              style="font-family:'Syne', sans-serif; font-weight: 600;"
+            > 
               Meal Plan Progress
             </p>
-            <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
-              2 out of 3 meals completed this day!
-            </p>
 
-            <v-progress-linear
-            color="#66BB6A"
-            height="10"
-            :model-value="66"
-            striped
-            ></v-progress-linear>
-
-            <div class="text-subtitle-1 mt-1" style="font-family:'Syne', sans-serif;">
-              {{ progress }}%
+            <!-- Calories Line -->
+            <div class="d-flex align-center justify-center mb-2">
+              <v-icon color="red" class="mr-2">mdi-fire</v-icon>
+              <p class="mb-0 text-lg" style="font-family: 'Syne', sans-serif; font-size: larger;">
+                {{ totalCalories }} kcal consumed today
+              </p>
             </div>
 
-            <v-btn color="#5D8736" class="mt-3" rounded="lg" variant="flat" @click="$router.push('/myprogress')"
-                   style="font-family: 'Syne', sans-serif;"> <v-icon start class="mr-2">mdi-eye</v-icon> View Progress
-            </v-btn>
+            <!-- Meals Completed -->
+            <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
+              {{ todayProgress.completed }} out of {{ todayProgress.total }} meals completed today!
+            </p>
 
+            <!-- Progress Bar -->
+            <v-progress-linear
+              color="#66BB6A"
+              height="10"
+              :model-value="todayProgress.percentage"
+              striped
+            ></v-progress-linear>
+
+            <div
+              class="text-subtitle-1 mt-1"
+              style="font-family:'Syne', sans-serif;"
+            >
+              {{ todayProgress.percentage }}%
+            </div>
+
+            <v-btn
+              color="#5D8736"
+              class="mt-3"
+              rounded="lg"
+              variant="flat"
+              @click="$router.push('/myprogress')"
+              style="font-family: 'Syne', sans-serif;"
+            >
+              <v-icon start class="mr-2">mdi-eye</v-icon> View Progress
+            </v-btn>
           </v-card>
+
 
 
          <!-- Why It Matters Section -->
@@ -377,4 +466,3 @@ onMounted(async () => {
   margin-top: 4px;
 }
 </style>
-

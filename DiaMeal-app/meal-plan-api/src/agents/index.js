@@ -8,12 +8,11 @@ import MealCompositionAgent from './MealCompositionAgent.js'
 
 
 // Export all agents
-export {
-  DiabetesAnalysisAgent,
-  NutritionalCalculatorAgent,
-  IngredientScoringAgent,
-  MealCompositionAgent
-}
+// src/agents/index.js
+export { default as DiabetesAnalysisAgent } from './DiabetesAnalysisAgent.js'
+export { default as NutritionalCalculatorAgent } from './NutritionalCalculatorAgent.js'
+export { default as IngredientScoringAgent } from './IngredientScoringAgent.js'
+export { default as MealCompositionAgent } from './MealCompositionAgent.js'
 
 // Export default object with all agents for easy destructuring
 export default {

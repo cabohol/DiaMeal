@@ -7,15 +7,11 @@ import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 
 // Import AI Agents - FIXED PATHS
-import {
-  DiabetesAnalysisAgent,
-  NutritionalCalculatorAgent,
-  IngredientScoringAgent,
-  MealCompositionAgent
-} from './src/agents/index.js'  // Added 'src/' prefix
-
-// Import Utilities - FIXED PATH
-import { filterIngredientsByConstraints } from './src/utils/filterIngredients.js'  // Added 'src/' prefix
+import DiabetesAnalysisAgent from './src/agents/DiabetesAnalysisAgent.js'
+import NutritionalCalculatorAgent from './src/agents/NutritionalCalculatorAgent.js'
+import IngredientScoringAgent from './src/agents/IngredientScoringAgent.js'
+import MealCompositionAgent from './src/agents/MealCompositionAgent.js'
+import { filterIngredientsByConstraints } from './src/utils/filterIngredients.js'
 
 dotenv.config()
 
@@ -853,6 +849,69 @@ app.post('/api/composeMeal', async (req, res) => {
     })
   }
 })
+
+
+// Add this endpoint to your server.js
+app.get('/api/getMealPlan/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: "Missing userId" });
+    }
+
+    // Get existing meal plans for today and the next 6 days
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 6);
+
+    const { data: mealPlans, error } = await supabase
+      .from("meal_plans")
+      .select(`
+        *,
+        meals (*)
+      `)
+      .eq("user_id", userId)
+      .eq("recommended_by_ai", true)
+      .gte("date", startDate.toISOString().split('T')[0])
+      .lte("date", endDate.toISOString().split('T')[0])
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error('Meal plans fetch error:', error);
+      throw error;
+    }
+
+    // Group meal plans by date
+    const mealPlansByDay = {};
+    (mealPlans || []).forEach(plan => {
+      const dateStr = plan.date.split('T')[0];
+      if (!mealPlansByDay[dateStr]) {
+        mealPlansByDay[dateStr] = { breakfast: [], lunch: [], dinner: [] };
+      }
+      if (plan.meals) {
+        const mealType = plan.meals.meal_type;
+        if (mealPlansByDay[dateStr][mealType]) {
+          mealPlansByDay[dateStr][mealType].push(plan.meals);
+        }
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      mealPlansByDay,
+      hasPlans: Object.keys(mealPlansByDay).length > 0
+    });
+
+  } catch (error) {
+    console.error("getMealPlan error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error?.message || "Failed to fetch meal plans" 
+    });
+  }
+});
+
 
 // Health status endpoint
 app.get('/api/health', (req, res) => {

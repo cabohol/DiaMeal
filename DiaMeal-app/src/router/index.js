@@ -85,22 +85,22 @@ const router = createRouter({
 })
 
 /**
- * Navigation Guard Protects routes with meta.requiresAuth
- * Redirects logged-in users away from login/register
+ * Navigation Guard - Protects routes and maintains user's current page
  */
 router.beforeEach(async (to, from, next) => {
   const { data: { session } } = await supabase.auth.getSession()
 
+  // If route requires auth and user is not logged in
   if (to.meta.requiresAuth && !session) {
-    // Not logged in, redirect to login
     return next('/login')
   }
 
+  // If user is logged in and trying to access login/register, redirect to home
   if ((to.path === '/login' || to.path === '/register') && session) {
-    // Already logged in, prevent going back to login/register
     return next('/home')
   }
 
+  // Allow navigation to proceed
   next()
 })
 

@@ -24,7 +24,6 @@ const generateDaysWithDates = (startDate) => {
   return days
 }
 
-
 const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
 const selectedDay = computed(() => {
@@ -218,8 +217,6 @@ watch(selectedMeal, () => {
   }
 })
 
-
-// Fetch user's last_submission_date
 // Helper function to get local date string (YYYY-MM-DD format)
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear()
@@ -289,6 +286,7 @@ console.log('Environment check:', {
   userStartDate: userStartDate.value,
   selectedDay: selectedDay.value
 })
+
 // Fetch or generate meal plan
 const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true
@@ -415,25 +413,6 @@ const testAPIConnection = async () => {
   }
 }
 
-// Single onMounted function that handles everything
-onMounted(async () => {
-  console.log('Initializing WeeklyMeal component...')
-  
-  // Optional health check
-  const healthOk = await testAPIConnection()
-  if (healthOk) {
-    console.log('API health check passed')
-  } else {
-    console.log('API health check failed, but continuing with meal plan fetch')
-  }
-  
-  // Always try to fetch meal plan regardless of health check
-  await fetchUserStartDate()
-  if (!errorMsg.value) {
-    await fetchMealPlan()
-  }
-})
-
 const goBack = () => window.history.back()
 
 const sections = computed(() => ([
@@ -449,7 +428,6 @@ const viewMeal = async (meal) => {
   await calculateNutrition() // Calculate nutrition data
   mealDetailsDialog.value = true
 }
-
 
 const closeMealDetails = () => {
   mealDetailsDialog.value = false
@@ -511,6 +489,8 @@ const alertType = ref('success')
 const completedMeals = ref({})
 const currentUserId = ref(null)
 
+// NEW: Track which specific meal option was completed (for enforcement)
+const completedMealOptions = ref({})
 
 // Helper functions for time checking and meal completion
 const getCurrentTime = () => {
@@ -535,6 +515,35 @@ const isTimeAllowedForMealType = (mealType) => {
   return currentTimeMinutes >= window.start && currentTimeMinutes <= window.end
 }
 
+// NEW: Get the completed meal option index for a specific meal type and date
+const getCompletedMealIndex = (date, mealType) => {
+  const key = `${date}-${mealType}`
+  return completedMealOptions.value[key] !== undefined ? completedMealOptions.value[key] : null
+}
+
+// NEW: Check if a specific meal option is the one that was completed
+const isMealOptionCompleted = (date, mealType, mealIndex) => {
+  const completedIndex = getCompletedMealIndex(date, mealType)
+  return completedIndex === mealIndex
+}
+
+// NEW: Check if View Details should be disabled for this meal
+const isViewDetailsDisabled = (date, mealType, mealIndex) => {
+  // If no meal has been completed yet for this type, all are viewable
+  const completedIndex = getCompletedMealIndex(date, mealType)
+  if (completedIndex === null) {
+    return false
+  }
+  
+  // If this specific meal was completed, it's viewable
+  if (completedIndex === mealIndex) {
+    return false
+  }
+  
+  // Otherwise, disable it (another option was chosen)
+  return true
+}
+
 const isMealCompleted = (date, mealType) => {
   const key = `${date}-${mealType}`
   return completedMeals.value[key] || false
@@ -545,26 +554,88 @@ const isMealTypeCompletedForDay = (date, mealType) => {
   return completedMeals.value[key] || false
 }
 
-const canMarkAsComplete = (date, mealType) => {
+const canMarkAsComplete = (date, mealType, mealIndex) => {
   const today = getLocalDateString()
   const mealDate = new Date(date)
   const todayDate = new Date(today)
   
   if (mealDate > todayDate) return false
-  if (isMealTypeCompletedForDay(date, mealType)) return false
+  
+  // NEW: Check if this meal type is completed
+  if (isMealTypeCompletedForDay(date, mealType)) {
+    // Only allow if THIS specific option was the one completed
+    return isMealOptionCompleted(date, mealType, mealIndex)
+  }
+  
   if (mealDate < todayDate) return true
   
   return isTimeAllowedForMealType(mealType)
 }
 
-// markMealAsCompleted function
-const markMealAsCompleted = async (meal, mealType) => {
-  try {
-    console.log('Marking meal as complete:', { mealName: meal.name, mealType });
+// NEW: Get button text based on completion status
+const getButtonText = (date, mealType, mealIndex) => {
+  if (isMealOptionCompleted(date, mealType, mealIndex)) {
+    return 'Completed'
+  }
+  
+  const completedIndex = getCompletedMealIndex(date, mealType)
+  if (completedIndex !== null && completedIndex !== mealIndex) {
+    return 'Not Chosen'
+  }
+  
+  return 'Mark as Complete'
+}
 
-    // Prevent duplicate submissions
-    if (isMealTypeCompletedForDay(selectedDay.value.date, mealType)) {
-      return false;
+// NEW: Get button color based on completion status
+const getButtonColor = (date, mealType, mealIndex) => {
+  if (isMealOptionCompleted(date, mealType, mealIndex)) {
+    return 'success' // Green for completed
+  }
+  
+  const completedIndex = getCompletedMealIndex(date, mealType)
+  if (completedIndex !== null && completedIndex !== mealIndex) {
+    return 'grey' // Gray for disabled
+  }
+  
+  return '#A9C46C' // Default green for available
+}
+
+// NEW: Get button icon based on completion status
+const getButtonIcon = (date, mealType, mealIndex) => {
+  if (isMealOptionCompleted(date, mealType, mealIndex)) {
+    return 'mdi-check-circle'
+  }
+  
+  const completedIndex = getCompletedMealIndex(date, mealType)
+  if (completedIndex !== null && completedIndex !== mealIndex) {
+    return 'mdi-lock'
+  }
+  
+  return 'mdi-check-circle'
+}
+
+// UPDATED: markMealAsCompleted function with enforcement
+const markMealAsCompleted = async (meal, mealType, mealIndex) => {
+  try {
+    console.log('Marking meal as complete:', { mealName: meal.name, mealType, mealIndex })
+
+    // NEW: Strict enforcement - check if any meal of this type is already completed
+    const existingIndex = getCompletedMealIndex(selectedDay.value.date, mealType)
+    
+    if (existingIndex !== null) {
+      if (existingIndex === mealIndex) {
+        alertMessage.value = "This meal is already marked as completed."
+        alertType.value = 'info'
+        showSuccessAlert.value = true
+        setTimeout(() => { showSuccessAlert.value = false }, 3000)
+        return false
+      } else {
+        alertMessage.value = `You can only mark one ${mealType} meal as complete per day. You already completed Option ${existingIndex + 1}.`
+        alertType.value = 'warning'
+        showSuccessAlert.value = true
+        setTimeout(() => { showSuccessAlert.value = false }, 4000)
+        return false
+      }
     }
 
     const { data: mealData, error: calorieError } = await supabase
@@ -616,6 +687,9 @@ const markMealAsCompleted = async (meal, mealType) => {
     const key = `${selectedDay.value.date}-${mealType}`
     completedMeals.value[key] = true
     
+    // NEW: Store which specific meal option was completed
+    completedMealOptions.value[key] = mealIndex
+    
     // Show ONE success alert
     alertMessage.value = `${meal.name} marked as complete!`
     alertType.value = 'success'
@@ -624,6 +698,8 @@ const markMealAsCompleted = async (meal, mealType) => {
     setTimeout(() => {
       showSuccessAlert.value = false
     }, 4000)
+    
+    console.log(`Meal marked as completed: ${mealType} Option ${mealIndex + 1}`)
     
     return true
   } catch (err) {
@@ -635,7 +711,7 @@ const markMealAsCompleted = async (meal, mealType) => {
   }
 }
 
-// Fetch completed meals from database
+// UPDATED: Fetch completed meals from database
 const fetchCompletedMeals = async () => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -649,11 +725,11 @@ const fetchCompletedMeals = async () => {
 
     if (userRowErr || !userRow) return
 
-    currentUserId.value = userRow.id // set user id here
+    currentUserId.value = userRow.id
 
     const { data: completed, error: fetchError } = await supabase
       .from("completed_meals")
-      .select("meal_date, meal_type")
+      .select("meal_date, meal_type, meal_id")
       .eq("user_id", userRow.id)
 
     if (fetchError) {
@@ -662,13 +738,29 @@ const fetchCompletedMeals = async () => {
     }
 
     const completedLookup = {}
-    completed.forEach(item => {
+    const completedOptionsLookup = {}
+    
+    // NEW: Build lookup for completed meals and their option indices
+    for (const item of completed) {
       const key = `${item.meal_date}-${item.meal_type}`
       completedLookup[key] = true
-    })
+      
+      // Find which option index this meal is
+      const date = item.meal_date
+      if (mealPlansByDay.value[date] && mealPlansByDay.value[date][item.meal_type]) {
+        const meals = mealPlansByDay.value[date][item.meal_type]
+        const mealIndex = meals.findIndex(m => m.id === item.meal_id)
+        if (mealIndex !== -1) {
+          completedOptionsLookup[key] = mealIndex
+        }
+      }
+    }
     
     completedMeals.value = completedLookup
+    completedMealOptions.value = completedOptionsLookup
+    
     console.log("Loaded completed meals:", completedLookup)
+    console.log("Loaded completed meal options:", completedOptionsLookup)
   } catch (err) {
     console.error("Error fetching completed meals:", err)
   }
@@ -691,8 +783,8 @@ onMounted(async () => {
     await fetchCompletedMeals()
   }
 })
-
 </script>
+
 
 <template>
   <v-app>
@@ -787,7 +879,43 @@ onMounted(async () => {
             </p>
           </v-card-text>
         </v-card>
-
+        
+         <!-- success/error/warning alert for meal completion -->
+          <v-alert
+              v-if="showSuccessAlert"
+              :type="alertType"
+              variant="tonal"
+              closable
+              @click:close="showSuccessAlert = false"
+              class="custom-alert"
+              :class="{
+                'ma-2': $vuetify.display.xs,
+                'ma-3': $vuetify.display.sm,
+                'ma-4': $vuetify.display.mdAndUp
+              }"
+              rounded="lg"
+            >
+              <div class="d-flex align-center">
+                <v-icon 
+                  :color="alertType === 'success' ? 'success' : 
+                        alertType === 'warning' ? 'warning' : 
+                        alertType === 'error' ? 'error' : 'info'"
+                  :size="$vuetify.display.xs ? 'default' : 'large'"
+                  class="mr-3"
+                >
+                </v-icon>
+                
+                <span 
+                  class="alert-message" 
+                  :class="{
+                    'text-body-2': $vuetify.display.xs,
+                    'text-body-1': $vuetify.display.smAndUp
+                  }"
+                >
+                  {{ alertMessage }}
+                </span>
+              </div>
+          </v-alert>
 
         <!-- Meal Type Sections -->
         <v-card
@@ -802,36 +930,6 @@ onMounted(async () => {
             <v-icon :icon="sec.icon" class="mr-2" :size="$vuetify.display.xs ? 'default' : 'large'" />
             <h3 class="font-weight-bold text-h6 text-sm-h5" style="font-family: 'Syne', sans-serif;">{{ sec.title }}</h3>
           </div>
-
-                    <!-- Success/Error Alert for Meal Completion -->
-          <v-alert
-            v-if="showSuccessAlert"
-            :type="alertType"
-            variant="tonal"
-            closable
-            @click:close="showSuccessAlert = false"
-            class="mb-4"
-            :class="{
-              'mx-2': $vuetify.display.xs,
-              'mx-4': $vuetify.display.smAndUp
-            }"
-          >
-            <div class="d-flex align-center">
-              <v-icon 
-                v-if="alertType === 'success'" 
-                color="success" 
-                class="mr-2"
-              >
-              </v-icon>
-              <v-icon 
-                v-else-if="alertType === 'error'" 
-                color="error" 
-                class="mr-2"
-              >
-              </v-icon>
-              {{ alertMessage }}
-            </div>
-          </v-alert>
           
           <!-- Meals Carousel -->
           <div v-if="currentDayMeals[sec.key]?.length > 0" class="d-flex justify-center">
@@ -851,14 +949,16 @@ onMounted(async () => {
                   :class="{
                     'ma-1': $vuetify.display.xs,
                     'ma-2': $vuetify.display.sm,
-                    'ma-3': $vuetify.display.mdAndUp
+                    'ma-3': $vuetify.display.mdAndUp,
+                    'meal-card-disabled': isViewDetailsDisabled(selectedDay.date, sec.key, idx)
                   }"
                   :width="$vuetify.display.xs ? 240 : $vuetify.display.sm ? 260 : 280"
                   :height="$vuetify.display.xs ? 280 : $vuetify.display.sm ? 300 : 320"
                   rounded="lg"
                   elevation="2"
-                  hover
+                  :hover="!isViewDetailsDisabled(selectedDay.date, sec.key, idx)"
                   style="font-family: 'Syne', sans-serif;"
+                  :style="isViewDetailsDisabled(selectedDay.date, sec.key, idx) ? 'opacity: 0.6;' : ''"
                 >
                   <!-- Card body with better spacing -->
                   <div class="d-flex flex-column h-100">
@@ -907,7 +1007,7 @@ onMounted(async () => {
                         :size="$vuetify.display.xs ? 'small' : 'default'"
                         block
                         class="text-white mb-2"
-                        :disabled="selectedDay.date > getLocalDateString()"
+                        :disabled="selectedDay.date > getLocalDateString() || isViewDetailsDisabled(selectedDay.date, sec.key, idx)"
                         @click="viewMeal(meal)"
                         style="font-family: 'Syne', sans-serif;"
                       >
@@ -915,40 +1015,25 @@ onMounted(async () => {
                         <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
                       </v-btn>
                       
-                      <!-- Mark as Complete Button - Always show, but conditionally disable -->
+                      <!-- Mark as Complete Button with Enforcement -->
                       <v-btn
-                        v-if="!isMealTypeCompletedForDay(selectedDay.date, sec.key)"
-                        color="#A9C46C"
+                        :color="getButtonColor(selectedDay.date, sec.key, idx)"
                         rounded
                         :size="$vuetify.display.xs ? 'small' : 'default'"
                         block
                         class="text-white"
-                        :disabled="!canMarkAsComplete(selectedDay.date, sec.key)"
-                        @click.stop="markMealAsCompleted(meal, sec.key)"
+                        :disabled="!canMarkAsComplete(selectedDay.date, sec.key, idx)"
+                        @click.stop="markMealAsCompleted(meal, sec.key, idx)"
                         style="font-family: 'Syne', sans-serif;"
                       >
-                        <v-icon start :size="$vuetify.display.xs ? 'small' : 'default'">mdi-check-circle</v-icon>
+                        <v-icon start :size="$vuetify.display.xs ? 'small' : 'default'">
+                          {{ getButtonIcon(selectedDay.date, sec.key, idx) }}
+                        </v-icon>
                         <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">
-                          Mark as Complete
+                          {{ getButtonText(selectedDay.date, sec.key, idx) }}
                         </span>
                       </v-btn>
-                      
-                      <!-- Completed State Button - Show when meal type is completed -->
-                      <v-btn
-                        v-else
-                        color="success"
-                        rounded
-                        :size="$vuetify.display.xs ? 'small' : 'default'"
-                        block
-                        disabled
-                        class="text-white"
-                        style="font-family: 'Syne', sans-serif;"
-                      >
-                        <v-icon start :size="$vuetify.display.xs ? 'small' : 'default'">mdi-check-circle</v-icon>
-                        <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">Completed</span>
-                      </v-btn>
                     </div>
-
                   </div>
                 </v-card>
               </v-slide-group-item>
@@ -968,201 +1053,232 @@ onMounted(async () => {
       <br><br>
     </v-container>
 
-      <!-- Bottom Navigation -->
-      <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B; margin-bottom: -1px;">
-        <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
-          <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
-            <v-icon>mdi-home</v-icon>
-          </span>
-          <span>Home</span>
-        </v-btn>
+    <!-- Bottom Navigation -->
+    <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B; margin-bottom: -1px;">
+      <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
+        <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
+          <v-icon>mdi-home</v-icon>
+        </span>
+        <span>Home</span>
+      </v-btn>
 
-        <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
-          <span class="icon-wrapper"  :class="{ active: $route.path === '/meal-plan' || $route.path === '/weekly-meal' }">
-            <v-icon>mdi-heart-pulse</v-icon>
-          </span>
-          <span>Meal Plan</span>
-        </v-btn>
+      <v-btn @click="$router.push('/meal-plan')" class="nav-tab" :class="{ active: $route.path === '/meal-plan' }">
+        <span class="icon-wrapper"  :class="{ active: $route.path === '/meal-plan' || $route.path === '/weekly-meal' }">
+          <v-icon>mdi-heart-pulse</v-icon>
+        </span>
+        <span>Meal Plan</span>
+      </v-btn>
 
-        <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
-          <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
-            <v-icon>mdi-account</v-icon>
-          </span>
-          <span>Profile</span>
-        </v-btn>
+      <v-btn @click="$router.push('/profile')" class="nav-tab" :class="{ active: $route.path === '/profile' }">
+        <span class="icon-wrapper" :class="{ active: $route.path === '/profile' }">
+          <v-icon>mdi-account</v-icon>
+        </span>
+        <span>Profile</span>
+      </v-btn>
 
-        <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
-          <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
-            <v-icon>mdi-chart-line</v-icon>
-          </span>
-          <span>Progress</span>
-        </v-btn>
-      </v-bottom-navigation>
+      <v-btn @click="$router.push('/myprogress')" class="nav-tab" :class="{ active: $route.path === '/myprogress' }">
+        <span class="icon-wrapper" :class="{ active: $route.path === '/myprogress' }">
+          <v-icon>mdi-chart-line</v-icon>
+        </span>
+        <span>Progress</span>
+      </v-btn>
+    </v-bottom-navigation>
 
       <!-- Meal Details Dialog -->
-          <v-dialog
-            v-model="mealDetailsDialog"
-            max-width="900"
-            persistent
-            :fullscreen="$vuetify.display.xs">
-            
-            <v-card class="meal-details-card" :class="{ 'h-100': $vuetify.display.xs }"style="font-family: 'Syne', sans-serif;">
-              <!-- Header with close button -->
-              <v-card-title class="d-flex align-center justify-space-between pa-4 pa-sm-4" style="background: linear-gradient(135deg, #E8F5C8 0%, #D4E8A3 100%);">
-                <div class="d-flex align-center">
-                  <v-icon color="#5D8736" size="large" class="mr-3">mdi-food</v-icon>
-                  <span class="text-h5 text-sm-h4 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    Meal Details
-                  </span>
-                </div>
-                <v-btn icon variant="text" color="#5D8736" @click="closeMealDetails">
-                  <v-icon>mdi-close</v-icon>
-                </v-btn>
-              </v-card-title>
+      <v-dialog
+        v-model="mealDetailsDialog"
+        max-width="900"
+        persistent
+        :fullscreen="$vuetify.display.xs">
+        
+        <v-card class="meal-details-card" :class="{ 'h-100': $vuetify.display.xs }"style="font-family: 'Syne', sans-serif;">
+          <!-- Header with close button -->
+          <v-card-title class="d-flex align-center justify-space-between pa-4 pa-sm-4" style="background: linear-gradient(135deg, #E8F5C8 0%, #D4E8A3 100%);">
+            <div class="d-flex align-center">
+              <v-icon color="#5D8736" size="large" class="mr-3">mdi-food</v-icon>
+              <span class="text-h5 text-sm-h4 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                Meal Details
+              </span>
+            </div>
+            <v-btn icon variant="text" color="#5D8736" @click="closeMealDetails">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-card-title>
 
-              <!-- Content -->
-              <v-card-text class="pa-4 pa-sm-6" v-if="selectedMeal">
-                <!-- Meal Name -->
-                <div class="text-center mb-6">
-                  <h2 class="text-h4 text-sm-h3 font-weight-bold mb-2" style="color: #2C3E50; line-height: 1.2; font-family: 'Syne', sans-serif;">
-                    {{ selectedMeal.name }}
-                  </h2>
-                  <v-chip
-                    color="#A9C46C"
-                    size="large"
-                    class="text-white font-weight-medium"
-                    style="font-family: 'Syne', sans-serif;"
+          <!-- Content -->
+          <v-card-text class="pa-4 pa-sm-6" v-if="selectedMeal">
+            <!-- Meal Name -->
+            <div class="text-center mb-6">
+              <h2 class="text-h4 text-sm-h3 font-weight-bold mb-2" style="color: #2C3E50; line-height: 1.2; font-family: 'Syne', sans-serif;">
+                {{ selectedMeal.name }}
+              </h2>
+              <v-chip
+                color="#A9C46C"
+                size="large"
+                class="text-white font-weight-medium"
+                style="font-family: 'Syne', sans-serif;"
+              >
+                {{ getMealTypeFromKey(selectedMealType) }} Option
+              </v-chip>
+            </div>
+
+            <!-- Quick Info Card - Calories and Nutrition -->
+            <v-row class="mb-7 justify-center">
+              <v-col cols="12" sm="10" md="12" lg="10" xl="8">
+                <v-card class="pa-4 text-center nutrition-card" elevation="1" rounded="lg" color="#F8FDF0">
+                  <v-row class="nutrition-grid">
+                    <!-- Calories -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#EF7722" size="32" class="mb-2">mdi-fire</v-icon>
+                      <div class="label">Calories</div>
+                      <div class="value">
+                        {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
+                      </div>
+                    </v-col>
+
+                    <!-- Carbs -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#B87C4C" size="28" class="mb-2">mdi-barley</v-icon>
+                      <div class="label">Carbs</div>
+                      <div class="value">{{ totalNutrition.carbs }}g</div>
+                    </v-col>
+
+                    <!-- Protein -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#1C6EA4" size="28" class="mb-2">mdi-dumbbell</v-icon>
+                      <div class="label">Protein</div>
+                      <div class="value">{{ totalNutrition.protein }}g</div>
+                    </v-col>
+
+                    <!-- Fats -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#FFC107" size="28" class="mb-2">mdi-water-circle</v-icon>
+                      <div class="label">Fats</div>
+                      <div class="value">{{ totalNutrition.fats }}g</div>
+                    </v-col>
+
+                    <!-- Fiber -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#8C1007" size="28" class="mb-2">mdi-leaf</v-icon>
+                      <div class="label">Fiber</div>
+                      <div class="value">{{ totalNutrition.fiber }}g</div>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <!-- Ingredients -->
+            <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center"
+                  style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
+                Ingredients
+              </h3>
+              <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
+                <v-row>
+                  <v-col
+                    v-for="(ingredient, index) in selectedMeal.ingredients"
+                    :key="index"
+                    cols="12"
+                    sm="6"
                   >
-                    {{ getMealTypeFromKey(selectedMealType) }} Option
-                  </v-chip>
-                </div>
+                    <div class="d-flex justify-space-between align-center mb-2">
+                      <!-- Ingredient name -->
+                      <div class="d-flex align-center">
+                        <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
+                        <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                          {{ typeof ingredient === 'string' ? ingredient : ingredient.name }}
+                        </span>
+                      </div>
 
-                <!-- Quick Info Card - Calories and Nutrition -->
-                <v-row class="mb-7 justify-center">
-                  <v-col cols="12" sm="10" md="12" lg="10" xl="8">
-                    <v-card class="pa-4 text-center nutrition-card" elevation="1" rounded="lg" color="#F8FDF0">
-                      <v-row class="nutrition-grid">
-                        <!-- Calories -->
-                        <v-col class="nutrition-item">
-                          <v-icon color="#EF7722" size="32" class="mb-2">mdi-fire</v-icon>
-                          <div class="label">Calories</div>
-                          <div class="value">
-                            {{ typeof selectedMeal.calories === 'number' ? selectedMeal.calories : 'N/A' }}
-                          </div>
-                        </v-col>
-
-                        <!-- Carbs -->
-                        <v-col class="nutrition-item">
-                          <v-icon color="#B87C4C" size="28" class="mb-2">mdi-barley</v-icon>
-                          <div class="label">Carbs</div>
-                          <div class="value">{{ totalNutrition.carbs }}g</div>
-                        </v-col>
-
-                        <!-- Protein -->
-                        <v-col class="nutrition-item">
-                          <v-icon color="#1C6EA4" size="28" class="mb-2">mdi-dumbbell</v-icon>
-                          <div class="label">Protein</div>
-                          <div class="value">{{ totalNutrition.protein }}g</div>
-                        </v-col>
-
-                        <!-- Fats -->
-                        <v-col class="nutrition-item">
-                          <v-icon color="#FFC107" size="28" class="mb-2">mdi-water-circle</v-icon>
-                          <div class="label">Fats</div>
-                          <div class="value">{{ totalNutrition.fats }}g</div>
-                        </v-col>
-
-                        <!-- Fiber -->
-                        <v-col class="nutrition-item">
-                          <v-icon color="#8C1007" size="28" class="mb-2">mdi-leaf</v-icon>
-                          <div class="label">Fiber</div>
-                          <div class="value">{{ totalNutrition.fiber }}g</div>
-                        </v-col>
-                      </v-row>
-                    </v-card>
+                      <!-- Ingredient price placeholder data -->
+                      <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                        {{ ingredient.price ? '₱' + ingredient.price : '₱ --' }}
+                      </span>
+                    </div>
                   </v-col>
                 </v-row>
+              </v-card>
+            </div>
 
-                <!-- Ingredients -->
-                <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
-                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center"
-                      style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
-                    Ingredients
-                  </h3>
-                  <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
-                    <v-row>
-                      <v-col
-                        v-for="(ingredient, index) in selectedMeal.ingredients"
-                        :key="index"
-                        cols="12"
-                        sm="6"
-                      >
-                        <div class="d-flex justify-space-between align-center mb-2">
-                          <!-- Ingredient name -->
-                          <div class="d-flex align-center">
-                            <v-icon color="#A9C46C" size="small" class="mr-3">mdi-circle-small</v-icon>
-                            <span class="text-body-2" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                              {{ typeof ingredient === 'string' ? ingredient : ingredient.name }}
-                            </span>
-                          </div>
-
-                          <!-- Ingredient price placeholder data -->
-                          <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-                            {{ ingredient.price ? '₱' + ingredient.price : '₱ --' }}
-                          </span>
-                        </div>
-                      </v-col>
-                    </v-row>
-                  </v-card>
+            <!-- Instructions (Procedure) -->
+            <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
+                Procedure
+              </h3>
+              <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
+                <!-- Handle string-based procedures -->
+                <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
+                  <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    {{ selectedMeal.procedures }}
+                  </p>
                 </div>
-
-                <!-- Instructions (Procedure) -->
-                <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
-                  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
-                    Procedure
-                  </h3>
-                  <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
-                    <!-- Handle string-based procedures -->
-                    <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
-                      <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ selectedMeal.procedures }}
+                <!-- Handle array-based instructions -->
+                <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
+                  <div
+                    v-for="(instruction, index) in selectedMeal.instructions"
+                    :key="index"
+                    class="mb-3"
+                  >
+                    <div class="d-flex align-start">
+                      <v-chip
+                        color="#A9C46C"
+                        size="small"
+                        class="mr-3 mt-1 text-white font-weight-bold"
+                        style="min-width: 28px; font-family: 'Syne', sans-serif;"
+                      >
+                        {{ index + 1 }}
+                      </v-chip>
+                      <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ instruction }}
                       </p>
                     </div>
-                    <!-- Handle array-based instructions -->
-                    <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
-                      <div
-                        v-for="(instruction, index) in selectedMeal.instructions"
-                        :key="index"
-                        class="mb-3"
-                      >
-                        <div class="d-flex align-start">
-                          <v-chip
-                            color="#A9C46C"
-                            size="small"
-                            class="mr-3 mt-1 text-white font-weight-bold"
-                            style="min-width: 28px; font-family: 'Syne', sans-serif;"
-                          >
-                            {{ index + 1 }}
-                          </v-chip>
-                          <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                            {{ instruction }}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </v-card>
+                  </div>
                 </div>
-              </v-card-text>
-            </v-card>
-          </v-dialog>
-    </v-app>
+              </v-card>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+  </v-app>
 </template>
 
 
-
 <style scoped>
+.custom-alert {
+  font-family: 'Syne', sans-serif !important;
+}
+
+.alert-message {
+  font-family: 'Syne', sans-serif;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-left: -30px;
+}
+
+/* Ensure proper spacing on all devices */
+@media (max-width: 599px) {
+  .custom-alert {
+    padding: 12px !important;
+  }
+  
+  .alert-message {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 600px) {
+  .alert-message {
+    font-size: 16px;
+  }
+}
+
+.meal-card-disabled {
+  pointer-events: none;
+}
+
 .day-scroll {
   overflow-x: auto;
   padding: 15px 10px;

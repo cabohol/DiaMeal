@@ -10,23 +10,348 @@ import H5 from "@/assets/h5.jpg"
 
 const router = useRouter()
 const userFirstName = ref('')
-const progress = ref(66) // fallback example progress
 
-// For progress card
+// Enhanced progress functionality - same as Progress page
 const currentUserId = ref(null)
-const today = new Date().toISOString().split('T')[0]
+const dbCompletedMeals = ref([])
 const dbProgressData = ref(null)
+const calculatedTotalCalories = ref(0)
+const userLastSubmissionDate = ref(null)
+const currentDayInSequence = ref(1)
+const generatedDays = ref([])
 
-// Fetch user + name
+// Helper function to get local date string (YYYY-MM-DD format) - same as WeeklyMeal and Progress
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Generate day labels with actual dates based on user's last_submission_date
+const generateDaysWithDates = (startDate) => {
+  const days = [];
+  const baseDate = new Date(startDate);
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayLabel = `Day ${i + 1}`;
+    days.push({ label: dayLabel, date: dateStr, dayNumber: i + 1 });
+  }
+  
+  return days;
+};
+
+// Calculate which day should be selected based on today - same logic as WeeklyMeal and Progress
+const calculateSelectedDay = () => {
+  if (!userLastSubmissionDate.value) return 1;
+  
+  const todayLocal = getLocalDateString();
+  const todayIndex = generatedDays.value.findIndex(day => day.date === todayLocal);
+  
+  console.log('Homepage - Today (local):', todayLocal);
+  console.log('Homepage - Generated days:', generatedDays.value.map(d => d.date));
+  console.log('Homepage - Today index found:', todayIndex);
+  
+  return todayIndex >= 0 ? todayIndex + 1 : 1;
+};
+
+// Fetch user's last submission date and generate days
+const fetchUserData = async () => {
+  if (!currentUserId.value) return;
+  
+  try {
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('last_submission_date')
+      .eq('id', currentUserId.value)
+      .single();
+
+    if (error) {
+      console.error('Homepage - Error fetching user data:', error);
+      return;
+    }
+
+    userLastSubmissionDate.value = userData.last_submission_date;
+    
+    if (userData.last_submission_date) {
+      generatedDays.value = generateDaysWithDates(userData.last_submission_date);
+      currentDayInSequence.value = calculateSelectedDay();
+    } else {
+      const today = getLocalDateString();
+      generatedDays.value = generateDaysWithDates(today);
+      currentDayInSequence.value = 1;
+    }
+    
+    console.log('Homepage - User last submission date:', userData.last_submission_date);
+    console.log('Homepage - Generated days:', generatedDays.value);
+    console.log('Homepage - Current day in sequence:', currentDayInSequence.value);
+    
+  } catch (err) {
+    console.error('Homepage - Error fetching user data:', err);
+  }
+};
+
+// Get the date for the current selected day
+const getCurrentSelectedDate = () => {
+  if (!generatedDays.value.length || !currentDayInSequence.value) {
+    return getLocalDateString();
+  }
+  
+  const selectedDay = generatedDays.value.find(day => day.dayNumber === currentDayInSequence.value);
+  return selectedDay ? selectedDay.date : getLocalDateString();
+};
+
+// Fetch completed meals from Supabase - get calories from meals table
+// Fetch completed meals from Supabase - get calories from meals table OR ingredients table
+const fetchCompletedMeals = async () => {
+  if (!currentUserId.value) return;
+  
+  const selectedDate = getCurrentSelectedDate();
+  
+  try {
+    console.log('Homepage - Fetching completed meals for user:', currentUserId.value, 'date:', selectedDate);
+    
+    const { data: completedMeals, error } = await supabase
+      .from('completed_meals')
+      .select(`
+        *,
+        meals (
+          calories,
+          name,
+          carbohydrates,
+          protein,
+          fiber,
+          glycemic_load
+        )
+      `)
+      .eq('user_id', currentUserId.value)
+      .eq('meal_date', selectedDate);
+
+    if (error) {
+      console.error('Homepage - Error fetching completed meals:', error);
+      return;
+    }
+
+    // Process the data and handle ingredients table fallback
+    const processedMeals = await Promise.all(completedMeals?.map(async (meal) => {
+      let calories = 0;
+      let mealName = meal.meal_name || 'Unknown Meal';
+      let nutritionalInfo = {
+        carbohydrates: 0,
+        protein: 0,
+        fiber: 0,
+        glycemic_load: 0
+      };
+
+      // First, check if we have data from meals table
+      if (meal.meals && meal.meals.calories) {
+        calories = meal.meals.calories;
+        mealName = meal.meals.name || meal.meal_name || 'Unknown Meal';
+        nutritionalInfo = {
+          carbohydrates: meal.meals.carbohydrates || 0,
+          protein: meal.meals.protein || 0,
+          fiber: meal.meals.fiber || 0,
+          glycemic_load: meal.meals.glycemic_load || 0
+        };
+      } else {
+        // If no data from meals table, check ingredients table
+        console.log('Homepage - No data from meals table for:', meal.meal_name, 'checking ingredients table...');
+        
+        const { data: ingredientData, error: ingredientError } = await supabase
+          .from('ingredients')
+          .select('name, calories_p, category')
+          .ilike('name', `%${meal.meal_name}%`)
+          .single();
+
+        if (!ingredientError && ingredientData) {
+          calories = ingredientData.calories_p || 0;
+          mealName = ingredientData.name || meal.meal_name;
+          console.log(`Homepage - Found in ingredients table: ${mealName} = ${calories} calories`);
+        } else {
+          // Final fallback to stored calories in completed_meals table
+          calories = meal.calories || 0;
+          console.log(`Homepage - Using stored calories from completed_meals: ${calories}`);
+        }
+      }
+
+      return {
+        ...meal,
+        calories: calories,
+        meal_name: mealName,
+        carbohydrates: nutritionalInfo.carbohydrates,
+        protein: nutritionalInfo.protein,
+        fiber: nutritionalInfo.fiber,
+        glycemic_load: nutritionalInfo.glycemic_load
+      };
+    }) || []);
+
+    dbCompletedMeals.value = processedMeals;
+    console.log('Homepage - Fetched completed meals with accurate calories:', processedMeals);
+    
+    let totalCalories = 0;
+    if (processedMeals && processedMeals.length > 0) {
+      totalCalories = processedMeals.reduce((sum, meal) => {
+        const mealCalories = meal.calories || 0;
+        console.log(`Homepage - Meal: ${meal.meal_name}, Calories: ${mealCalories}`);
+        return sum + mealCalories;
+      }, 0);
+      
+      console.log('Homepage - Total calories from meals table:', totalCalories);
+    }
+    
+    calculatedTotalCalories.value = totalCalories;
+    
+    const completedMealTypes = new Set();
+    dbCompletedMeals.value.forEach(meal => {
+      if (meal.meal_type) {
+        completedMealTypes.add(meal.meal_type.toLowerCase());
+      }
+    });
+    
+    console.log('Homepage - Completed meal types:', Array.from(completedMealTypes));
+    console.log('Homepage - Total completed meals count:', completedMealTypes.size);
+    
+  } catch (err) {
+    console.error('Homepage - Error fetching completed meals:', err);
+  }
+};
+
+// Fetch progress data using the calculated day number
+const fetchProgressFromDB = async () => {
+  if (!currentUserId.value || !currentDayInSequence.value) return;
+  
+  try {
+    console.log('Homepage - Fetching progress for user:', currentUserId.value, 'day:', currentDayInSequence.value);
+    
+    const { data: progressData, error } = await supabase
+      .from('progress')
+      .select('*')
+      .eq('user_id', parseInt(currentUserId.value))
+      .eq('day', parseInt(currentDayInSequence.value))
+      .limit(1);
+
+    if (error) {
+      console.error('Homepage - Error fetching progress from DB:', error);
+      return;
+    }
+
+    // Take the first result or null if no results
+    dbProgressData.value = progressData && progressData.length > 0 ? progressData[0] : null;
+    console.log('Homepage - Database progress data:', dbProgressData.value);
+  } catch (err) {
+    console.error('Homepage - Error fetching progress:', err);
+  }
+};
+
+// LocalStorage meal completions (fallback)
+const loadMealCompletions = () => {
+  if (!currentUserId.value) return {}
+  const key = `mealCompletions_${currentUserId.value}`
+  const stored = localStorage.getItem(key)
+  return stored ? JSON.parse(stored) : {}
+}
+
+// Get the current day number for display
+const getCurrentDayDisplay = computed(() => {
+  return `Day ${currentDayInSequence.value}`;
+});
+
+// Enhanced total calories with same logic as Progress page
+const totalCalories = computed(() => {
+  // PRIORITY 1: Use freshly calculated calories from completed meals
+  if (calculatedTotalCalories.value > 0) {
+    return calculatedTotalCalories.value;
+  }
+  
+  // PRIORITY 2: Use database progress data as fallback
+  if (dbProgressData.value && dbProgressData.value.calories_consumed !== null) {
+    return dbProgressData.value.calories_consumed;
+  }
+
+  // PRIORITY 3: Calculate from localStorage
+  const completions = loadMealCompletions();
+  let total = 0;
+  const selectedDate = getCurrentSelectedDate();
+
+  Object.keys(completions).forEach(key => {
+    const completion = completions[key];
+    if (
+      completion &&
+      completion.completed &&
+      completion.date === selectedDate &&
+      typeof completion.calories === 'number'
+    ) {
+      total += completion.calories;
+    }
+  });
+
+  return total;
+});
+// Enhanced progress calculation with same logic as Progress page
+const todayProgress = computed(() => {
+  // Primary: Use database data
+  if (dbCompletedMeals.value && dbCompletedMeals.value.length > 0) {
+    const mealTypes = new Set();
+    dbCompletedMeals.value.forEach(meal => {
+      if (meal.meal_type) {
+        mealTypes.add(meal.meal_type.toLowerCase());
+      }
+    });
+
+    const totalMeals = 3; // breakfast, lunch, dinner
+    const completedMeals = mealTypes.size;
+    const percentage = totalMeals > 0 ? Math.round((completedMeals / totalMeals) * 100) : 0;
+
+    return {
+      completed: completedMeals,
+      total: totalMeals,
+      percentage: percentage
+    };
+  }
+
+  // Fallback: Use localStorage data
+  const completions = loadMealCompletions()
+  const selectedDate = getCurrentSelectedDate();
+  
+  const selectedDateMealTypes = new Set()
+  
+  Object.keys(completions).forEach(key => {
+    const completion = completions[key]
+    if (completion && 
+        completion.completed && 
+        completion.date === selectedDate) {
+      
+      const mealType = completion.mealType?.toLowerCase() || ''
+      if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
+        selectedDateMealTypes.add(mealType)
+      }
+    }
+  })
+  
+  const totalMeals = 3
+  const completedMeals = selectedDateMealTypes.size
+  const percentage = totalMeals > 0 ? Math.round((completedMeals / totalMeals) * 100) : 0
+  
+  return {
+    completed: completedMeals,
+    total: totalMeals,
+    percentage: percentage
+  }
+})
+
+// Enhanced onMounted function
 onMounted(async () => {
   const { data, error } = await supabase.auth.getUser()
   if (error || !data?.user) {
-    router.push('/login') // redirect if not logged in
+    router.push('/login')
     return
   }
 
   const fullName = data.user.user_metadata.full_name || 'User'
-  userFirstName.value = fullName.split(' ')[0] // first name only
+  userFirstName.value = fullName.split(' ')[0]
 
   // Fetch corresponding user row
   const { data: userRow } = await supabase
@@ -37,54 +362,18 @@ onMounted(async () => {
 
   if (userRow) {
     currentUserId.value = userRow.id
+    console.log('Homepage - User ID set for progress tracking:', userRow.id);
+
+    // Fetch user data to get last_submission_date and calculate current day
+    await fetchUserData();
+    
+    // Fetch progress data from existing table
+    await fetchProgressFromDB();
+    
+    // Fetch completed meals (calories are now fetched from meals table)
+    await fetchCompletedMeals();
   }
 })
-
-// LocalStorage meal completions
-const loadMealCompletions = () => {
-  if (!currentUserId.value) return {}
-  const key = `mealCompletions_${currentUserId.value}`
-  const stored = localStorage.getItem(key)
-  return stored ? JSON.parse(stored) : {}
-}
-
-// Total calories today
-const totalCalories = computed(() => {
-  if (dbProgressData.value?.calories_consumed) {
-    return dbProgressData.value.calories_consumed
-  }
-
-  const completions = loadMealCompletions()
-  let total = 0
-  Object.values(completions).forEach(c => {
-    if (c?.completed && c.date === today && typeof c.calories === 'number') {
-      total += c.calories
-    }
-  })
-  return total
-})
-
-// Meals completed today
-const todayProgress = computed(() => {
-  const completions = loadMealCompletions()
-  const types = new Set()
-  Object.values(completions).forEach(c => {
-    if (c?.completed && c.date === today) {
-      const type = c.mealType?.toLowerCase()
-      if (['breakfast', 'lunch', 'dinner'].includes(type)) {
-        types.add(type)
-      }
-    }
-  })
-  const total = 3
-  const done = types.size
-  return {
-    completed: done,
-    total,
-    percentage: total ? Math.round((done / total) * 100) : 0
-  }
-})
-
 </script>
 
 
@@ -165,13 +454,13 @@ const todayProgress = computed(() => {
             <div class="d-flex align-center justify-center mb-2">
               <v-icon color="red" class="mr-2">mdi-fire</v-icon>
               <p class="mb-0 text-lg" style="font-family: 'Syne', sans-serif; font-size: larger;">
-                {{ totalCalories }} kcal consumed today
+                {{ totalCalories }} Calories Consumed Today!
               </p>
             </div>
 
             <!-- Meals Completed -->
             <p class="text-body-1 mb-2" style="font-family:'Syne', sans-serif;">
-              {{ todayProgress.completed }} out of {{ todayProgress.total }} meals completed today!
+              {{ todayProgress.completed }} out of {{ todayProgress.total }} meals completed
             </p>
 
             <!-- Progress Bar -->

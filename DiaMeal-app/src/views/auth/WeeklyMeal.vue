@@ -25,14 +25,11 @@ const generateDaysWithDates = (startDate) => {
 }
 
 
-
-
-
 const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
 const selectedDay = computed(() => {
   if (!daysWithDates.value || daysWithDates.value.length === 0) {
-    return { label: 'Loading...', date: getLocalDateString() }
+    return { label: 'Loading', date: getLocalDateString() }
   }
   return daysWithDates.value[selectedDayIndex.value] || daysWithDates.value[0]
 })
@@ -362,7 +359,7 @@ const fetchMealPlan = async (forceRegenerate = false) => {
     }
 
     const json = await resp.json()
-    console.log('✅ Success response:', JSON.stringify(json, null, 2))
+    console.log('Success response:', JSON.stringify(json, null, 2))
 
     // Validate the response structure
     if (!json.success) {
@@ -390,7 +387,7 @@ const fetchMealPlan = async (forceRegenerate = false) => {
     mealPlansByDay.value = json.mealPlansByDay || {}
     isExistingPlan.value = json.isExisting || false
     
-    console.log('✅ Meal plans loaded successfully')
+    console.log('Meal plans loaded successfully')
   } catch (err) {
     console.error('💥 Error in fetchMealPlan:', err)
     console.error('💥 Error stack:', err.stack)
@@ -504,13 +501,204 @@ const formatDate = (dateStr) => {
   const options = { month: 'short', day: 'numeric' }
   return date.toLocaleDateString('en-US', options)
 }
+
+// Alert message variables
+const showSuccessAlert = ref(false)
+const alertMessage = ref('')
+const alertType = ref('success')
+
+// Reactive variables
+const completedMeals = ref({})
+const currentUserId = ref(null)
+
+
+// Helper functions for time checking and meal completion
+const getCurrentTime = () => {
+  const now = new Date()
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  return hours * 60 + minutes // Convert to minutes for easier comparison
+}
+
+const isTimeAllowedForMealType = (mealType) => {
+  const currentTimeMinutes = getCurrentTime()
+  
+  const timeWindows = {
+    breakfast: { start: 6 * 60, end: 8 * 60 }, // 6:00 AM - 8:00 AM
+    lunch: { start: 11 * 60, end: 14 * 60 },   // 11:00 AM - 2:00 PM
+    dinner: { start: 18 * 60, end: 23 * 60 }   // 6:00 PM - 8:00 PM
+  }
+  
+  const window = timeWindows[mealType]
+  if (!window) return false
+  
+  return currentTimeMinutes >= window.start && currentTimeMinutes <= window.end
+}
+
+const isMealCompleted = (date, mealType) => {
+  const key = `${date}-${mealType}`
+  return completedMeals.value[key] || false
+}
+
+const isMealTypeCompletedForDay = (date, mealType) => {
+  const key = `${date}-${mealType}`
+  return completedMeals.value[key] || false
+}
+
+const canMarkAsComplete = (date, mealType) => {
+  const today = getLocalDateString()
+  const mealDate = new Date(date)
+  const todayDate = new Date(today)
+  
+  if (mealDate > todayDate) return false
+  if (isMealTypeCompletedForDay(date, mealType)) return false
+  if (mealDate < todayDate) return true
+  
+  return isTimeAllowedForMealType(mealType)
+}
+
+// markMealAsCompleted function
+const markMealAsCompleted = async (meal, mealType) => {
+  try {
+    console.log('Marking meal as complete:', { mealName: meal.name, mealType });
+
+    // Prevent duplicate submissions
+    if (isMealTypeCompletedForDay(selectedDay.value.date, mealType)) {
+      return false;
+    }
+
+    const { data: mealData, error: calorieError } = await supabase
+      .from("meals")
+      .select("calories, id")
+      .eq("id", meal.id)
+      .single()
+
+    if (calorieError) {
+      console.error("Error fetching meal calories:", calorieError)
+      alertMessage.value = "Failed to fetch meal information. Please try again."
+      alertType.value = 'error'
+      showSuccessAlert.value = true
+      return false
+    }
+
+    const correctCalories = mealData?.calories || 0
+
+    if (!currentUserId.value || !selectedDay.value) {
+      alertMessage.value = "Unable to mark meal as complete. Please refresh the page."
+      alertType.value = 'error'
+      showSuccessAlert.value = true
+      return false
+    }
+
+    const { error } = await supabase
+      .from("completed_meals")
+      .upsert({
+        user_id: currentUserId.value,
+        meal_id: mealData.id,
+        meal_date: selectedDay.value.date,
+        meal_type: mealType,
+        meal_name: meal.name,
+        completed_date: new Date().toISOString().split("T")[0],
+        calories: correctCalories,
+      }, {
+        onConflict: 'user_id,meal_date,meal_type' // Prevent duplicates
+      })
+
+    if (error) {
+      console.error("Error saving meal completion:", error)
+      alertMessage.value = "Failed to mark meal as complete. Please try again."
+      alertType.value = 'error'
+      showSuccessAlert.value = true
+      return false
+    }
+
+    // Update local state
+    const key = `${selectedDay.value.date}-${mealType}`
+    completedMeals.value[key] = true
+    
+    // Show ONE success alert
+    alertMessage.value = `${meal.name} marked as complete!`
+    alertType.value = 'success'
+    showSuccessAlert.value = true
+    
+    setTimeout(() => {
+      showSuccessAlert.value = false
+    }, 4000)
+    
+    return true
+  } catch (err) {
+    console.error("Error in markMealAsCompleted:", err)
+    alertMessage.value = "An unexpected error occurred. Please try again."
+    alertType.value = 'error'
+    showSuccessAlert.value = true
+    return false
+  }
+}
+
+// Fetch completed meals from database
+const fetchCompletedMeals = async () => {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) return
+
+    const { data: userRow, error: userRowErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", user.email)
+      .single()
+
+    if (userRowErr || !userRow) return
+
+    currentUserId.value = userRow.id // set user id here
+
+    const { data: completed, error: fetchError } = await supabase
+      .from("completed_meals")
+      .select("meal_date, meal_type")
+      .eq("user_id", userRow.id)
+
+    if (fetchError) {
+      console.error("Error fetching completed meals:", fetchError)
+      return
+    }
+
+    const completedLookup = {}
+    completed.forEach(item => {
+      const key = `${item.meal_date}-${item.meal_type}`
+      completedLookup[key] = true
+    })
+    
+    completedMeals.value = completedLookup
+    console.log("Loaded completed meals:", completedLookup)
+  } catch (err) {
+    console.error("Error fetching completed meals:", err)
+  }
+}
+
+// Update onMounted
+onMounted(async () => {
+  console.log("Initializing WeeklyMeal component...")
+
+  const healthOk = await testAPIConnection()
+  if (healthOk) {
+    console.log("API health check passed")
+  } else {
+    console.log("API health check failed, but continuing with meal plan fetch")
+  }
+
+  await fetchUserStartDate()
+  if (!errorMsg.value) {
+    await fetchMealPlan()
+    await fetchCompletedMeals()
+  }
+})
+
 </script>
 
 <template>
   <v-app>
     <!-- Top App Bar -->
     <v-app-bar flat color="#A9C46C">
-      <v-btn icon @click="goBack">
+      <v-btn icon @click="goBack" style="color: white;">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title class="flex items-center gap-2 text-white" style="font-family: 'Syne', sans-serif; margin-left: 2px;">
@@ -600,6 +788,7 @@ const formatDate = (dateStr) => {
           </v-card-text>
         </v-card>
 
+
         <!-- Meal Type Sections -->
         <v-card
           v-for="sec in sections"
@@ -614,6 +803,36 @@ const formatDate = (dateStr) => {
             <h3 class="font-weight-bold text-h6 text-sm-h5" style="font-family: 'Syne', sans-serif;">{{ sec.title }}</h3>
           </div>
 
+                    <!-- Success/Error Alert for Meal Completion -->
+          <v-alert
+            v-if="showSuccessAlert"
+            :type="alertType"
+            variant="tonal"
+            closable
+            @click:close="showSuccessAlert = false"
+            class="mb-4"
+            :class="{
+              'mx-2': $vuetify.display.xs,
+              'mx-4': $vuetify.display.smAndUp
+            }"
+          >
+            <div class="d-flex align-center">
+              <v-icon 
+                v-if="alertType === 'success'" 
+                color="success" 
+                class="mr-2"
+              >
+              </v-icon>
+              <v-icon 
+                v-else-if="alertType === 'error'" 
+                color="error" 
+                class="mr-2"
+              >
+              </v-icon>
+              {{ alertMessage }}
+            </div>
+          </v-alert>
+          
           <!-- Meals Carousel -->
           <div v-if="currentDayMeals[sec.key]?.length > 0" class="d-flex justify-center">
             <v-slide-group
@@ -644,7 +863,7 @@ const formatDate = (dateStr) => {
                   <!-- Card body with better spacing -->
                   <div class="d-flex flex-column h-100">
                     <!-- Meal name with consistent height -->
-                    <div class="meal-name-container mb-3">
+                    <div class="meal-name-container">
                       <div class="font-weight-bold text-h6 text-sm-h5 text-center" 
                           style="line-height: 1.2; font-family: 'Syne', sans-serif; min-height: 48px; display: flex; align-items: center; justify-content: center;">
                         {{ meal.name }}
@@ -687,7 +906,7 @@ const formatDate = (dateStr) => {
                         rounded
                         :size="$vuetify.display.xs ? 'small' : 'default'"
                         block
-                        class="text-white"
+                        class="text-white mb-2"
                         :disabled="selectedDay.date > getLocalDateString()"
                         @click="viewMeal(meal)"
                         style="font-family: 'Syne', sans-serif;"
@@ -695,7 +914,41 @@ const formatDate = (dateStr) => {
                         <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">View Details</span>
                         <v-icon end :size="$vuetify.display.xs ? 'small' : 'default'">mdi-chevron-right</v-icon>
                       </v-btn>
+                      
+                      <!-- Mark as Complete Button - Always show, but conditionally disable -->
+                      <v-btn
+                        v-if="!isMealTypeCompletedForDay(selectedDay.date, sec.key)"
+                        color="#A9C46C"
+                        rounded
+                        :size="$vuetify.display.xs ? 'small' : 'default'"
+                        block
+                        class="text-white"
+                        :disabled="!canMarkAsComplete(selectedDay.date, sec.key)"
+                        @click.stop="markMealAsCompleted(meal, sec.key)"
+                        style="font-family: 'Syne', sans-serif;"
+                      >
+                        <v-icon start :size="$vuetify.display.xs ? 'small' : 'default'">mdi-check-circle</v-icon>
+                        <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">
+                          Mark as Complete
+                        </span>
+                      </v-btn>
+                      
+                      <!-- Completed State Button - Show when meal type is completed -->
+                      <v-btn
+                        v-else
+                        color="success"
+                        rounded
+                        :size="$vuetify.display.xs ? 'small' : 'default'"
+                        block
+                        disabled
+                        class="text-white"
+                        style="font-family: 'Syne', sans-serif;"
+                      >
+                        <v-icon start :size="$vuetify.display.xs ? 'small' : 'default'">mdi-check-circle</v-icon>
+                        <span class="text-body-2 text-sm-body-1 font-weight-medium" style="font-family: 'Syne', sans-serif;">Completed</span>
+                      </v-btn>
                     </div>
+
                   </div>
                 </v-card>
               </v-slide-group-item>

@@ -1537,17 +1537,71 @@ onMounted(async () => {
   }
 }
 
-.v-slide-group__prev,
-.v-slide-group__next {
-  min-width: 48px !important;
-  background: rgba(169, 196, 108, 0.9) !important;
-  color: white !important;
-  border-radius: 50% !important;
+.v-slide-group__container {
+  display: flex;
+  gap: 8px;
 }
 
-.v-slide-group__prev:hover,
-.v-slide-group__next:hover {
-  background: rgba(169, 196, 108, 1) !important;
+/* Ensure proper spacing for slide group items */
+.v-slide-group-item {
+  flex-shrink: 0;
+}
+
+/* Adjust meal card margins within slide group */
+.v-slide-group .meal-card {
+  margin: 8px !important;
+}
+
+/* Very small phones - reduce card size and spacing */
+@media (max-width: 360px) {
+  .v-slide-group__container {
+    gap: 6px;
+  }
+  
+  .v-slide-group .meal-card {
+    margin: 4px !important;
+    min-width: 180px !important;
+    max-width: 200px !important;
+  }
+}
+
+/* Small phones - optimize spacing */
+@media (min-width: 361px) and (max-width: 480px) {
+  .v-slide-group__container {
+    gap: 8px;
+  }
+  
+  .v-slide-group .meal-card {
+    margin: 6px !important;
+    min-width: 200px !important;
+    max-width: 230px !important;
+  }
+}
+
+/* Tablets - better spacing */
+@media (min-width: 481px) and (max-width: 768px) {
+  .v-slide-group__container {
+    gap: 10px;
+  }
+  
+  .v-slide-group .meal-card {
+    margin: 8px !important;
+  }
+}
+
+/* Ensure arrows don't overlap cards */
+.v-slide-group__prev,
+.v-slide-group__next {
+  flex-shrink: 0 !important;
+  margin: 0 4px !important;
+}
+
+@media (max-width: 480px) {
+  .v-slide-group__prev,
+  .v-slide-group__next {
+    min-width: 40px !important;
+    margin: 0 2px !important;
+  }
 }
 
 /* start nav bar */

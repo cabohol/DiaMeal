@@ -57,6 +57,9 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
         case 'kosher':
           if (!ingredient.is_kosher) return false;
           break;
+         case 'catholic':
+          if (!ingredient.is_catholic) return false;
+          break;
         case 'vegetarian':
           if (!ingredient.is_vegetarian) return false;
           break;
@@ -73,6 +76,49 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
 
     return true;
   });
+}
+
+// Add this validation function before the /api/generateMealPlan endpoint
+function validateWeekPlan(weekPlan) {
+  const errors = [];
+  
+  for (let dayNum = 1; dayNum <= 7; dayNum++) {
+    const dayKey = `day${dayNum}`;
+    const dayMeals = weekPlan[dayKey];
+    
+    if (!dayMeals) {
+      errors.push(`Missing ${dayKey}`);
+      continue;
+    }
+
+    for (const mealType of ["breakfast", "lunch", "dinner"]) {
+      const mealsForType = dayMeals[mealType];
+      
+      if (!Array.isArray(mealsForType)) {
+        errors.push(`${dayKey}.${mealType} is not an array`);
+        continue;
+      }
+      
+      if (mealsForType.length !== 3) {
+        errors.push(`${dayKey}.${mealType} has ${mealsForType.length} meals instead of 3`);
+      }
+      
+      // Validate each meal has required fields
+      mealsForType.forEach((meal, idx) => {
+        if (!meal.name) {
+          errors.push(`${dayKey}.${mealType}[${idx}] missing name`);
+        }
+        if (!meal.ingredients || !Array.isArray(meal.ingredients)) {
+          errors.push(`${dayKey}.${mealType}[${idx}] missing or invalid ingredients`);
+        }
+        if (typeof meal.calories !== 'number') {
+          errors.push(`${dayKey}.${mealType}[${idx}] missing or invalid calories`);
+        }
+      });
+    }
+  }
+  
+  return errors;
 }
 
 // REPLACE YOUR EXISTING /api/generateMealPlan endpoint with this updated version:
@@ -204,8 +250,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       }
     }
 
-    // --- 5) Generate 7 days of meals using Groq with ingredients ---
-    const systemSchema = `
+  const systemSchema = `
 Return ONLY valid JSON (no markdown, no commentary), matching exactly this TypeScript type:
 
 type Meal = {
@@ -213,7 +258,7 @@ type Meal = {
   meal_type: "breakfast" | "lunch" | "dinner";
   calories: number;                // kcal
   ingredients: string[];           // MUST use ingredients from the provided available_ingredients list
-  procedures: string;              // short steps or paragraph
+  procedures: string;              // MUST be detailed step-by-step instructions with numbered steps
   preparation_time: string;        // e.g., "15m"
 };
 
@@ -256,17 +301,39 @@ type WeekPlan = {
 };
 
 CRITICAL RULES:
+- ALWAYS generate EXACTLY 3 meal options for breakfast, lunch, and dinner for ALL 7 days
+- NEVER generate more than 3 or fewer than 3 meals per meal type
+- Each day MUST have complete breakfast, lunch, and dinner arrays with 3 meals each
+- Total output: 63 meals (7 days × 3 meal types × 3 options)
+- Use traditional Filipino cooking methods and flavor profiles
 - Use ONLY ingredients from the provided available_ingredients list
 - Each meal's ingredients array must contain ingredient names that exist in available_ingredients
-- Generate UNIQUE meals for each day (avoid repeating the same meal across days)
+- Generate UNIQUE Filipino meals for each day (avoid repeating the same meal across days)
 - Consider ingredient categories, nutritional values, and diabetes-friendliness flags
 - For diabetes management: prioritize ingredients with is_diabetic_friendly=true, high fiber, lean protein
+- Adapt Filipino recipes to be diabetes-friendly when needed (e.g., reduce sugar, use brown rice instead of white)
 - Respect budget constraints by balancing affordable and premium ingredients
 - Create balanced nutrition across all meals using the ingredient nutritional data
+
+PROCEDURE FORMAT REQUIREMENTS (VERY IMPORTANT):
+- The "procedures" field MUST contain detailed, numbered step-by-step cooking instructions
+- Each step should be formatted as: **Step number. Action:** Description
+- Example format:
+  "**1. Prep ingredients:** Wash and chop vegetables. Marinate meat with soy sauce and calamansi for 15 minutes.
+  **2. Heat pan:** Add oil over medium heat.
+  **3. Sauté aromatics:** Cook garlic and onions until fragrant, about 2-3 minutes.
+  **4. Cook protein:** Add marinated meat, cook until browned on all sides, about 5-7 minutes.
+  **5. Add vegetables:** Stir in vegetables, cook for 3-4 minutes.
+  **6. Season and simmer:** Add fish sauce, pepper, and water. Cover and simmer for 10-15 minutes.
+  **7. Serve:** Transfer to serving dish, garnish with green onions."
+- Include specific cooking times, temperatures, and techniques
+- Include at least 5-8 detailed steps per recipe
+- Make procedures clear enough for someone to follow without prior cooking knowledge
+- DO NOT use simple one-line procedures like "Cook and serve"
 `;
 
     const content = {
-      instruction: "Generate a complete 7-day meal plan using ONLY the provided ingredients. Create nutritionally balanced, diabetes-friendly meals that respect user constraints.",
+      instruction: "Generate a complete 7-day meal plan using ONLY the provided ingredients. Create nutritionally balanced, diabetes-friendly meals that respect user constraints.EXACTLY 3 meal options for breakfast, lunch, and dinner for all 7 days. This is MANDATORY - do not generate more or less than 3 options per meal type.",
       user_profile: {
         id: user.id,
         full_name: user.full_name,
@@ -291,6 +358,7 @@ CRITICAL RULES:
         is_diabetic_friendly: ing.is_diabetic_friendly,
         is_halal: ing.is_halal,
         is_kosher: ing.is_kosher,
+        is_catholic: ing.is_catholic,
         is_vegetarian: ing.is_vegetarian,
         is_vegan: ing.is_vegan,
         common_allergens: ing.common_allergens,

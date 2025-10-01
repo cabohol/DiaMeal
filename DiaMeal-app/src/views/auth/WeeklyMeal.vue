@@ -940,20 +940,18 @@ onMounted(async () => {
                 'px-2': $vuetify.display.smAndUp
               }"
             >
-              <v-slide-group-item
+             <v-slide-group-item
                 v-for="(meal, idx) in currentDayMeals[sec.key]"
                 :key="`${selectedDay.date}-${sec.key}-${idx}`"
               >
                 <v-card
-                  class="meal-card pa-4 pa-sm-5 d-flex flex-column"
+                  class="meal-card pa-3 pa-sm-4 pa-md-5 d-flex flex-column"
                   :class="{
                     'ma-1': $vuetify.display.xs,
                     'ma-2': $vuetify.display.sm,
                     'ma-3': $vuetify.display.mdAndUp,
                     'meal-card-disabled': isViewDetailsDisabled(selectedDay.date, sec.key, idx)
                   }"
-                  :width="$vuetify.display.xs ? 240 : $vuetify.display.sm ? 260 : 280"
-                  :height="$vuetify.display.xs ? 280 : $vuetify.display.sm ? 300 : 320"
                   rounded="lg"
                   elevation="2"
                   :hover="!isViewDetailsDisabled(selectedDay.date, sec.key, idx)"
@@ -1420,7 +1418,49 @@ onMounted(async () => {
   transition: transform 0.2s;
   background-color: #fff;
   border: 1px solid rgba(169, 196, 108, 0.2);
+  width: 100%;
+  min-width: 220px;
+  max-width: 280px;
+  height: auto;
+  min-height: 280px;
 }
+
+/* Very small phones (320px - 360px) */
+@media (max-width: 360px) {
+  .meal-card {
+    min-width: 200px;
+    max-width: 240px;
+    min-height: 260px;
+  }
+}
+
+/* Small phones (361px - 480px) */
+@media (min-width: 361px) and (max-width: 480px) {
+  .meal-card {
+    min-width: 220px;
+    max-width: 260px;
+    min-height: 280px;
+  }
+}
+
+/* Larger phones and small tablets (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .meal-card {
+    min-width: 240px;
+    max-width: 270px;
+    min-height: 300px;
+  }
+}
+
+/* Tablets and up (769px+) */
+@media (min-width: 769px) {
+  .meal-card {
+    min-width: 260px;
+    max-width: 280px;
+    min-height: 320px;
+  }
+}
+
 
 .meal-card:hover {
   transform: translateY(-4px);
@@ -1428,36 +1468,72 @@ onMounted(async () => {
 }
 
 .meal-name-container {
-  min-height: 60px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 8px;
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .meal-name-container {
+    min-height: 44px;
+  }
+  
+  .meal-name-container .font-weight-bold {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* Small to medium phones */
+@media (min-width: 361px) and (max-width: 480px) {
+  .meal-name-container {
+    min-height: 48px;
+  }
+  
+  .meal-name-container .font-weight-bold {
+    font-size: 1.2rem !important;
+  }
 }
 
 .info-section {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 80px;
+  min-height: 70px;
+  padding: 0 4px;
 }
 
-@media (max-width: 480px) {
-  .meal-name-container {
-    min-height: 50px;
+/* Very small phones */
+@media (max-width: 370px) {
+  .info-section {
+    min-height: 65px;
   }
   
+  .info-section .text-body-2 {
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Small to medium phones */
+@media (min-width: 361px) and (max-width: 480px) {
   .info-section {
     min-height: 70px;
   }
 }
 
+/* Tablets */
 @media (min-width: 481px) and (max-width: 768px) {
-  .meal-name-container {
-    min-height: 55px;
-  }
-  
   .info-section {
     min-height: 75px;
+  }
+}
+
+/* Desktop and up */
+@media (min-width: 769px) {
+  .info-section {
+    min-height: 80px;
   }
 }
 
@@ -1475,13 +1551,25 @@ onMounted(async () => {
 }
 
 /* start nav bar */
+.nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: auto;
+  min-height: 56px;
+  padding: 4px 0;
+}
+
 .icon-wrapper {  
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;   
-  height: 30px;
+  width: 32px;   
+  height: 32px;
   border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .icon-wrapper.active {
@@ -1494,6 +1582,9 @@ onMounted(async () => {
   color: white;
   font-family: 'Syne', sans-serif;
   transition: transform 0.15s ease, background-color 0.15s ease;
+  min-width: 64px;
+  padding: 8px 12px;
+  height: auto;
 }
 
 .nav-bar .v-btn:hover {
@@ -1509,8 +1600,74 @@ onMounted(async () => {
 }
 
 .nav-bar span { 
-  font-size: 12px;
+  font-size: 11px;
   margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* Mobile responsive nav */
+@media (max-width: 360px) {
+  .nav-bar {
+    min-height: 52px;
+    padding: 2px 0;
+  }
+  
+  .nav-bar .v-btn {
+    min-width: 56px;
+    padding: 6px 8px;
+  }
+  
+  .icon-wrapper {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .nav-bar .v-icon {
+    font-size: 20px;
+  }
+  
+  .nav-bar span {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+}
+
+@media (min-width: 361px) and (max-width: 480px) {
+  .nav-bar {
+    min-height: 56px;
+  }
+  
+  .nav-bar .v-btn {
+    min-width: 60px;
+    padding: 6px 10px;
+  }
+  
+  .icon-wrapper {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .nav-bar .v-icon {
+    font-size: 22px;
+  }
+  
+  .nav-bar span {
+    font-size: 10px;
+  }
+}
+
+@media (min-width: 481px) {
+  .nav-bar {
+    min-height: 60px;
+  }
+  
+  .nav-bar .v-btn {
+    padding: 8px 16px;
+  }
+  
+  .nav-bar span {
+    font-size: 12px;
+  }
 }
 /* end nav bar */
 

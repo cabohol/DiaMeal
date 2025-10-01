@@ -650,13 +650,26 @@ async function submitForm() {
 
 
 <style scoped>
-.icon-wrapper {  /* start nav bar */
+/* start nav bar */
+.nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: auto;
+  min-height: 56px;
+  padding: 4px 0;
+}
+
+.icon-wrapper {  
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;   
-  height: 30px;
+  width: 32px;   
+  height: 32px;
   border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .icon-wrapper.active {
@@ -669,6 +682,9 @@ async function submitForm() {
   color: white;
   font-family: 'Syne', sans-serif;
   transition: transform 0.15s ease, background-color 0.15s ease;
+  min-width: 64px;
+  padding: 8px 12px;
+  height: auto;
 }
 
 .nav-bar .v-btn:hover {
@@ -683,8 +699,75 @@ async function submitForm() {
   font-size: 24px;
 }
 
-.nav-bar span { /* end nav bar */
-  font-size: 12px;
+.nav-bar span { 
+  font-size: 11px;
   margin-top: 4px;
+  white-space: nowrap;
 }
+
+/* Mobile responsive nav */
+@media (max-width: 360px) {
+  .nav-bar {
+    min-height: 52px;
+    padding: 2px 0;
+  }
+  
+  .nav-bar .v-btn {
+    min-width: 56px;
+    padding: 6px 8px;
+  }
+  
+  .icon-wrapper {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .nav-bar .v-icon {
+    font-size: 20px;
+  }
+  
+  .nav-bar span {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+}
+
+@media (min-width: 361px) and (max-width: 480px) {
+  .nav-bar {
+    min-height: 56px;
+  }
+  
+  .nav-bar .v-btn {
+    min-width: 60px;
+    padding: 6px 10px;
+  }
+  
+  .icon-wrapper {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .nav-bar .v-icon {
+    font-size: 22px;
+  }
+  
+  .nav-bar span {
+    font-size: 10px;
+  }
+}
+
+@media (min-width: 481px) {
+  .nav-bar {
+    min-height: 60px;
+  }
+  
+  .nav-bar .v-btn {
+    padding: 8px 16px;
+  }
+  
+  .nav-bar span {
+    font-size: 12px;
+  }
+}
+/* end nav bar */
 </style>

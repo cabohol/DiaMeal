@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import OpenAI from 'openai';
+import { Groq } from 'groq-sdk';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -16,17 +16,8 @@ const supabase = createClient(
 );
 
 // Initialize Groq
-// const groq = new Groq({
-//   apiKey: process.env.GROQ_API_KEY
-// });
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-  defaultHeaders: {
-    "HTTP-Referer": process.env.YOUR_SITE_URL || "http://localhost:3001",
-    "X-Title": process.env.YOUR_SITE_NAME || "Meal Planner App"
-  }
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
 });
 
 // Middleware
@@ -132,7 +123,6 @@ function validateWeekPlan(weekPlan) {
 
 // REPLACE YOUR EXISTING /api/generateMealPlan endpoint with this updated version:
 app.post('/api/generateMealPlan', async (req, res) => {
- 
   try {
     // --- 1) Validate input ---
     const { user_id, force_regenerate = false } = req.body || {};
@@ -358,13 +348,13 @@ CRITICAL RULES:
     };
 
     console.log('Calling Groq API for 7-day plan...');
-    const chat = await openai.chat.completions.create({
-    model: "deepseek/deepseek-r1-distill-llama-70b:free",
-    temperature: 0.7,
-    top_p: 0.95,
-    max_tokens: 8192,
-    stream: false,
-    response_format: { type: "json_object" },
+    const chat = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      top_p: 0.95,
+      max_completion_tokens: 10000, // Increased for 7-day plan
+      stream: false,
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemSchema },
         {

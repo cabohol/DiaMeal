@@ -362,7 +362,7 @@ CRITICAL RULES:
     model: "deepseek/deepseek-r1-distill-llama-70b:free",
     temperature: 0.7,
     top_p: 0.95,
-    max_tokens: 10000,
+    max_tokens: 8192,
     stream: false,
     response_format: { type: "json_object" },
       messages: [

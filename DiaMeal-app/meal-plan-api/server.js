@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { Groq } from 'groq-sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -16,8 +16,12 @@ const supabase = createClient(
 );
 
 // Initialize Groq
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+// const groq = new Groq({
+//   apiKey: process.env.GROQ_API_KEY
+// });
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY
 });
 
 // Middleware
@@ -348,13 +352,13 @@ CRITICAL RULES:
     };
 
     console.log('Calling Groq API for 7-day plan...');
-    const chat = await groq.chat.completions.create({
-      model: "deepseek-r1-distill-llama-70b",
-      temperature: 0.7,
-      top_p: 0.95,
-      max_completion_tokens: 10000, // Increased for 7-day plan
-      stream: false,
-      response_format: { type: "json_object" },
+    const chat = await openai.chat.completions.create({
+    model: "deepseek/deepseek-r1-distill-llama-70b:free",
+    temperature: 0.7,
+    top_p: 0.95,
+    max_tokens: 10000,
+    stream: false,
+    response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemSchema },
         {

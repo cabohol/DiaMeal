@@ -21,7 +21,12 @@ const supabase = createClient(
 // });
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1",
+  defaultHeaders: {
+    "HTTP-Referer": process.env.YOUR_SITE_URL || "http://localhost:3001",
+    "X-Title": process.env.YOUR_SITE_NAME || "Meal Planner App"
+  }
 });
 
 // Middleware
@@ -127,6 +132,7 @@ function validateWeekPlan(weekPlan) {
 
 // REPLACE YOUR EXISTING /api/generateMealPlan endpoint with this updated version:
 app.post('/api/generateMealPlan', async (req, res) => {
+ 
   try {
     // --- 1) Validate input ---
     const { user_id, force_regenerate = false } = req.body || {};

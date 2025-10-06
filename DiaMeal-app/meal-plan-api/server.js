@@ -222,33 +222,40 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log(`Using ${availableIngredients.length} filtered ingredients for meal planning...`);
 
     // --- 4) Delete old meal plans if regenerating ---
-    if (force_regenerate) {
-      // First get all meal_ids from existing plans
-      const { data: oldPlans } = await supabase
+    // In server.js, in the force_regenerate block (around line 206):
+  if (force_regenerate) {
+    // Delete ALL existing AI-generated meal plans for this user
+    const { data: oldPlans } = await supabase
+      .from("meal_plans")
+      .select("meal_id")
+      .eq("user_id", user_id)
+      .eq("recommended_by_ai", true);
+
+    if (oldPlans && oldPlans.length > 0) {
+      const mealIds = oldPlans.map(p => p.meal_id).filter(Boolean);
+      
+      // Delete meal plans
+      await supabase
         .from("meal_plans")
-        .select("meal_id")
+        .delete()
         .eq("user_id", user_id)
         .eq("recommended_by_ai", true);
 
-      if (oldPlans && oldPlans.length > 0) {
-        const mealIds = oldPlans.map(p => p.meal_id).filter(Boolean);
-        
-        // Delete meal plans first
+      // Delete meal-ingredient relationships
+      if (mealIds.length > 0) {
         await supabase
-          .from("meal_plans")
+          .from("meal_ingredients")
           .delete()
-          .eq("user_id", user_id)
-          .eq("recommended_by_ai", true);
-
-        // Then delete meals
-        if (mealIds.length > 0) {
-          await supabase
-            .from("meals")
-            .delete()
-            .in("id", mealIds);
-        }
+          .in("meal_id", mealIds);
+          
+        // Delete meals
+        await supabase
+          .from("meals")
+          .delete()
+          .in("id", mealIds);
       }
     }
+  }
 
   const systemSchema = `
 You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
@@ -300,8 +307,9 @@ type WeekPlan = {
   };
 };
 
-CRITICAL RULES:
-- ALWAYS generate EXACTLY 3 meal options for breakfast, lunch, and dinner for ALL 7 days
+CRITICAL RULES: You MUST generate EXACTLY 3 meal options for breakfast, lunch, and dinner for EACH of the 7 days.
+- Total meals: 63 (7 days × 3 meal types × 3 options per type)
+- NO MORE, NO LESS than 3 options per meal type per day
 - Use ONLY ingredients from the provided available_ingredients list
 - Each meal's ingredients array must contain ingredient names that exist in available_ingredients
 - Consider ingredient categories, nutritional values, and diabetes-friendliness flags
@@ -309,7 +317,16 @@ CRITICAL RULES:
 - Adapt Filipino recipes to be diabetes-friendly when needed
 - Respect budget constraints by balancing affordable and premium ingredients
 - Create balanced nutrition across all meals using the ingredient nutritional data
-- Make procedures detailed and concise with 1-4 numbered steps
+
+PROCEDURE FORMAT (VERY IMPORTANT):
+- Write procedures as a single string with numbered steps separated by \\n\\n (double newline)
+- Each step should be detailed but concise (1-2 sentences per step)
+- Include specific temperatures, cooking times, and techniques
+- Provide 4-9 steps depending on recipe complexity (simple dishes: 4-5 steps, complex dishes: 7-9 steps)
+- Format must be: "Step 1: [instruction].\\n\\nStep 2: [instruction].\\n\\nStep 3: [instruction]."
+- Example: "Step 1: Preheat oven to 400°F and line baking sheet.\\n\\nStep 2: Cut vegetables into cubes and toss with olive oil.\\n\\nStep 3: Roast for 15-20 minutes until tender."
+- Be specific about measurements, timing, and cooking methods
+- IMPORTANT: Add \\n\\n between each step for proper line spacing when displayed
 `;
 
     const content = {
@@ -400,6 +417,22 @@ CRITICAL RULES:
               }
             }
           }
+        }
+      }
+    }
+
+        // After parsing weekPlan from Groq, add this validation:
+    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+      const dayKey = `day${dayNum}`;
+      const dayMeals = weekPlan[dayKey];
+      
+      for (const mealType of ["breakfast", "lunch", "dinner"]) {
+        const mealsForType = dayMeals[mealType];
+        
+        // CRITICAL: Ensure exactly 3 options
+        if (!Array.isArray(mealsForType) || mealsForType.length !== 3) {
+          console.error(`❌ ${dayKey} ${mealType} has ${mealsForType?.length || 0} meals instead of 3`);
+          throw new Error(`Invalid meal count for ${dayKey} ${mealType}: expected 3, got ${mealsForType?.length || 0}`);
         }
       }
     }

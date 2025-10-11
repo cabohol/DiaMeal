@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 import logging
 from scraper import CaragaPriceScraper
-from config import SCHEDULE_TIME, LOG_FILE
+from config import SCHEDULE_TIME, LOG_FILE, MARKETS
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -18,10 +18,10 @@ logging.basicConfig(
     ]
 )
 
-def get_latest_pdf_url():
+def get_latest_pdf_url(market_url):
     """Scrape the CARAGA website to get the latest PDF URL"""
     try:
-        logging.info("Fetching latest PDF from CARAGA website...")
+        logging.info(f"Fetching latest PDF from: {market_url}")
         
         # Setup headless Chrome
         chrome_options = Options()
@@ -30,7 +30,7 @@ def get_latest_pdf_url():
         chrome_options.add_argument('--disable-dev-shm-usage')
         
         driver = webdriver.Chrome(options=chrome_options)
-        driver.get("https://caraga.da.gov.ph/weekly-price-update/")
+        driver.get(market_url)
         time.sleep(3)
         
         soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -47,45 +47,61 @@ def get_latest_pdf_url():
                 return pdf_url
         
         driver.quit()
-        logging.warning("No PDF found on website")
+        logging.warning(f"No PDF found on {market_url}")
         return None
         
     except Exception as e:
-        logging.error(f"Error getting latest PDF: {e}")
+        logging.error(f"Error getting latest PDF from {market_url}: {e}")
         return None
 
 def daily_update_job():
-    """Job that runs daily to update prices"""
+    """Job that runs daily to update prices from ALL markets"""
     try:
         logging.info("="*60)
-        logging.info("Starting scheduled price update")
+        logging.info("Starting scheduled price update for ALL markets")
         
         print(f"\n{'='*60}")
         print(f"⏰ Scheduled Update - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*60}")
         
-        # Get latest PDF URL from website
-        print("🔍 Finding latest PDF...")
-        pdf_url = get_latest_pdf_url()
-        
-        if not pdf_url:
-            print("⚠️  No PDF found, using default")
-            logging.warning("Using default PDF URL")
-            from config import DEFAULT_PDF_URL
-            pdf_url = DEFAULT_PDF_URL
-        
-        print(f"📄 Using: {pdf_url}")
-        
-        # Run scraper
+        total_processed = 0
         scraper = CaragaPriceScraper()
-        success = scraper.run(pdf_url)
         
-        if success:
-            logging.info("Scheduled update completed successfully")
-            print("✅ Scheduled update completed!")
+        # Loop through each market
+        for market_name, market_url in MARKETS.items():
+            print(f"\n📍 Processing: {market_name}")
+            print(f"   URL: {market_url}")
+            
+            # Get latest PDF for this market
+            pdf_url = get_latest_pdf_url(market_url)
+            
+            if not pdf_url:
+                print(f"   ⚠️  No PDF found for {market_name}, skipping...")
+                logging.warning(f"No PDF found for {market_name}")
+                continue
+            
+            print(f"   📄 Found PDF: {pdf_url}")
+            
+            # Run scraper for this market
+            success = scraper.run(pdf_url)
+            
+            if success:
+                print(f"   ✅ {market_name} completed!")
+                total_processed += 1
+            else:
+                print(f"   ❌ {market_name} failed")
+                logging.error(f"Failed to process {market_name}")
+        
+        print(f"\n{'='*60}")
+        print(f"📊 Summary: Processed {total_processed}/{len(MARKETS)} markets")
+        print(f"{'='*60}\n")
+        
+        if total_processed > 0:
+            logging.info(f"Scheduled update completed - {total_processed} markets processed")
+            print("✅ Daily update completed!")
         else:
-            logging.error("Scheduled update failed")
-            print("❌ Scheduled update failed")
+            logging.error("Scheduled update failed - no markets processed")
+            print("❌ Daily update failed - no markets processed")
             
     except Exception as e:
         logging.error(f"Error in scheduled job: {e}")
@@ -94,21 +110,25 @@ def daily_update_job():
 def run_scheduler():
     """Start the scheduler"""
     print("="*60)
-    print("🤖 CARAGA Price Scraper Scheduler")
+    print("🤖 CARAGA Multi-Market Price Scraper")
     print("="*60)
     print(f"⏰ Scheduled to run daily at {SCHEDULE_TIME}")
     print(f"📋 Logs: {LOG_FILE}")
+    print(f"🏪 Markets:")
+    for market_name in MARKETS.keys():
+        print(f"   - {market_name}")
     print("="*60)
     print("\nPress Ctrl+C to stop\n")
     
-    # Schedule the job
+    # Schedule the job to run daily
     schedule.every().day.at(SCHEDULE_TIME).do(daily_update_job)
     
     # Optional: Run immediately on start
     print("🚀 Running initial update now...\n")
     daily_update_job()
     
-    # Keep running
+    # Keep the script running
+    print(f"\n⏳ Waiting for next scheduled run at {SCHEDULE_TIME}...")
     while True:
         schedule.run_pending()
         time.sleep(60)  # Check every minute

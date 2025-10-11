@@ -59,40 +59,34 @@ class CaragaPriceScraper:
                     tables = page.extract_tables()
                     
                     for table_num, table in enumerate(tables, 1):
-                        current_category = ""  # Track current category across rows
+                        current_category = ""
                         
                         for i, row in enumerate(table):
-                            if i == 0:  # Skip header
+                            if i == 0:
                                 continue
                                 
                             if not row or len(row) < 5:
                                 continue
                             
-                            # Get commodity group from first column
                             commodity_group_raw = (row[0] or "").strip()
                             
-                            # If first column has value, update current category
                             if commodity_group_raw:
                                 current_category = commodity_group_raw.upper()
                             
-                            # Use current category for this row
                             commodity_group = current_category
                             commodity_name = (row[1] or "").strip()
                             specification = (row[2] or "").strip()
                             unit = (row[3] or "").strip()
                             average_price_str = (row[-1] or "").strip()
                             
-                            # Skip excluded categories
                             if commodity_group in EXCLUDED_CATEGORIES:
                                 logging.info(f"Skipping non-food item: {commodity_name} ({commodity_group})")
                                 continue
                             
-                            # Skip if no valid data
                             if not commodity_name or not average_price_str:
                                 continue
                             
                             try:
-                                # Clean price: remove commas and convert to float
                                 avg_price = float(average_price_str.replace(',', ''))
                                 
                                 commodities.append({
@@ -107,7 +101,7 @@ class CaragaPriceScraper:
                                 logging.warning(f"Skipping invalid price for {commodity_name}: {e}")
                                 continue
             
-            logging.info(f"Extracted {len(commodities)} food commodities (excluded non-food items)")
+            logging.info(f"Extracted {len(commodities)} food commodities")
             
         except Exception as e:
             logging.error(f"Error extracting data: {e}")
@@ -126,10 +120,8 @@ class CaragaPriceScraper:
         
         for item in commodities:
             try:
-                # Create price_range string
                 price_range = f"₱{item['average_price']:.2f} per {item['unit']}"
                 
-                # Check if ingredient already exists
                 existing = self.supabase.table(TABLE_NAME)\
                     .select('id')\
                     .eq('name', item['name'])\
@@ -142,16 +134,10 @@ class CaragaPriceScraper:
                     'price_range': price_range,
                     'cost_per_serving': item['average_price'],
                     'availability': 'available',
-                    'updated_at': datetime.now().isoformat(),
-                    'is_vegetarian': True,
-                    'is_vegan': False,
-                    'is_halal': False,
-                    'is_kosher': False,
-                    'is_diabetic_friendly': False
+                    'updated_at': datetime.now().isoformat()
                 }
                 
                 if existing.data and len(existing.data) > 0:
-                    # Update existing ingredient
                     result = self.supabase.table(TABLE_NAME)\
                         .update(ingredient_data)\
                         .eq('id', existing.data[0]['id'])\
@@ -159,7 +145,6 @@ class CaragaPriceScraper:
                     updated_count += 1
                     logging.info(f"Updated: {item['name']} - ₱{item['average_price']:.2f}/{item['unit']}")
                 else:
-                    # Insert new ingredient
                     ingredient_data['created_at'] = datetime.now().isoformat()
                     
                     result = self.supabase.table(TABLE_NAME)\
@@ -188,7 +173,6 @@ class CaragaPriceScraper:
         print(f"{'='*60}")
         print(f"PDF: {pdf_url}")
         
-        # Step 1: Download PDF
         print("\nDownloading PDF...")
         pdf_file = self.download_pdf(pdf_url)
         
@@ -197,7 +181,6 @@ class CaragaPriceScraper:
             logging.error("Failed to download PDF")
             return False
         
-        # Step 2: Extract data
         print("Extracting commodity data...")
         commodities = self.extract_commodity_data(pdf_file)
         
@@ -208,7 +191,6 @@ class CaragaPriceScraper:
             logging.warning("No valid data extracted")
             return False
         
-        # Step 3: Save to Supabase
         print("\nSaving to Supabase...")
         count = self.insert_to_supabase(commodities)
         
@@ -221,10 +203,11 @@ class CaragaPriceScraper:
 
 def main(pdf_url=None):
     """Main entry point"""
-    from config import DEFAULT_PDF_URL
+    from config import DEFAULT_PDF_URLS
     
     if not pdf_url:
-        pdf_url = DEFAULT_PDF_URL
+        # Use default URLs if none provided
+        pdf_url = DEFAULT_PDF_URLS
     
     scraper = CaragaPriceScraper()
     return scraper.run(pdf_url)
@@ -233,7 +216,6 @@ def main(pdf_url=None):
 if __name__ == "__main__":
     import sys
     
-    # Get PDF URL from command line argument if provided
     pdf_url = sys.argv[1] if len(sys.argv) > 1 else None
     
     main(pdf_url)

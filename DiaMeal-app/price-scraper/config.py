@@ -1,21 +1,20 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 # Supabase Configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY')
 
-# CARAGA Website
-CARAGA_BASE_URL = "https://caraga.da.gov.ph/weekly-price-update/"
-
-# Default PDF URL (fallback)
-DEFAULT_PDF_URL = "https://caraga.da.gov.ph/wp-content/uploads/PriceMonitoring/FY2025/ButuanCity/September-25-2025.pdf"
+# Markets to scrape
+MARKETS = {
+    'Libertad Public Market': 'https://caraga.da.gov.ph/libertad-price-update/',
+    'Mayor Salvador Calo Public Market (Butuan City)': 'https://caraga.da.gov.ph/weekly-price-update/'
+}
 
 # Scheduler Settings
-SCHEDULE_TIME = "08:00"  # 8:00 AM daily
+SCHEDULE_TIME = "08:00"
 SCHEDULE_ENABLED = True
 
 # Logging

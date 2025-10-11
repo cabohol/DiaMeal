@@ -44,6 +44,7 @@ const mealDetailsDialog = ref(false)
 const selectedMeal = ref(null)
 const selectedMealType = ref('')
 
+
 // Nutrition calculation variables
 const nutritionTotals = ref({
   calories: 0,
@@ -126,7 +127,8 @@ const calculateNutrition = async () => {
           carbs_grams,
           protein_grams,
           fat_grams,
-          fiber_grams
+          fiber_grams,
+          price_range
         `)
         .in('name', ingredients)
 
@@ -136,6 +138,17 @@ const calculateNutrition = async () => {
       }
 
       console.log('Nutrition data from Supabase:', nutritionData)
+
+      // Transform ingredients to include price
+      selectedMeal.value.ingredients = nutritionData.map(ingredient => ({
+        name: ingredient.name,
+        priceRange: ingredient.price_range,
+        calories_per_serving: ingredient.calories_per_serving,
+        carbs_grams: ingredient.carbs_grams,
+        protein_grams: ingredient.protein_grams,
+        fat_grams: ingredient.fat_grams,
+        fiber_grams: ingredient.fiber_grams
+      }))
 
       // Calculate totals
       const totals = nutritionData.reduce((acc, ingredient) => {
@@ -204,6 +217,17 @@ const calculateNutrition = async () => {
     console.error('Error calculating nutrition:', err)
   }
 }
+
+// Helper function
+const extractPrice = (priceRange) => {
+  if (!priceRange) return null
+  const match = priceRange.match(/₱?([\d.]+)/)
+  if (match && match[1]) {
+    return parseFloat(match[1])
+  }
+  return null
+}
+
 
 // Computed property to return the nutrition totals
 const totalNutrition = computed(() => {
@@ -1191,9 +1215,10 @@ onMounted(async () => {
                       </div>
 
                       <!-- Ingredient price placeholder data -->
-                      <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-                        {{ ingredient.price ? '₱' + ingredient.price : '₱ --' }}
-                      </span>
+                      <!-- Ingredient price with full unit -->
+                    <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                      {{ ingredient.priceRange || '₱ -- per kg' || '₱ -- per L'  }}
+                    </span>
                     </div>
                   </v-col>
                 </v-row>

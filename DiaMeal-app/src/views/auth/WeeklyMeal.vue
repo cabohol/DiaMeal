@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-i5vwlx4mh-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-2bveyfy0y-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -23,6 +23,35 @@ const generateDaysWithDates = (startDate) => {
   
   return days
 }
+
+// Add this computed property
+const formatProcedureSteps = computed(() => {
+  if (!selectedMeal.value?.procedures || typeof selectedMeal.value.procedures !== 'string') {
+    return []
+  }
+  
+  let text = selectedMeal.value.procedures
+  
+  // Method 1: Try splitting by actual newlines first
+  let steps = text.split(/\n\n|\n/).map(s => s.trim()).filter(s => s.length > 0)
+  
+  // Method 2: If no newlines, try splitting by "Step X:" pattern
+  if (steps.length === 1 && text.includes('Step')) {
+    const matches = text.match(/Step \d+:.*?(?=Step \d+:|$)/gs)
+    if (matches && matches.length > 1) {
+      steps = matches.map(s => s.trim())
+    }
+  }
+  
+  // Remove "Step X:" prefix ONLY (keep the actual instruction text)
+  return steps.map(step => {
+    // Remove "Step 1:", "Step 2:", etc. but keep everything else
+    return step.replace(/^Step \d+:\s*/i, '').trim()
+  })
+})
+
+
+
 
 const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
@@ -97,7 +126,7 @@ const fetchWithCors = async (url, options = {}) => {
 
 // Function to calculate nutrition when meal changes
 const calculateNutrition = async () => {
-  console.log('calculateNutrition called')
+  console.log('calculateNutrition called', { selectedMeal: selectedMeal.value })
   
   if (!selectedMeal.value || !selectedMeal.value.ingredients) {
     console.log('No selectedMeal or ingredients found')
@@ -116,105 +145,111 @@ const calculateNutrition = async () => {
 
   try {
     // If ingredients are strings, fetch nutrition data from Supabase
-    if (Array.isArray(ingredients) && typeof ingredients[0] === 'string') {
-      console.log('Fetching nutrition for ingredients:', ingredients)
+    if (Array.isArray(ingredients) && ingredients.length > 0 && typeof ingredients[0] === 'string') {
+      console.log('Fetching nutrition for string ingredients:', ingredients)
       
+      // Use .in() for exact match (case-sensitive)
       const { data: nutritionData, error } = await supabase
         .from('ingredients')
-        .select(`
-          name,
-          calories_per_serving,
-          carbs_grams,
-          protein_grams,
-          fat_grams,
-          fiber_grams,
-          price_range
-        `)
+        .select('*')
         .in('name', ingredients)
-
-      if (error) {
-        console.error('Error fetching ingredients:', error)
-        return
-      }
-
-      console.log('Nutrition data from Supabase:', nutritionData)
-
-      // Transform ingredients to include price
-      selectedMeal.value.ingredients = nutritionData.map(ingredient => ({
-        name: ingredient.name,
-        priceRange: ingredient.price_range,
-        calories_per_serving: ingredient.calories_per_serving,
-        carbs_grams: ingredient.carbs_grams,
-        protein_grams: ingredient.protein_grams,
-        fat_grams: ingredient.fat_grams,
-        fiber_grams: ingredient.fiber_grams
-      }))
-
-      // Calculate totals
-      const totals = nutritionData.reduce((acc, ingredient) => {
-        const calories = parseFloat(ingredient.calories_per_serving) || 0
-        const carbs = parseFloat(ingredient.carbs_grams) || 0
-        const protein = parseFloat(ingredient.protein_grams) || 0
-        const fats = parseFloat(ingredient.fat_grams) || 0
-        const fiber = parseFloat(ingredient.fiber_grams) || 0
-
-        console.log(`${ingredient.name}: Calories: ${calories}, Carbs: ${carbs}, Protein: ${protein}, Fats: ${fats}, Fiber: ${fiber}`)
-
-        return {
-          calories: acc.calories + calories,
-          carbs: acc.carbs + carbs,
-          protein: acc.protein + protein,
-          fats: acc.fats + fats,
-          fiber: acc.fiber + fiber
+      
+      console.log('First query result:', { nutritionData, error })
+      
+      if (error || !nutritionData || nutritionData.length === 0) {
+        console.warn('First query failed, trying case-insensitive search:', error)
+        
+        // Fallback: Try case-insensitive search one by one
+        const promises = ingredients.map(async (ingredientName) => {
+          const { data, error } = await supabase
+            .from('ingredients')
+            .select('*')
+            .ilike('name', ingredientName)
+            .limit(1)
+            .single()
+          
+          if (error) {
+            console.warn(`Ingredient not found: ${ingredientName}`, error)
+            return null
+          }
+          console.log(`Found ingredient: ${ingredientName}`, data)
+          return data
+        })
+        
+        const results = await Promise.all(promises)
+        const validResults = results.filter(r => r !== null)
+        
+        console.log('Valid results from fallback:', validResults)
+        
+        if (validResults.length === 0) {
+          console.error('No ingredients found in database')
+          nutritionTotals.value = {
+            calories: 0,
+            carbs: 0,
+            protein: 0,
+            fats: 0,
+            fiber: 0
+          }
+          return
         }
-      }, {
-        calories: 0,
-        carbs: 0,
-        protein: 0,
-        fats: 0,
-        fiber: 0
-      })
-
-      console.log('Calculated totals:', totals)
-
-      nutritionTotals.value = {
-        calories: Math.round(totals.calories),
-        carbs: Math.round(totals.carbs * 10) / 10,
-        protein: Math.round(totals.protein * 10) / 10,
-        fats: Math.round(totals.fats * 10) / 10,
-        fiber: Math.round(totals.fiber * 10) / 10
+        
+        processNutritionData(validResults)
+      } else {
+        console.log('Processing nutrition data from first query')
+        processNutritionData(nutritionData)
       }
     }
     // If ingredients already have nutrition data
-    else if (Array.isArray(ingredients) && typeof ingredients[0] === 'object') {
+    else if (Array.isArray(ingredients) && ingredients.length > 0 && typeof ingredients[0] === 'object') {
       console.log('Processing ingredients with nutrition data')
-      
-      const totals = ingredients.reduce((acc, ingredient) => {
-        return {
-          calories: acc.calories + (parseFloat(ingredient.calories_per_serving) || 0),
-          carbs: acc.carbs + (parseFloat(ingredient.carbs_grams) || 0),
-          protein: acc.protein + (parseFloat(ingredient.protein_grams) || 0),
-          fats: acc.fats + (parseFloat(ingredient.fat_grams || ingredient.fats_grams) || 0),
-          fiber: acc.fiber + (parseFloat(ingredient.fiber_grams) || 0)
-        }
-      }, {
-        calories: 0,
-        carbs: 0,
-        protein: 0,
-        fats: 0,
-        fiber: 0
-      })
-
-      nutritionTotals.value = {
-        calories: Math.round(totals.calories),
-        carbs: Math.round(totals.carbs * 10) / 10,
-        protein: Math.round(totals.protein * 10) / 10,
-        fats: Math.round(totals.fats * 10) / 10,
-        fiber: Math.round(totals.fiber * 10) / 10
-      }
+      processNutritionData(ingredients)
     }
   } catch (err) {
     console.error('Error calculating nutrition:', err)
+    nutritionTotals.value = {
+      calories: 0,
+      carbs: 0,
+      protein: 0,
+      fats: 0,
+      fiber: 0
+    }
+  }
+}
+
+// Helper function to process nutrition data
+const processNutritionData = (nutritionData) => {
+  console.log('Processing nutrition data:', nutritionData)
+
+  // Transform ingredients to include all data
+  selectedMeal.value.ingredients = nutritionData.map(ingredient => ({
+    name: ingredient.name,
+    priceRange: ingredient.price_range || '₱ -- per kg',
+    calories_per_serving: ingredient.calories_per_serving || 0,
+    carbs_grams: ingredient.carbs_grams || 0,
+    protein_grams: ingredient.protein_grams || 0,
+    fat_grams: ingredient.fat_grams || 0,  // FIXED: Changed from fats_grams
+    fiber_grams: ingredient.fiber_grams || 0
+  }))
+
+  // Calculate totals
+  const totals = nutritionData.reduce((acc, ingredient) => {
+    return {
+      calories: acc.calories + (parseFloat(ingredient.calories_per_serving) || 0),
+      carbs: acc.carbs + (parseFloat(ingredient.carbs_grams) || 0),
+      protein: acc.protein + (parseFloat(ingredient.protein_grams) || 0),
+      fats: acc.fats + (parseFloat(ingredient.fat_grams) || 0),  // FIXED: Changed from fat_grams || ingredient.fats_grams
+      fiber: acc.fiber + (parseFloat(ingredient.fiber_grams) || 0)
+    }
+  }, { calories: 0, carbs: 0, protein: 0, fats: 0, fiber: 0 })
+
+  console.log('Calculated totals:', totals)
+
+  nutritionTotals.value = {
+    calories: Math.round(totals.calories),
+    carbs: Math.round(totals.carbs * 10) / 10,
+    protein: Math.round(totals.protein * 10) / 10,
+    fats: Math.round(totals.fats * 10) / 10,
+    fiber: Math.round(totals.fiber * 10) / 10
   }
 }
 
@@ -1225,43 +1260,76 @@ onMounted(async () => {
               </v-card>
             </div>
 
-            <!-- Instructions (Procedure) -->
-            <div v-if="selectedMeal.procedures || (selectedMeal.instructions && selectedMeal.instructions.length > 0)" class="mb-6">
-              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+   <!-- Instructions (Procedure) -->
+
+          <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string' && formatProcedureSteps.length > 0">
+            <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
                 <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
                 Procedure
               </h3>
-              <v-card class="pa-4" elevation="0" color="#F8FDF0"rounded="lg">
-                <!-- Handle string-based procedures -->
-                <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string'">
-                  <p class="text-body-1 mb-0" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    {{ selectedMeal.procedures }}
-                  </p>
-                </div>
-                <!-- Handle array-based instructions -->
-                <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
-                  <div
-                    v-for="(instruction, index) in selectedMeal.instructions"
-                    :key="index"
-                    class="mb-3"
-                  >
-                    <div class="d-flex align-start">
-                      <v-chip
-                        color="#A9C46C"
-                        size="small"
-                        class="mr-3 mt-1 text-white font-weight-bold"
-                        style="min-width: 28px; font-family: 'Syne', sans-serif;"
-                      >
-                        {{ index + 1 }}
-                      </v-chip>
-                      <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                        {{ instruction }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </v-card>
+              <br></br>
+
+          <div 
+            v-for="(step, index) in formatProcedureSteps" 
+            :key="`step-${index}`"
+            class="mb-4 mt-1 last:mb-0"
+          >
+            <div class="d-flex align-start">
+              <div 
+                class="mr-3 flex-shrink-0 d-flex align-center justify-center"
+                style="
+                  min-width: 70px;
+                  height: 36px; 
+                  background: linear-gradient(135deg, #5D8736 0%, #4A6B2B 100%);
+                  border-radius: 8px; 
+                  color: white; 
+                  font-weight: bold;
+                  font-size: 13px;
+                  font-family: 'Syne', sans-serif;
+                  padding: 0 12px;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+                "
+              >
+                Step  {{ index + 1 }} :
+              </div>
+              
+              <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.8; color: #2C3E50; font-family: 'Syne', sans-serif; margin-top: 4px;">
+                {{ step }}
+              </p>
             </div>
+          </div>
+          </div>
+
+          <!-- Handle array-based instructions -->
+          <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
+            <div
+              v-for="(instruction, index) in selectedMeal.instructions"
+              :key="`instruction-${index}`"
+              class="mb-4 last:mb-0"
+            >
+              <div class="d-flex align-start">
+                <div 
+                  class="mr-3 mt-1 flex-shrink-0 d-flex align-center justify-center"
+                  style="
+                    width: 32px; 
+                    height: 32px; 
+                    background: #5D8736; 
+                    border-radius: 50%; 
+                    color: white; 
+                    font-weight: bold; 
+                    font-size: 14px;
+                    font-family: 'Syne', sans-serif;
+                  "
+                >
+                  {{ index + 1 }}
+                </div>
+                
+                <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                  {{ instruction }}
+                </p>
+              </div>
+            </div>
+          </div>
           </v-card-text>
         </v-card>
       </v-dialog>

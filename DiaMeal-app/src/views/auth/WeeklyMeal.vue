@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-2bveyfy0y-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-7bh9qhw1j-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -123,6 +123,56 @@ const fetchWithCors = async (url, options = {}) => {
     throw error
   }
 }
+
+// Replace the hardcoded weeklyBudget with this:
+const weeklyBudget = ref(0);
+
+// Add this function to fetch the user's budget
+const fetchUserBudget = async () => {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('User not authenticated')
+
+    const { data: userRow, error: userRowErr } = await supabase
+      .from('users')
+      .select('budget')
+      .eq('email', user.email)
+      .single()
+    
+    if (userRowErr || !userRow) {
+      console.error('Failed to fetch budget:', userRowErr)
+      return
+    }
+
+    weeklyBudget.value = parseFloat(userRow.budget) || 0
+    console.log('User weekly budget:', weeklyBudget.value)
+    
+  } catch (err) {
+    console.error('Error fetching user budget:', err)
+  }
+}
+
+// Calculate spent amount based on completed meals
+// Calculate spent amount based on completed meals
+const spentAmount = computed(() => {
+  let total = 0;
+  Object.entries(completedMeals.value).forEach(([key, completed]) => {
+    if (completed) {
+      const [date, mealType] = key.split('-');
+      const meals = mealPlansByDay.value[date]?.[mealType] || [];
+      
+      // Get the completed meal option index
+      const completedIndex = completedMealOptions.value[key];
+      
+      // Add cost of the completed meal
+      if (completedIndex !== null && completedIndex !== undefined && meals[completedIndex]) {
+        const completedMeal = meals[completedIndex];
+        total += completedMeal.estimated_cost_per_serving || 0;
+      }
+    }
+  });
+  return total;
+});
 
 // Function to calculate nutrition when meal changes
 const calculateNutrition = async () => {
@@ -243,6 +293,9 @@ const processNutritionData = (nutritionData) => {
   }, { calories: 0, carbs: 0, protein: 0, fats: 0, fiber: 0 })
 
   console.log('Calculated totals:', totals)
+
+  // Store enhanced ingredients separately (don't overwrite original)
+  selectedMeal.value.enhancedIngredients = enhancedIngredients
 
   nutritionTotals.value = {
     calories: Math.round(totals.calories),
@@ -482,7 +535,8 @@ const sections = computed(() => ([
 
 // Updated Modal functions to include nutrition calculation
 const viewMeal = async (meal) => {
-  selectedMeal.value = meal
+  // Create a deep copy to avoid mutations
+  selectedMeal.value = JSON.parse(JSON.stringify(meal))
   selectedMealType.value = getCurrentMealType(meal)
   await calculateNutrition() // Calculate nutrition data
   mealDetailsDialog.value = true
@@ -837,6 +891,7 @@ onMounted(async () => {
   }
 
   await fetchUserStartDate()
+  await fetchUserBudget() // Add this line
   if (!errorMsg.value) {
     await fetchMealPlan()
     await fetchCompletedMeals()
@@ -893,6 +948,24 @@ onMounted(async () => {
       >
         {{ errorMsg }}
       </v-alert>
+
+      <!-- ✅ ADD BUDGET TRACKER HERE (before meal sections) -->
+  <v-card v-if="!loading && !errorMsg" class="mb-4 pa-4" color="#E8F5C8" rounded="lg" elevation="2">
+    <h3 class="text-h6 font-weight-bold mb-3" style="font-family: 'Syne', sans-serif; color: #2C3E50;">
+      <v-icon color="#5D8736" class="mr-2">mdi-wallet</v-icon>
+      Weekly Budget Tracker
+    </h3>
+    <v-progress-linear
+      :model-value="weeklyBudget > 0 ? (spentAmount / weeklyBudget) * 100 : 0"
+      color="#5D8736"
+      height="25"
+      rounded
+    >
+      <strong style="font-family: 'Syne', sans-serif;">
+        ₱{{ spentAmount.toFixed(2) }} / ₱{{ weeklyBudget.toFixed(2) }}
+      </strong>
+    </v-progress-linear>
+  </v-card>
 
       <!-- RoboLoading -->
       <div v-if="loading" class="loading-wrapper text-center py-10">
@@ -1178,6 +1251,38 @@ onMounted(async () => {
                 {{ getMealTypeFromKey(selectedMealType) }} Option
               </v-chip>
             </div>
+             
+            <!-- ✅ COST & SERVING INFO (add this) -->
+  <v-card class="mb-4 pa-3" color="#F0F8E8" elevation="0" rounded="lg">
+    <div class="d-flex justify-space-around align-center flex-wrap">
+      <!-- Cost per serving -->
+      <div class="text-center pa-2">
+        <v-icon color="#4CAF50" size="small" class="mb-1">mdi-currency-php</v-icon>
+        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Cost</div>
+        <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+          ₱{{ selectedMeal.estimated_cost_per_serving?.toFixed(2) || '0.00' }}
+        </div>
+      </div>
+
+      <!-- Serving size -->
+      <div class="text-center pa-2">
+        <v-icon color="#FF9800" size="small" class="mb-1">mdi-silverware-fork-knife</v-icon>
+        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Serving</div>
+        <div class="text-body-1 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+          {{ selectedMeal.serving_size || '1 serving' }}
+        </div>
+      </div>
+
+      <!-- Servings count -->
+      <div class="text-center pa-2">
+        <v-icon color="#2196F3" size="small" class="mb-1">mdi-numeric</v-icon>
+        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Count</div>
+        <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+          {{ selectedMeal.servings_count || 1 }}
+        </div>
+      </div>
+    </div>
+  </v-card>
 
             <!-- Quick Info Card - Calories and Nutrition -->
             <v-row class="mb-7 justify-center">
@@ -1251,11 +1356,20 @@ onMounted(async () => {
 
                       <!-- Ingredient price placeholder data -->
                       <!-- Ingredient price with full unit -->
-                    <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-                      {{ ingredient.priceRange || '₱ -- per kg' || '₱ -- per L'  }}
-                    </span>
+                       <!-- Ingredient price -->
+            <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+              {{ typeof ingredient === 'object' ? (ingredient.priceRange|| '₱ -- per kg' || '₱ -- per L') : '₱ --' }}
+            </span>
+                    
                     </div>
                   </v-col>
+                  <div class="info-section mb-4 flex-grow-1">
+    <!-- Existing info -->
+    
+   
+               </div>
+  
+
                 </v-row>
               </v-card>
             </div>

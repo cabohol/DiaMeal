@@ -260,11 +260,15 @@ app.post('/api/generateMealPlan', async (req, res) => {
   const systemSchema = `
 You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
 
+
 type Meal = {
   name: string;
   meal_type: "breakfast" | "lunch" | "dinner";
   calories: number;                // kcal
   ingredients: string[];           // MUST use ingredients from the provided available_ingredients list
+  estimated_cost_per_serving: number;  // NEW: Cost in PHP
+  serving_size: string;                // NEW: e.g., "1 plate", "1 bowl"
+  servings_count: number;              // NEW: typically 1 per person  
   procedures: string;              // MUST be detailed step-by-step instructions with numbered steps
   preparation_time: string;        // e.g., "15m"
 };
@@ -315,7 +319,10 @@ CRITICAL RULES: You MUST generate EXACTLY 3 meal options for breakfast, lunch, a
 - Consider ingredient categories, nutritional values, and diabetes-friendliness flags
 - For diabetes management: prioritize ingredients with is_diabetic_friendly=true, high fiber, lean protein
 - Adapt Filipino recipes to be diabetes-friendly when needed
-- Respect budget constraints by balancing affordable and premium ingredients
+- Calculate estimated_cost_per_serving using ingredient price_range data
+- Each meal option should respect: cost_per_serving <= (weekly_budget / 21)
+- For each meal, calculate total cost by summing ingredient costs based on typical quantities
+- Keep costs within budget - aim for variety in pricing (some cheap, some moderate)
 - Create balanced nutrition across all meals using the ingredient nutritional data
 
 PROCEDURE FORMAT (VERY IMPORTANT):
@@ -327,10 +334,30 @@ PROCEDURE FORMAT (VERY IMPORTANT):
 - Example: "Step 1: Preheat oven to 400°F and line baking sheet.\\n\\nStep 2: Cut vegetables into cubes and toss with olive oil.\\n\\nStep 3: Roast for 15-20 minutes until tender."
 - Be specific about measurements, timing, and cooking methods
 - IMPORTANT: Add \\n\\n between each step for proper line spacing when displayed
+
+COST CALCULATION GUIDELINES:
+1. Use ingredient price_range to estimate costs
+2. Assume standard serving sizes (e.g., 1 cup rice, 100g meat, 1 egg)
+3. Calculate: estimated_cost_per_serving = sum of (ingredient_cost * quantity_needed)
+4. serving_size should be clear (e.g., "1 plate", "1 bowl", "2 pieces")
+5. servings_count is typically 1 (one serving per meal per person)
+
+Example calculation:
+- Sinangag (Garlic Fried Rice): 
+  - 1 cup rice (₱8) + 2 cloves garlic (₱2) + 1 tbsp oil (₱3) = ₱13/serving
 `;
 
     const content = {
-      instruction: "Create a personalized 7-day Filipino meal plan using ONLY the provided ingredients and based on this data:",
+      instruction: "Create a personalized 7-day Filipino meal plan within ₱${user.budget} weekly budget using ONLY the provided ingredients and based on this data:",
+      
+      budget_constraints: {
+        total_weekly_budget: user.budget,
+        target_daily_budget: Math.floor(user.budget / 7), // ~285 per day
+        max_meal_cost: Math.floor(user.budget / 21), // ~95 per meal (21 meals total)
+        priority: "Stay within budget while maintaining nutrition",
+        currency: "PHP (₱)"
+      },
+      
       user_profile: {
         id: user.id,
         full_name: user.full_name,
@@ -347,6 +374,7 @@ PROCEDURE FORMAT (VERY IMPORTANT):
       available_ingredients: availableIngredients.map(ing => ({
         name: ing.name,
         category: ing.category,
+        price_range: ing.price_range,  
         calories_per_serving: ing.calories_per_serving,
         protein_grams: ing.protein_grams,
         carbs_grams: ing.carbs_grams,
@@ -389,6 +417,31 @@ PROCEDURE FORMAT (VERY IMPORTANT):
       console.error('AI response parse error:', e);
       throw new Error("AI response was not valid JSON.");
     }
+
+    // ✅ ADD BUDGET VALIDATION HERE (inside the function where 'user' exists)
+let totalWeekCost = 0;
+const weeklyBudget = user.budget;
+
+for (let dayNum = 1; dayNum <= 7; dayNum++) {
+  const dayKey = `day${dayNum}`;
+  const dayMeals = weekPlan[dayKey];
+  
+  for (const mealType of ["breakfast", "lunch", "dinner"]) {
+    const mealsForType = dayMeals[mealType];
+    
+    for (const meal of mealsForType) {
+      if (typeof meal.estimated_cost_per_serving !== 'number') {
+        console.warn(`Missing cost for meal: ${meal.name}`);
+        meal.estimated_cost_per_serving = 0;
+      }
+      totalWeekCost += meal.estimated_cost_per_serving;
+    }
+  }
+}
+
+console.log(`Total week cost: ₱${totalWeekCost.toFixed(2)}`);
+console.log(`Weekly budget: ₱${weeklyBudget}`);
+console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget' : '⚠️ Over budget'}`);
 
     // --- 7) Validate ingredients in generated meals ---
     const availableIngredientNames = new Set(availableIngredients.map(ing => ing.name.toLowerCase()));
@@ -465,7 +518,11 @@ PROCEDURE FORMAT (VERY IMPORTANT):
             procedures: meal.procedures || "",
             preparation_time: meal.preparation_time || null,
             name: meal.name || `${mealType} option`,
-            user_id
+            user_id,
+            // NEW: Add these
+            estimated_cost_per_serving: meal.estimated_cost_per_serving || 0,
+            serving_size: meal.serving_size || '1 serving',
+            servings_count: meal.servings_count || 1
           };
 
           const { data: mealRow, error: mealErr } = await supabase

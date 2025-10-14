@@ -7,7 +7,15 @@ import os
 import json
 import time
 from config import SUPABASE_URL, SUPABASE_ANON_KEY, GROQ_API_KEY, TABLE_NAME, LOG_FILE, LOG_LEVEL
+import pytz
 
+
+# Add this constant after imports
+PHILIPPINE_TZ = pytz.timezone('Asia/Manila')
+
+def get_philippine_timestamp():
+    """Get current timestamp in Philippine timezone"""
+    return datetime.now(PHILIPPINE_TZ).isoformat()
 # Setup logging
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -177,7 +185,8 @@ CRITICAL RULES:
             'MOLLUSCIDE', 
             'RODENTICIDE',
             'PESTICIDE',
-            'FUNGICIDE'
+            'FUNGICIDE',
+            'LIVESTOCK & POULTRY FEEDS'
         ]
         
         try:
@@ -204,6 +213,7 @@ CRITICAL RULES:
                             
                             commodity_group = current_category
                             commodity_name = (row[1] or "").strip()
+                            specifications = (row[2] or "").strip()
                             unit = (row[3] or "").strip()
                             average_price_str = (row[-1] or "").strip()
                             
@@ -219,6 +229,7 @@ CRITICAL RULES:
                                 commodities.append({
                                     'name': commodity_name,
                                     'category': commodity_group,
+                                    'specifications': specifications or None,
                                     'unit': unit or 'kg',
                                     'average_price': avg_price
                                 })
@@ -273,10 +284,10 @@ CRITICAL RULES:
                     if not has_nulls:
                         # ✅ COMPLETE DATA - Update price only
                         data = {
+                            'specifications': item.get('specifications'),
                             'price_range': price_range,
-                            'cost_per_serving': item['average_price'],
                             'availability': 'available',
-                            'updated_at': datetime.now().isoformat()
+                            'updated_at': get_philippine_timestamp() 
                         }
                         logging.info(f"✅ Price update: {item['name']}")
                     else:
@@ -286,10 +297,10 @@ CRITICAL RULES:
                         time.sleep(3)  # Rate limit protection
                         
                         data = {
+                            'specifications': item.get('specifications'),
                             'price_range': price_range,
-                            'cost_per_serving': item['average_price'],
                             'availability': 'available',
-                            'updated_at': datetime.now().isoformat(),
+                            'updated_at': get_philippine_timestamp(),
                             **nutrition  # This will overwrite ALL nutrition fields
                         }
                         logging.info(f"🔧 Fixed NULLs: {item['name']}")
@@ -307,12 +318,12 @@ CRITICAL RULES:
                     data = {
                         'name': item['name'],
                         'category': item['category'],
-                        'typical_serving_size': f"100 {item['unit']}",
+                        'specifications': item.get('specifications'),
+                        'typical_serving_size': f"{item['unit']}",
                         'price_range': price_range,
-                        'cost_per_serving': item['average_price'],
                         'availability': 'available',
-                        'created_at': datetime.now().isoformat(),
-                        'updated_at': datetime.now().isoformat(),
+                        'created_at': get_philippine_timestamp() ,
+                        'updated_at': get_philippine_timestamp(),
                         **nutrition
                     }
                     

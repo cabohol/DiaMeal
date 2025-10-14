@@ -257,103 +257,136 @@ app.post('/api/generateMealPlan', async (req, res) => {
     }
   }
 
-  const systemSchema = `
-You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
+    const systemSchema = `
+    You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
 
+    type Meal = {
+      name: string;
+      meal_type: "breakfast" | "lunch" | "dinner";
+      calories: number;                
+      ingredients: string[];           
+      estimated_cost_per_serving: number;  
+      serving_size: string;                
+      servings_count: number;              
+      procedures: string;              
+      preparation_time: string;        
+    };
 
-type Meal = {
-  name: string;
-  meal_type: "breakfast" | "lunch" | "dinner";
-  calories: number;                // kcal
-  ingredients: string[];           // MUST use ingredients from the provided available_ingredients list
-  estimated_cost_per_serving: number;  // NEW: Cost in PHP
-  serving_size: string;                // NEW: e.g., "1 plate", "1 bowl"
-  servings_count: number;              // NEW: typically 1 per person  
-  procedures: string;              // MUST be detailed step-by-step instructions with numbered steps
-  preparation_time: string;        // e.g., "15m"
-};
+    type WeekPlan = {
+      day1: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day2: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day3: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day4: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day5: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day6: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+      day7: { breakfast: [Meal, Meal, Meal]; lunch: [Meal, Meal, Meal]; dinner: [Meal, Meal, Meal]; };
+    };
 
-type WeekPlan = {
-  day1: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day2: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day3: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day4: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day5: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day6: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-  day7: {
-    breakfast: [Meal, Meal, Meal];
-    lunch: [Meal, Meal, Meal];
-    dinner: [Meal, Meal, Meal];
-  };
-};
+    CRITICAL RULES: 
+   - Total meals: 63 (7 days × 3 meal types × 3 options per type)
+   - NO MORE, NO LESS than 3 options per meal type per day
+    - Use ONLY ingredients from the provided available_ingredients list
 
-CRITICAL RULES: You MUST generate EXACTLY 3 meal options for breakfast, lunch, and dinner for EACH of the 7 days.
-- Total meals: 63 (7 days × 3 meal types × 3 options per type)
-- NO MORE, NO LESS than 3 options per meal type per day
-- Use ONLY ingredients from the provided available_ingredients list
-- Each meal's ingredients array must contain ingredient names that exist in available_ingredients
-- Consider ingredient categories, nutritional values, and diabetes-friendliness flags
-- For diabetes management: prioritize ingredients with is_diabetic_friendly=true, high fiber, lean protein
-- Adapt Filipino recipes to be diabetes-friendly when needed
-- Calculate estimated_cost_per_serving using ingredient price_range data
-- Each meal option should respect: cost_per_serving <= (weekly_budget / 21)
-- For each meal, calculate total cost by summing ingredient costs based on typical quantities
-- Keep costs within budget - aim for variety in pricing (some cheap, some moderate)
-- Create balanced nutrition across all meals using the ingredient nutritional data
+    INGREDIENT USAGE (CRITICAL):
+    - You will receive a list of available_ingredients
+    - ONLY use ingredients from this list
+    - Each ingredient has nutritional data, cost, and dietary flags
+    - Use ONLY ingredients from the provided available_ingredients list
+    - Each meal's ingredients array must contain ingredient names that exist in available_ingredients  
+    - Check ingredient flags (is_diabetic_friendly, is_halal, etc.) before using
+    - Use ingredient.price_range for cost calculations
 
-PROCEDURE FORMAT (VERY IMPORTANT):
-- Write procedures as a single string with numbered steps separated by \\n\\n (double newline)
-- Each step should be detailed but concise (1-2 sentences per step)
-- Include specific temperatures, cooking times, and techniques
-- Provide 4-9 steps depending on recipe complexity (simple dishes: 4-5 steps, complex dishes: 7-9 steps)
-- Format must be: "Step 1: [instruction].\\n\\nStep 2: [instruction].\\n\\nStep 3: [instruction]."
-- Example: "Step 1: Preheat oven to 400°F and line baking sheet.\\n\\nStep 2: Cut vegetables into cubes and toss with olive oil.\\n\\nStep 3: Roast for 15-20 minutes until tender."
-- Be specific about measurements, timing, and cooking methods
-- IMPORTANT: Add \\n\\n between each step for proper line spacing when displayed
+    PERSONALIZATION REQUIREMENTS (VERY IMPORTANT):
+    1. **Gender & Age**: Adjust portion sizes and calorie targets
+      - Males typically need 2000-2500 kcal/day
+      - Females typically need 1600-2000 kcal/day
+      - Adjust based on age (older adults may need less)
 
-COST CALCULATION GUIDELINES:
-1. Use ingredient price_range to estimate costs
-2. Assume standard serving sizes (e.g., 1 cup rice, 100g meat, 1 egg)
-3. Calculate: estimated_cost_per_serving = sum of (ingredient_cost * quantity_needed)
-4. serving_size should be clear (e.g., "1 plate", "1 bowl", "2 pieces")
-5. servings_count is typically 1 (one serving per meal per person)
+    2. **Height & Weight**: Calculate caloric needs using BMI/BMR considerations
+      - Consider if user is underweight, normal, overweight, or obese
+      - Adjust meal portions accordingly
 
-Example calculation:
-- Sinangag (Garlic Fried Rice): 
-  - 1 cup rice (₱8) + 2 cloves garlic (₱2) + 1 tbsp oil (₱3) = ₱13/serving
-`;
+    3. **Diabetes Type**: CRITICAL for meal planning
+      - Type 1: Focus on consistent carb counting, balanced meals
+      - Type 2: Prioritize low-glycemic foods, high fiber, portion control
+      - Always use is_diabetic_friendly=true ingredients when possible
+      - Limit high-carb ingredients, avoid refined sugars
+
+    4. **Lab Results**: Use to fine-tune recommendations
+      - High Fasting Blood Sugar (>100 mg/dL): Reduce breakfast carbs
+      - High Postprandial Blood Sugar (>140 mg/dL): Lower overall carb load
+      - High HbA1c (>6.5%): Strict low-glycemic meal selection
+      - Poor Glucose Tolerance: Smaller, more frequent meals
+
+    5. **Allergies**: STRICTLY AVOID all allergens
+      - Check ingredient.common_allergens array
+      - Never include ingredients containing user's allergens
+
+    6. **Religious Diets**: STRICTLY RESPECT dietary laws
+      - Halal: Only use ingredients with is_halal=true
+      - Kosher: Only use ingredients with is_kosher=true
+      - Catholic: Only use ingredients with is_catholic=true
+      - Vegetarian: Only use ingredients with is_vegetarian=true
+      - Vegan: Only use ingredients with is_vegan=true
+
+    7. **Budget**: Stay within weekly budget constraints
+      - Max cost per meal: weekly_budget / 21
+      - Prioritize affordable ingredients
+      - Mix budget-friendly and moderate-cost meals
+
+    NUTRITION GUIDELINES FOR DIABETICS:
+    - Prioritize: High fiber (>5g per meal), lean protein (20-30g per meal)
+    - Moderate: Complex carbs (30-45g per meal for Type 2)
+    - Minimize: Simple sugars, refined carbs, high-glycemic foods
+    - Include: Vegetables, whole grains, lean meats, healthy fats
+
+    PROCEDURE FORMAT:
+    - Write procedures as single string with numbered steps separated by \\n\\n
+    - Example: "Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."
+    - Include specific temperatures, times, and measurements
+    - 4-9 steps depending on complexity
+
+    COST CALCULATION:
+    - Use ingredient.price_range to estimate costs
+    - Calculate: estimated_cost_per_serving = sum(ingredient_cost × quantity)
+    - serving_size: e.g., "1 plate", "1 bowl"
+    - servings_count: typically 1 per person
+    `;
 
     const content = {
-      instruction: "Create a personalized 7-day Filipino meal plan within ₱${user.budget} weekly budget using ONLY the provided ingredients and based on this data:",
+      instruction: `Create a personalized 7-day Filipino meal plan strictly adhering to these user requirements:
+
+    REQUIRED PERSONALIZATION:
+    - Gender: ${user.gender} (adjust calorie needs accordingly)
+    - Age: ${user.age} years (consider age-appropriate portions)
+    - Height: ${user.height_cm} cm | Weight: ${user.weight_kg} kg (calculate BMI/caloric needs)
+    - Diabetes Type: ${user.diabetes_type} (CRITICAL: follow diabetes-specific guidelines)
+    - Budget: ₱${user.budget}/week (stay within cost constraints)
+
+    STRICT CONSTRAINTS:
+    ${allergiesList.length > 0 ? `- ALLERGIES: NEVER use ingredients containing: ${allergiesList.join(', ')}` : ''}
+    ${religiousList.length > 0 ? `- RELIGIOUS DIETS: ONLY use ingredients that are: ${religiousList.join(', ')}` : ''}
+
+    LAB RESULTS (use to optimize meal planning):
+    ${lab ? `
+    - Fasting Blood Sugar: ${lab.fasting_blood_sugar || 'N/A'} mg/dL
+    - Postprandial Blood Sugar: ${lab.postprandial_blood_sugar || 'N/A'} mg/dL
+    - HbA1c: ${lab.hba1c || 'N/A'}%
+    - Glucose Tolerance: ${lab.glucose_tolerance || 'N/A'}
+    ` : '- No lab results available'}
+
+    Use this data to create meals that are:
+    1. Safe for ${user.diabetes_type} diabetes management
+    2. Nutritionally balanced for ${user.gender}, ${user.age} years old
+    3. Appropriate portion sizes for ${user.height_cm}cm / ${user.weight_kg}kg
+    4. Within ₱${user.budget} weekly budget
+    5. Free from allergens: ${allergiesList.join(', ') || 'none'}
+    6. Compliant with: ${religiousList.join(', ') || 'no restrictions'}`,
       
       budget_constraints: {
         total_weekly_budget: user.budget,
-        target_daily_budget: Math.floor(user.budget / 7), // ~285 per day
-        max_meal_cost: Math.floor(user.budget / 21), // ~95 per meal (21 meals total)
+        target_daily_budget: Math.floor(user.budget / 7),
+        max_meal_cost: Math.floor(user.budget / 21),
         priority: "Stay within budget while maintaining nutrition",
         currency: "PHP (₱)"
       },
@@ -368,6 +401,7 @@ Example calculation:
         diabetes_type: user.diabetes_type,
         budget: user.budget
       },
+      
       latest_lab_results: lab || {},
       allergies: allergiesList,
       religious_diets: religiousList,

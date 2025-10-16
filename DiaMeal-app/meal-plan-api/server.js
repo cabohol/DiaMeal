@@ -259,12 +259,24 @@ app.post('/api/generateMealPlan', async (req, res) => {
 
     const systemSchema = `
     You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
+    
+    type IngredientAmount = {
+      name: string;           // Ingredient name (must match available_ingredients)
+      amount: number;         // Amount in grams
+      unit: string;          // Unit (usually "g" for grams)
+    };
 
     type Meal = {
       name: string;
       meal_type: "breakfast" | "lunch" | "dinner";
       calories: number;                
-      ingredients: string[];           
+      ingredients: string[];           // Keep this for backward compatibility
+      ingredient_amounts: {            // NEW: Add specific amounts
+        [ingredientName: string]: {
+          amount: number;
+          unit: string;
+        }
+      };
       estimated_cost_per_serving: number;  
       serving_size: string;                
       servings_count: number;              
@@ -285,7 +297,55 @@ app.post('/api/generateMealPlan', async (req, res) => {
     CRITICAL RULES: 
    - Total meals: 63 (7 days × 3 meal types × 3 options per type)
    - NO MORE, NO LESS than 3 options per meal type per day
-    - Use ONLY ingredients from the provided available_ingredients list
+   - Use ONLY ingredients from the provided available_ingredients list
+
+    INGREDIENT DIVERSITY REQUIREMENTS (CRITICAL):
+    - Avoid repeating the same meal across multiple days
+    - Use different protein sources each day (e.g., chicken Day 1, fish Day 2, pork Day 3)
+    - Rotate vegetables and carbs throughout the week
+    - Each day should feel fresh and varied
+    - If an ingredient appears in Day 1 breakfast, avoid it in Day 2-3 breakfast
+    - Only repeat a specific ingredient combination if absolutely necessary
+    - Prioritize ingredient variety while staying within budget
+    - Track ingredients used in previous days and deliberately choose different ones
+
+    INGREDIENT AMOUNTS (NEW - CRITICAL):
+    - For EACH ingredient used, specify the exact amount needed in grams
+    - Use realistic amounts based on typical Filipino serving sizes:
+      * Rice: 150-200g cooked per serving
+      * Meat/Fish: 80-120g per serving  
+      * Vegetables: 50-150g depending on type
+      * Cooking oil: 5-15g (1-3 teaspoons)
+      * Garlic: 5-10g (2-3 cloves)
+      * Onions: 30-50g (small to medium)
+      * Seasonings: 2-5g
+    - Store amounts in ingredient_amounts field as an object
+    - Calculate estimated_cost_per_serving based on these exact amounts
+    
+    COST CALCULATION:
+    - Use the exact gram amounts to calculate costs
+    - Formula: (ingredient_amount_in_grams / 1000) * price_per_kg
+    - Sum all ingredient costs for total estimated_cost_per_serving
+    
+    Example meal structure:
+    {
+      "name": "Chicken Adobo",
+      "meal_type": "lunch",
+      "calories": 350,
+      "ingredients": ["Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaf"],
+      "ingredient_amounts": {
+        "Chicken": { "amount": 120, "unit": "g" },
+        "Soy Sauce": { "amount": 30, "unit": "g" },
+        "Vinegar": { "amount": 20, "unit": "g" },
+        "Garlic": { "amount": 10, "unit": "g" },
+        "Bay Leaf": { "amount": 1, "unit": "g" }
+      },
+      "estimated_cost_per_serving": 45.50,
+      "serving_size": "1 plate",
+      "servings_count": 1,
+      "procedures": "Step 1: Marinate chicken...\\n\\nStep 2: Sauté garlic...",
+      "preparation_time": "45 minutes"
+    };
 
     INGREDIENT USAGE (CRITICAL):
     - You will receive a list of available_ingredients
@@ -295,6 +355,10 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Each meal's ingredients array must contain ingredient names that exist in available_ingredients  
     - Check ingredient flags (is_diabetic_friendly, is_halal, etc.) before using
     - Use ingredient.price_range for cost calculations
+    - For each ingredient, specify the exact amount in grams
+    - Calculate nutrition based on these amounts
+    - Consider the user's caloric needs and budget
+    
 
     PERSONALIZATION REQUIREMENTS (VERY IMPORTANT):
     1. **Gender & Age**: Adjust portion sizes and calorie targets
@@ -341,7 +405,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Include: Vegetables, whole grains, lean meats, healthy fats
 
     PROCEDURE FORMAT:
-    - Write procedures as single string with numbered steps separated by \\n\\n
+    - Each step should be detailed but concise (1-2 sentences per step)
     - Example: "Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."
     - Include specific temperatures, times, and measurements
     - 4-9 steps depending on complexity
@@ -362,6 +426,18 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Height: ${user.height_cm} cm | Weight: ${user.weight_kg} kg (calculate BMI/caloric needs)
     - Diabetes Type: ${user.diabetes_type} (CRITICAL: follow diabetes-specific guidelines)
     - Budget: ₱${user.budget}/week (stay within cost constraints)
+
+    DIVERSITY REQUIREMENTS:
+    - DO NOT repeat the same meal on multiple days
+    - Use ${availableIngredients.length} ingredients creatively
+    - Each day should feel unique and interesting
+
+     INGREDIENT AMOUNT REQUIREMENTS (CRITICAL):
+    - Specify EXACT gram amounts for every ingredient
+    - Use realistic portions suitable for one serving
+    - Base amounts on typical Filipino cooking practices
+    - Ensure amounts align with calorie calculations
+    - Calculate accurate cost based on these specific amounts
 
     STRICT CONSTRAINTS:
     ${allergiesList.length > 0 ? `- ALLERGIES: NEVER use ingredients containing: ${allergiesList.join(', ')}` : ''}
@@ -429,9 +505,9 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log('Calling Groq API for 7-day plan...');
     const chat = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
+      temperature: 0.85,
       top_p: 0.95,
-      max_completion_tokens: 10000, // Increased for 7-day plan
+      max_completion_tokens: 15000, // Increased for 7-day plan
       stream: false,
       response_format: { type: "json_object" },
       messages: [
@@ -556,7 +632,8 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
             // NEW: Add these
             estimated_cost_per_serving: meal.estimated_cost_per_serving || 0,
             serving_size: meal.serving_size || '1 serving',
-            servings_count: meal.servings_count || 1
+            servings_count: meal.servings_count || 1,
+            ingredient_amounts: meal.ingredient_amounts || {}
           };
 
           const { data: mealRow, error: mealErr } = await supabase
@@ -581,11 +658,16 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
               );
               
               if (dbIngredient) {
+                // Get the specific amount for this ingredient
+                const amountData = meal.ingredient_amounts?.[ingredientName] || 
+                                  meal.ingredient_amounts?.[dbIngredient.name] || 
+                                  { amount: 100, unit: 'g' }; // Default fallback
+                
                 ingredientRelationships.push({
                   meal_id: mealRow.id,
                   ingredient_id: dbIngredient.id,
-                  quantity: 1, // Default quantity, could be enhanced later
-                  unit: dbIngredient.typical_serving_size || 'serving'
+                  quantity: amountData.amount, // Use the specific amount
+                  unit: amountData.unit || 'g'  // Use the specific unit
                 });
               }
             }
@@ -598,6 +680,8 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
               if (relationError) {
                 console.error('Meal ingredients relationship error:', relationError);
                 // Don't throw error, just log it as this is supplementary data
+              } else {
+                console.log(`Saved ${ingredientRelationships.length} ingredient relationships for meal ${mealRow.id}`);
               }
             }
           }

@@ -794,11 +794,16 @@ const getButtonIcon = (date, mealType, mealIndex) => {
 }
 
 // UPDATED: markMealAsCompleted function with enforcement
+// DEBUGGING VERSION: markMealAsCompleted with detailed logging
 const markMealAsCompleted = async (meal, mealType, mealIndex) => {
   try {
-    console.log('Marking meal as complete:', { mealName: meal.name, mealType, mealIndex })
+    console.log('=== MARK MEAL COMPLETE START ===')
+    console.log('Meal:', { mealName: meal.name, mealType, mealIndex })
+    console.log('Selected day:', selectedDay.value)
+    console.log('Days with dates:', daysWithDates.value)
+    console.log('User ID:', currentUserId.value)
 
-    // NEW: Strict enforcement - check if any meal of this type is already completed
+    // Strict enforcement - check if any meal of this type is already completed
     const existingIndex = getCompletedMealIndex(selectedDay.value.date, mealType)
     
     if (existingIndex !== null) {
@@ -840,6 +845,8 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
       return false
     }
 
+    // 1. Save to completed_meals table
+    console.log('Saving to completed_meals...')
     const { error } = await supabase
       .from("completed_meals")
       .upsert({
@@ -851,7 +858,7 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
         completed_date: new Date().toISOString().split("T")[0],
         calories: correctCalories,
       }, {
-        onConflict: 'user_id,meal_date,meal_type' // Prevent duplicates
+        onConflict: 'user_id,meal_date,meal_type'
       })
 
     if (error) {
@@ -861,15 +868,98 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
       showSuccessAlert.value = true
       return false
     }
+    console.log('✓ Saved to completed_meals')
+
+    // 2. Calculate day number from userStartDate
+    console.log('Calculating day number...')
+    console.log('Selected date:', selectedDay.value.date)
+    console.log('User start date:', userStartDate.value)
+    
+    let dayNumber = 1
+    if (userStartDate.value && selectedDay.value.date) {
+      const startDate = new Date(userStartDate.value + 'T00:00:00')
+      const selectedDate = new Date(selectedDay.value.date + 'T00:00:00')
+      const diffTime = selectedDate - startDate
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      dayNumber = diffDays + 1
+      console.log('Difference in days:', diffDays, 'Day number:', dayNumber)
+    }
+    
+    console.log('Calculated day number:', dayNumber)
+
+    if (dayNumber < 1 || dayNumber > 7) {
+      console.error('Invalid day number calculated:', dayNumber)
+      alertMessage.value = `Error: Invalid day number (${dayNumber}). Progress not saved.`
+      alertType.value = 'warning'
+      showSuccessAlert.value = true
+      return false
+    }
+
+    // 3. Fetch all completed meals for this date
+    console.log('Fetching completed meals for date:', selectedDay.value.date)
+    const { data: allCompletedForDate, error: fetchError } = await supabase
+      .from("completed_meals")
+      .select("calories")
+      .eq("user_id", currentUserId.value)
+      .eq("meal_date", selectedDay.value.date)
+
+    if (fetchError) {
+      console.error('Error fetching completed meals:', fetchError)
+    }
+
+    const totalCaloriesForDay = (allCompletedForDate || []).reduce((sum, m) => sum + (m.calories || 0), 0)
+    console.log('Total calories for day:', totalCaloriesForDay, 'Meals:', allCompletedForDate)
+
+    // 4. Count unique meal types completed
+    console.log('Counting completed meal types...')
+    const { data: completedMealsForDay, error: typeError } = await supabase
+      .from("completed_meals")
+      .select("meal_type")
+      .eq("user_id", currentUserId.value)
+      .eq("meal_date", selectedDay.value.date)
+
+    if (typeError) {
+      console.error('Error fetching meal types:', typeError)
+    }
+
+    const uniqueMealTypes = new Set((completedMealsForDay || []).map(m => m.meal_type?.toLowerCase()))
+    const completedCount = uniqueMealTypes.size
+    console.log('Completed meal types:', Array.from(uniqueMealTypes), 'Count:', completedCount)
+
+    // 5. Update progress table with DETAILED LOGGING
+    console.log('=== UPSERTING TO PROGRESS TABLE ===')
+    const progressPayload = {
+      user_id: currentUserId.value,
+      day: dayNumber,
+      calories_consumed: totalCaloriesForDay,
+      status: completedCount >= 3 ? 'completed' : 'in_progress',
+      updated_at: new Date().toISOString()
+    }
+    console.log('Progress payload:', JSON.stringify(progressPayload, null, 2))
+
+    const { data: progressData, error: progressError } = await supabase
+      .from("progress")
+      .upsert(progressPayload, {
+        onConflict: 'user_id,day'
+      })
+      .select()
+
+    console.log('Progress response:', { data: progressData, error: progressError })
+
+    if (progressError) {
+      console.error("❌ Error updating progress:", progressError)
+      alertMessage.value = `Meal completed but progress update failed: ${progressError.message}`
+      alertType.value = 'warning'
+      showSuccessAlert.value = true
+    } else {
+      console.log('✓ Progress updated successfully')
+    }
 
     // Update local state
     const key = `${selectedDay.value.date}-${mealType}`
     completedMeals.value[key] = true
-    
-    // NEW: Store which specific meal option was completed
     completedMealOptions.value[key] = mealIndex
     
-    // Show ONE success alert
     alertMessage.value = `${meal.name} marked as complete!`
     alertType.value = 'success'
     showSuccessAlert.value = true
@@ -878,18 +968,18 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
       showSuccessAlert.value = false
     }, 4000)
     
-    console.log(`Meal marked as completed: ${mealType} Option ${mealIndex + 1}`)
-    
+    console.log('=== MARK MEAL COMPLETE END ===')
     return true
+    
   } catch (err) {
-    console.error("Error in markMealAsCompleted:", err)
+    console.error("❌ Error in markMealAsCompleted:", err)
+    console.error('Error stack:', err.stack)
     alertMessage.value = "An unexpected error occurred. Please try again."
     alertType.value = 'error'
     showSuccessAlert.value = true
     return false
   }
 }
-
 // UPDATED: Fetch completed meals from database
 const fetchCompletedMeals = async () => {
   try {

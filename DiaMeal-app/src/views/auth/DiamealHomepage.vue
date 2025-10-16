@@ -106,104 +106,74 @@ const getCurrentSelectedDate = () => {
 
 // Fetch completed meals from Supabase - get calories from meals table
 // Fetch completed meals from Supabase - get calories from meals table OR ingredients table
+// Fixed fetchCompletedMeals for MyProgress.vue
 const fetchCompletedMeals = async () => {
   if (!currentUserId.value) return;
   
   const selectedDate = getCurrentSelectedDate();
   
   try {
-    console.log('Homepage - Fetching completed meals for user:', currentUserId.value, 'date:', selectedDate);
+    console.log('Fetching completed meals for user:', currentUserId.value, 'date:', selectedDate);
     
+    // Query ONLY the columns that exist in your meals table
     const { data: completedMeals, error } = await supabase
       .from('completed_meals')
       .select(`
         *,
         meals (
           calories,
-          name,
-          carbohydrates,
-          protein,
-          fiber,
-          glycemic_load
+          name
         )
       `)
       .eq('user_id', currentUserId.value)
       .eq('meal_date', selectedDate);
 
     if (error) {
-      console.error('Homepage - Error fetching completed meals:', error);
+      console.error('Error fetching completed meals:', error);
       return;
     }
 
-    // Process the data and handle ingredients table fallback
+    // Process the meals
     const processedMeals = await Promise.all(completedMeals?.map(async (meal) => {
       let calories = 0;
       let mealName = meal.meal_name || 'Unknown Meal';
-      let nutritionalInfo = {
-        carbohydrates: 0,
-        protein: 0,
-        fiber: 0,
-        glycemic_load: 0
-      };
 
       // First, check if we have data from meals table
       if (meal.meals && meal.meals.calories) {
         calories = meal.meals.calories;
         mealName = meal.meals.name || meal.meal_name || 'Unknown Meal';
-        nutritionalInfo = {
-          carbohydrates: meal.meals.carbohydrates || 0,
-          protein: meal.meals.protein || 0,
-          fiber: meal.meals.fiber || 0,
-          glycemic_load: meal.meals.glycemic_load || 0
-        };
       } else {
-        // If no data from meals table, check ingredients table
-        console.log('Homepage - No data from meals table for:', meal.meal_name, 'checking ingredients table...');
-        
-        const { data: ingredientData, error: ingredientError } = await supabase
-          .from('ingredients')
-          .select('name, calories_p, category')
-          .ilike('name', `%${meal.meal_name}%`)
-          .single();
-
-        if (!ingredientError && ingredientData) {
-          calories = ingredientData.calories_p || 0;
-          mealName = ingredientData.name || meal.meal_name;
-          console.log(`Homepage - Found in ingredients table: ${mealName} = ${calories} calories`);
-        } else {
-          // Final fallback to stored calories in completed_meals table
-          calories = meal.calories || 0;
-          console.log(`Homepage - Using stored calories from completed_meals: ${calories}`);
-        }
+        // Final fallback to stored calories in completed_meals table
+        calories = meal.calories || 0;
+        console.log(`Using stored calories from completed_meals: ${calories}`);
       }
 
       return {
         ...meal,
         calories: calories,
-        meal_name: mealName,
-        carbohydrates: nutritionalInfo.carbohydrates,
-        protein: nutritionalInfo.protein,
-        fiber: nutritionalInfo.fiber,
-        glycemic_load: nutritionalInfo.glycemic_load
+        meal_name: mealName
       };
     }) || []);
 
     dbCompletedMeals.value = processedMeals;
-    console.log('Homepage - Fetched completed meals with accurate calories:', processedMeals);
+    console.log('Fetched completed meals with accurate calories:', processedMeals);
     
+    // Calculate total calories
     let totalCalories = 0;
     if (processedMeals && processedMeals.length > 0) {
       totalCalories = processedMeals.reduce((sum, meal) => {
         const mealCalories = meal.calories || 0;
-        console.log(`Homepage - Meal: ${meal.meal_name}, Calories: ${mealCalories}`);
+        console.log(`Meal: ${meal.meal_name}, Calories: ${mealCalories}`);
         return sum + mealCalories;
       }, 0);
       
-      console.log('Homepage - Total calories from meals table:', totalCalories);
+      console.log('Total calories from meals:', totalCalories);
     }
     
+    // Update calculated calories
     calculatedTotalCalories.value = totalCalories;
     
+    // Count unique meal types completed
     const completedMealTypes = new Set();
     dbCompletedMeals.value.forEach(meal => {
       if (meal.meal_type) {
@@ -211,11 +181,13 @@ const fetchCompletedMeals = async () => {
       }
     });
     
-    console.log('Homepage - Completed meal types:', Array.from(completedMealTypes));
-    console.log('Homepage - Total completed meals count:', completedMealTypes.size);
+    console.log('Completed meal types:', Array.from(completedMealTypes));
+    console.log('Total completed meals count:', completedMealTypes.size);
+    
+    await updateProgressInDB(totalCalories, completedMealTypes.size);
     
   } catch (err) {
-    console.error('Homepage - Error fetching completed meals:', err);
+    console.error('Error fetching completed meals:', err);
   }
 };
 

@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-5hp4wl6xj-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-2o8y6gx09-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -280,7 +280,7 @@ const processNutritionData = (nutritionData) => {
     const scaleFactor = amount / 1000 // Convert to kg for price calculation
     
     // Calculate price based on amount
-    const pricePerKg = extractPrice(ingredient.price_range) || 0
+    const pricePerKg = extractPrice(ingredient.estimated_price) || 0
     const calculatedPrice = pricePerKg * scaleFactor
     
     return {
@@ -289,22 +289,22 @@ const processNutritionData = (nutritionData) => {
       unit: unit,
       pricePerKg: `₱${pricePerKg.toFixed(2)} per kg`,
       calculatedPrice: calculatedPrice,
-      calories_per_serving: (ingredient.calories_per_serving || 0) * (amount / 100),
-      carbs_grams: (ingredient.carbs_grams || 0) * (amount / 100),
-      protein_grams: (ingredient.protein_grams || 0) * (amount / 100),
-      fat_grams: (ingredient.fat_grams || 0) * (amount / 100),
-      fiber_grams: (ingredient.fiber_grams || 0) * (amount / 100)
+      calories_per_100g: (ingredient.calories_per_100g || 0) * (amount / 100),
+      carbs_per_100g: (ingredient.carbs_per_100g || 0) * (amount / 100),
+      protein_per_100g: (ingredient.protein_per_100g || 0) * (amount / 100),
+      fat_per_100g: (ingredient.fat_per_100g || 0) * (amount / 100),
+      fiber_per_100g: (ingredient.fiber_per_100g || 0) * (amount / 100)
     }
   })
 
   // Calculate totals (same as before)
   const totals = selectedMeal.value.ingredients.reduce((acc, ingredient) => {
     return {
-      calories: acc.calories + (parseFloat(ingredient.calories_per_serving) || 0),
-      carbs: acc.carbs + (parseFloat(ingredient.carbs_grams) || 0),
-      protein: acc.protein + (parseFloat(ingredient.protein_grams) || 0),
-      fats: acc.fats + (parseFloat(ingredient.fat_grams) || 0),
-      fiber: acc.fiber + (parseFloat(ingredient.fiber_grams) || 0),
+      calories: acc.calories + (parseFloat(ingredient.calories_per_100g) || 0),
+      carbs: acc.carbs + (parseFloat(ingredient.carbs_per_100g) || 0),
+      protein: acc.protein + (parseFloat(ingredient.protein_per_100g) || 0),
+      fats: acc.fats + (parseFloat(ingredient.fat_per_100g) || 0),
+      fiber: acc.fiber + (parseFloat(ingredient.fiber_per_100g) || 0),
       totalCost: acc.totalCost + (parseFloat(ingredient.calculatedPrice) || 0)
     }
   }, { calories: 0, carbs: 0, protein: 0, fats: 0, fiber: 0, totalCost: 0 })
@@ -539,9 +539,9 @@ const testAPIConnection = async () => {
 const goBack = () => window.history.back()
 
 const sections = computed(() => ([
-  { key: 'breakfast', title: 'BREAKFAST', icon: 'mdi-coffee' },
-  { key: 'lunch', title: 'LUNCH', icon: 'mdi-food' },
-  { key: 'dinner', title: 'DINNER', icon: 'mdi-silverware-fork-knife' }
+  { key: 'breakfast', title: 'BREAKFAST', icon: 'mdi-egg-fried' },
+  { key: 'lunch', title: 'LUNCH', icon: 'mdi-bowl-mix' },
+  { key: 'dinner', title: 'DINNER', icon: 'mdi-pot-steam' }
 ]))
 
 // Modal functions to include nutrition calculation
@@ -1096,24 +1096,7 @@ onMounted(async () => {
         {{ errorMsg }}
       </v-alert>
 
-      <!-- ✅ ADD BUDGET TRACKER HERE (before meal sections) -->
-  <!-- <v-card v-if="!loading && !errorMsg" class="mb-4 pa-4" color="#E8F5C8" rounded="lg" elevation="2">
-    <h3 class="text-h6 font-weight-bold mb-3" style="font-family: 'Syne', sans-serif; color: #2C3E50;">
-      <v-icon color="#5D8736" class="mr-2">mdi-wallet</v-icon>
-      Weekly Budget Tracker
-    </h3>
-    <v-progress-linear
-      :model-value="weeklyBudget > 0 ? (spentAmount / weeklyBudget) * 100 : 0"
-      color="#5D8736"
-      height="25"
-      rounded
-    >
-      <strong style="font-family: 'Syne', sans-serif;">
-        ₱{{ spentAmount.toFixed(2) }} / ₱{{ weeklyBudget.toFixed(2) }}
-      </strong>
-    </v-progress-linear>
-  </v-card> -->
-
+     
       <!-- RoboLoading -->
       <div v-if="loading" class="loading-wrapper text-center py-10">
         <div class="video-container">
@@ -1142,6 +1125,8 @@ onMounted(async () => {
         </p>
       </div>
 
+      
+
       <!-- Meal Sections -->
       <template v-if="!loading && !errorMsg">
         <!-- Date Header -->
@@ -1157,7 +1142,43 @@ onMounted(async () => {
               {{ selectedDay?.date ? formatDate(selectedDay.date) : '' }}
             </p>
           </v-card-text>
+
+              <!-- Time Window Information Alert -->
+
+<!-- Time Window Information Alert -->
+<v-alert
+  variant="tonal"
+  prominent
+  class="mb-4 mx-2 mx-sm-4"
+  color="#5D8736"
+  rounded="lg"
+>
+  <div class="d-flex flex-column align-center text-center">
+    <span class="font-weight-bold mb-3" style="font-family: 'Syne', sans-serif; font-size: 16px;">
+      Meal Completion Time Windows
+    </span>
+    <div class="text-body-2" style="font-family: 'Syne', sans-serif;">
+      <div class="mb-2 d-flex align-center justify-center">
+        <v-icon size="small" class="mr-2" color="#FF9800">mdi-egg-fried</v-icon>
+        <strong>Breakfast:</strong> <span class="ml-1">6:00 AM - 8:00 AM</span>
+      </div>
+      <div class="mb-2 d-flex align-center justify-center">
+        <v-icon size="small" class="mr-2" color="#FFC107">mdi-bowl-mix</v-icon>
+        <strong>Lunch:</strong> <span class="ml-1">11:00 AM - 2:00 PM</span>
+      </div>
+      <div class="d-flex align-center justify-center">
+        <v-icon size="small" class="mr-2" color="#FF9800">mdi-pot-steam</v-icon>
+        <strong>Dinner:</strong> <span class="ml-1">6:00 PM - 11:00 PM</span>
+      </div>
+    </div>
+  </div>
+</v-alert>
+
         </v-card>
+
+        
+
+        
         
          <!-- success/error/warning alert for meal completion -->
           <v-alert

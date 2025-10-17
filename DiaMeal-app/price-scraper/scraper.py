@@ -16,6 +16,7 @@ PHILIPPINE_TZ = pytz.timezone('Asia/Manila')
 def get_philippine_timestamp():
     """Get current timestamp in Philippine timezone"""
     return datetime.now(PHILIPPINE_TZ).isoformat()
+
 # Setup logging
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -44,6 +45,15 @@ class CaragaPriceScraper:
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         
         logging.info("Scraper initialized with AI enrichment")
+    
+    def _format_allergens(self, allergen_string):
+        """Convert allergen string to array format for PostgreSQL"""
+        if not allergen_string or allergen_string.lower() == "none":
+            return []  # Empty array
+        
+        # Split by comma and clean up
+        allergens = [a.strip() for a in allergen_string.split(',')]
+        return allergens
         
     def get_ai_nutrition(self, name, category, retry_count=0):
         """Get nutritional data from Llama 3.3 70B with retry logic"""
@@ -57,11 +67,11 @@ Category: {category}
 
 Return ONLY a valid JSON object (no markdown, no explanation) with these exact fields:
 {{
-    "carbs_grams": <float - carbohydrates per 100g, MUST be a number>,
-    "calories_per_serving": <int - calories per 100g serving, MUST be a number>,
-    "protein_grams": <float - protein per 100g, MUST be a number>,
-    "fat_grams": <float - total fat per 100g, MUST be a number>,
-    "fiber_grams": <float - dietary fiber per 100g, MUST be a number>,
+    "carbs_per_100g": <float - carbohydrates per 100g, MUST be a number>,
+    "calories_per_100g": <int - calories per 100g serving, MUST be a number>,
+    "protein_per_100g": <float - protein per 100g, MUST be a number>,
+    "fat_per_100g": <float - total fat per 100g, MUST be a number>,
+    "fiber_per_100g": <float - dietary fiber per 100g, MUST be a number>,
     "glycemic_index": <int - 0-100, estimate if unknown, MUST be a number>,
     "is_diabetic_friendly": <bool - low GI and suitable for diabetics>,
     "is_vegetarian": "<bool - true if contains no meat, poultry, or fish; may include dairy or eggs>",
@@ -111,11 +121,11 @@ CRITICAL RULES:
             
             # FORCE all fields to have values - NO NULLS ALLOWED
             validated_data = {
-                "carbs_grams": float(nutrition_data.get('carbs_grams') or 0.0),
-                "calories_per_serving": int(nutrition_data.get('calories_per_serving') or 0),
-                "protein_grams": float(nutrition_data.get('protein_grams') or 0.0),
-                "fat_grams": float(nutrition_data.get('fat_grams') or 0.0),
-                "fiber_grams": float(nutrition_data.get('fiber_grams') or 0.0),
+                "carbs_per_100g": float(nutrition_data.get('carbs_per_100g') or 0.0),
+                "calories_per_100g": int(nutrition_data.get('calories_per_100g') or 0),
+                "protein_per_100g": float(nutrition_data.get('protein_per_100g') or 0.0),
+                "fat_per_100g": float(nutrition_data.get('fat_per_100g') or 0.0),
+                "fiber_per_100g": float(nutrition_data.get('fiber_per_100g') or 0.0),
                 "glycemic_index": int(nutrition_data.get('glycemic_index') or 50),
                 "is_diabetic_friendly": bool(nutrition_data.get('is_diabetic_friendly', True)),
                 "is_vegetarian": bool(nutrition_data.get('is_vegetarian', True)),
@@ -123,7 +133,7 @@ CRITICAL RULES:
                 "is_halal": bool(nutrition_data.get('is_halal', True)),
                 "is_kosher": bool(nutrition_data.get('is_kosher', True)),
                 "is_catholic": bool(nutrition_data.get('is_catholic', True)),
-                "common_allergens": str(nutrition_data.get('common_allergens') or "none")
+                "common_allergens": self._format_allergens(str(nutrition_data.get('common_allergens') or "none"))
             }
             
             logging.info(f"✅ AI nutrition obtained for {name}")
@@ -147,11 +157,11 @@ CRITICAL RULES:
     def get_default_nutrition(self):
         """Return safe default nutrition values - GUARANTEED NO NULLS"""
         return {
-            "carbs_grams": 0.0,
-            "calories_per_serving": 0,
-            "protein_grams": 0.0,
-            "fat_grams": 0.0,
-            "fiber_grams": 0.0,
+            "carbs_per_100g": 0.0,
+            "calories_per_100g": 0,
+            "protein_per_100g": 0.0,
+            "fat_per_100g": 0.0,
+            "fiber_per_100g": 0.0,
             "glycemic_index": 50,
             "is_diabetic_friendly": True,
             "is_vegetarian": True,
@@ -159,7 +169,7 @@ CRITICAL RULES:
             "is_halal": True,
             "is_kosher": True,
             "is_catholic": True,
-            "common_allergens": "none"
+             "common_allergens": []
         }
     
     def download_pdf(self, pdf_url):
@@ -189,6 +199,14 @@ CRITICAL RULES:
             'LIVESTOCK & POULTRY FEEDS'
         ]
         
+        # ✅ ADD: Excluded item patterns as backup
+        EXCLUDED_ITEMS = [
+            'HOG BOOSTER', 'HOG PRE-STARTER', 'HOG STARTER', 'HOG GROWER', 
+            'HOG FINISHER', 'LACTATING', 'GESTATING', 
+            'CHICK BOOSTER', 'CHICK PRE-STARTER', 'CHICK STARTER', 'CHICK GROWER',
+            'LAYER MASH', 'LAYER 1', 'LAYER 2', 'CRACK CORN'
+        ]
+        
         try:
             logging.info("Extracting data from PDF...")
             with pdfplumber.open(pdf_file) as pdf:
@@ -209,7 +227,7 @@ CRITICAL RULES:
                             commodity_group_raw = (row[0] or "").strip()
                             
                             if commodity_group_raw:
-                                current_category = commodity_group_raw.upper()
+                                current_category = commodity_group_raw.upper().strip()
                             
                             commodity_group = current_category
                             commodity_name = (row[1] or "").strip()
@@ -217,10 +235,18 @@ CRITICAL RULES:
                             unit = (row[3] or "").strip()
                             average_price_str = (row[-1] or "").strip()
                             
-                            if commodity_group in EXCLUDED_CATEGORIES:
+                            # ✅ SKIP if no name or price FIRST
+                            if not commodity_name or not average_price_str:
                                 continue
                             
-                            if not commodity_name or not average_price_str:
+                            # ✅ NOW check exclusions (after we know there's an actual item)
+                            if commodity_group in EXCLUDED_CATEGORIES:
+                                logging.info(f"🚫 EXCLUDED by category: {commodity_name} ({commodity_group})")
+                                continue
+                            
+                            # ✅ BACKUP: Check if item name matches excluded patterns
+                            if any(pattern in commodity_name.upper() for pattern in EXCLUDED_ITEMS):
+                                logging.info(f"🚫 EXCLUDED by name pattern: {commodity_name}")
                                 continue
                             
                             try:
@@ -233,6 +259,8 @@ CRITICAL RULES:
                                     'unit': unit or 'kg',
                                     'average_price': avg_price
                                 })
+                                
+                                logging.info(f"✅ Added to queue: {commodity_name} ({commodity_group})")
                                 
                             except (ValueError, AttributeError):
                                 continue
@@ -247,8 +275,8 @@ CRITICAL RULES:
     def has_any_null_nutrition(self, record):
         """Check if any nutrition field is NULL"""
         nutrition_fields = [
-            'carbs_grams', 'calories_per_serving', 'protein_grams', 
-            'fat_grams', 'fiber_grams', 'glycemic_index', 'common_allergens'
+            'carbs_per_100g', 'calories_per_100g', 'protein_per_100g', 
+            'fat_per_100g', 'fiber_per_100g', 'glycemic_index', 'common_allergens'
         ]
         
         for field in nutrition_fields:
@@ -266,14 +294,18 @@ CRITICAL RULES:
         
         for item in commodities:
             try:
-                price_range = f"₱{item['average_price']:.2f} per {item['unit']}"
+                estimated_price = f"₱{item['average_price']:.2f} per {item['unit']}"
                 
-                from urllib.parse import quote
-                encoded_name = quote(item['name'])
-                
-                # Check if exists and get ALL nutrition fields
-                check_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?name=eq.{encoded_name}&select=id,carbs_grams,calories_per_serving,protein_grams,fat_grams,fiber_grams,glycemic_index,common_allergens"
-                check_response = requests.get(check_url, headers=self.headers)
+                # ✅ CORRECT WAY - Use params instead of manual encoding
+                check_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
+                check_response = requests.get(
+                    check_url, 
+                    headers=self.headers,
+                    params={
+                        "name": f"eq.{item['name']}",
+                        "select": "id,carbs_per_100g,calories_per_100g,protein_per_100g,fat_per_100g,fiber_per_100g,glycemic_index,common_allergens"
+                    }
+                )
                 
                 if check_response.json():
                     # EXISTING ingredient
@@ -285,7 +317,7 @@ CRITICAL RULES:
                         # ✅ COMPLETE DATA - Update price only
                         data = {
                             'specifications': item.get('specifications'),
-                            'price_range': price_range,
+                            'estimated_price': estimated_price,
                             'availability': 'available',
                             'updated_at': get_philippine_timestamp() 
                         }
@@ -298,16 +330,26 @@ CRITICAL RULES:
                         
                         data = {
                             'specifications': item.get('specifications'),
-                            'price_range': price_range,
+                            'estimated_price': estimated_price,
                             'availability': 'available',
                             'updated_at': get_philippine_timestamp(),
                             **nutrition  # This will overwrite ALL nutrition fields
                         }
                         logging.info(f"🔧 Fixed NULLs: {item['name']}")
                     
-                    update_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?id=eq.{record_id}"
-                    requests.patch(update_url, headers=self.headers, json=data)
-                    updated += 1
+                    update_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
+                    update_response = requests.patch(
+                        update_url, 
+                        headers=self.headers, 
+                        json=data,
+                        params={"id": f"eq.{record_id}"}
+                    )
+                    
+                    # ✅ ADD ERROR CHECKING
+                    if update_response.status_code >= 400:
+                        logging.error(f"❌ Update failed for {item['name']}: {update_response.text}")
+                    else:
+                        updated += 1
                     
                 else:
                     # ➕ NEW ingredient - Get complete AI nutrition
@@ -320,17 +362,22 @@ CRITICAL RULES:
                         'category': item['category'],
                         'specifications': item.get('specifications'),
                         'typical_serving_size': f"{item['unit']}",
-                        'price_range': price_range,
+                        'estimated_price': estimated_price,
                         'availability': 'available',
-                        'created_at': get_philippine_timestamp() ,
+                        'created_at': get_philippine_timestamp(),
                         'updated_at': get_philippine_timestamp(),
                         **nutrition
                     }
                     
                     insert_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
-                    requests.post(insert_url, headers=self.headers, json=data)
-                    inserted += 1
-                    logging.info(f"➕ Inserted: {item['name']}")
+                    insert_response = requests.post(insert_url, headers=self.headers, json=data)
+                    
+                    # ✅ ADD ERROR CHECKING
+                    if insert_response.status_code >= 400:
+                        logging.error(f"❌ Insert failed for {item['name']}: {insert_response.text}")
+                    else:
+                        inserted += 1
+                        logging.info(f"➕ Inserted: {item['name']}")
                 
             except Exception as e:
                 logging.error(f"❌ Error: {item['name']} - {e}")
@@ -344,7 +391,7 @@ CRITICAL RULES:
         print("\n🔍 Scanning for NULL records in database...")
         
         # Get all records with ANY NULL nutrition field
-        url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?select=id,name,category,carbs_grams,calories_per_serving,common_allergens"
+        url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?select=id,name,category,carbs_per_100g,calories_per_100g,common_allergens"
         response = requests.get(url, headers=self.headers)
         
         if not response.json():
@@ -371,7 +418,7 @@ CRITICAL RULES:
                 update_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?id=eq.{record['id']}"
                 requests.patch(update_url, headers=self.headers, json={
                     **nutrition,
-                    'updated_at': datetime.now().isoformat()
+                    'updated_at': get_philippine_timestamp()
                 })
                 fixed += 1
                 print(f"   ✅ Fixed!")

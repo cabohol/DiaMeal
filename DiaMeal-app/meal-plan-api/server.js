@@ -354,7 +354,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Use ONLY ingredients from the provided available_ingredients list
     - Each meal's ingredients array must contain ingredient names that exist in available_ingredients  
     - Check ingredient flags (is_diabetic_friendly, is_halal, etc.) before using
-    - Use ingredient.price_range for cost calculations
+    - Use ingredient.estimated_price for cost calculations
     - For each ingredient, specify the exact amount in grams
     - Calculate nutrition based on these amounts
     - Consider the user's caloric needs and budget
@@ -411,7 +411,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - 4-9 steps depending on complexity
 
     COST CALCULATION:
-    - Use ingredient.price_range to estimate costs
+    - Use ingredient.estimated_price to estimate costs
     - Calculate: estimated_cost_per_serving = sum(ingredient_cost × quantity)
     - serving_size: e.g., "1 plate", "1 bowl"
     - servings_count: typically 1 per person
@@ -484,12 +484,13 @@ app.post('/api/generateMealPlan', async (req, res) => {
       available_ingredients: availableIngredients.map(ing => ({
         name: ing.name,
         category: ing.category,
-        price_range: ing.price_range,  
-        calories_per_serving: ing.calories_per_serving,
-        protein_grams: ing.protein_grams,
-        carbs_grams: ing.carbs_grams,
-        fat_grams: ing.fat_grams,
-        fiber_grams: ing.fiber_grams,
+        estimated_price: ing.estimated_price,  
+        calories_per_100g: ing.calories_per_100g,
+        protein_per_100g: ing.protein_per_100g,
+        carbs_per_100g: ing.carbs_per_100g,
+        fat_per_100g: ing.fat_per_100g,
+        fiber_per_100g: ing.fiber_per_100g,
+        glycemic_index: ing.glycemic_index,
         is_diabetic_friendly: ing.is_diabetic_friendly,
         is_halal: ing.is_halal,
         is_kosher: ing.is_kosher,

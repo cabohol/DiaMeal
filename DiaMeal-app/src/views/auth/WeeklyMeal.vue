@@ -51,8 +51,6 @@ const formatProcedureSteps = computed(() => {
 })
 
 
-
-
 const daysWithDates = ref([])
 const selectedDayIndex = ref(0)
 const selectedDay = computed(() => {
@@ -152,7 +150,6 @@ const fetchUserBudget = async () => {
   }
 }
 
-// Calculate spent amount based on completed meals
 // Calculate spent amount based on completed meals
 const spentAmount = computed(() => {
   let total = 0;
@@ -267,16 +264,15 @@ const calculateNutrition = async () => {
 }
 
 // Helper function to process nutrition data
-// Helper function to process nutrition data
 const processNutritionData = (nutritionData) => {
   console.log('Processing nutrition data:', nutritionData)
 
-  // ✅ Get amounts from ingredient_amounts field
+  // Get amounts from ingredient_amounts field
   const ingredientAmounts = selectedMeal.value.ingredient_amounts || {}
 
   // Transform ingredients with calculated costs
   selectedMeal.value.ingredients = nutritionData.map(ingredient => {
-    // ✅ Get amount from ingredient_amounts object
+    // Get amount from ingredient_amounts object
     const amountData = ingredientAmounts[ingredient.name] || { amount: 100, unit: 'g' }
     const amount = amountData.amount
     const unit = amountData.unit
@@ -331,7 +327,6 @@ const extractPrice = (priceRange) => {
   }
   return null
 }
-
 
 // Computed property to return the nutrition totals
 const totalNutrition = computed(() => {
@@ -407,7 +402,7 @@ const fetchUserStartDate = async () => {
   }
 }
 
-// Add this before your existing fetchMealPlan try block
+// Add this before existing fetchMealPlan try block
 console.log('Environment check:', {
   isDev,
   API_BASE_URL,
@@ -458,8 +453,8 @@ const fetchMealPlan = async (forceRegenerate = false) => {
       user_id: userRow.id,
       force_regenerate: forceRegenerate 
     }
-    console.log('🚀 Making API request with body:', JSON.stringify(requestBody, null, 2))
-    console.log('🌐 API URL:', `${API_BASE_URL}/api/generateMealPlan`)
+    console.log('Making API request with body:', JSON.stringify(requestBody, null, 2))
+    console.log('API URL:', `${API_BASE_URL}/api/generateMealPlan`)
 
     // Generate new meal plan
     const resp = await fetchWithCors(`${API_BASE_URL}/api/generateMealPlan`, {
@@ -467,19 +462,19 @@ const fetchMealPlan = async (forceRegenerate = false) => {
       body: JSON.stringify(requestBody)
     })
 
-    console.log('📡 Response received - Status:', resp.status)
-    console.log('📡 Response headers:', Object.fromEntries(resp.headers.entries()))
+    console.log('Response received - Status:', resp.status)
+    console.log('Response headers:', Object.fromEntries(resp.headers.entries()))
 
     if (!resp.ok) {
       const text = await resp.text()
-      console.error('❌ Error response body:', text)
+      console.error('Error response body:', text)
       
       try {
         const errorJson = JSON.parse(text)
-        console.error('❌ Parsed error:', errorJson)
+        console.error('Parsed error:', errorJson)
         throw new Error(errorJson.error || `Server error: ${resp.status}`)
       } catch (parseError) {
-        console.error('❌ Failed to parse error response:', parseError)
+        console.error('Failed to parse error response:', parseError)
         throw new Error(`Server error: ${resp.status} - ${text}`)
       }
     }
@@ -494,7 +489,7 @@ const fetchMealPlan = async (forceRegenerate = false) => {
 
     // Check if mealPlansByDay has the expected structure
     if (json.mealPlansByDay) {
-      console.log('📋 Meal plans structure check:')
+      console.log('Meal plans structure check:')
       Object.keys(json.mealPlansByDay).forEach(day => {
         const dayPlan = json.mealPlansByDay[day]
         console.log(`  ${day}:`, {
@@ -515,8 +510,8 @@ const fetchMealPlan = async (forceRegenerate = false) => {
     
     console.log('Meal plans loaded successfully')
   } catch (err) {
-    console.error('💥 Error in fetchMealPlan:', err)
-    console.error('💥 Error stack:', err.stack)
+    console.error('Error in fetchMealPlan:', err)
+    console.error('Error stack:', err.stack)
     errorMsg.value = err.message || 'Something went wrong'
   } finally {
     loading.value = false
@@ -549,9 +544,7 @@ const sections = computed(() => ([
   { key: 'dinner', title: 'DINNER', icon: 'mdi-silverware-fork-knife' }
 ]))
 
-// Updated Modal functions to include nutrition calculation
-// In WeeklyMeal.vue, update the viewMeal function:
-
+// Modal functions to include nutrition calculation
 const viewMeal = async (meal) => {
   try {
     // Fetch the complete meal data with ingredient amounts
@@ -718,7 +711,6 @@ const isViewDetailsDisabled = (date, mealType, mealIndex) => {
   if (completedIndex === mealIndex) {
     return false
   }
-  
   // Otherwise, disable it (another option was chosen)
   return true
 }
@@ -765,21 +757,21 @@ const getButtonText = (date, mealType, mealIndex) => {
   return 'Mark as Complete'
 }
 
-// NEW: Get button color based on completion status
+// Get button color based on completion status
 const getButtonColor = (date, mealType, mealIndex) => {
   if (isMealOptionCompleted(date, mealType, mealIndex)) {
-    return 'success' // Green for completed
+    return 'success' 
   }
   
   const completedIndex = getCompletedMealIndex(date, mealType)
   if (completedIndex !== null && completedIndex !== mealIndex) {
-    return 'grey' // Gray for disabled
+    return 'grey' 
   }
   
-  return '#A9C46C' // Default green for available
+  return '#A9C46C' 
 }
 
-// NEW: Get button icon based on completion status
+// Get button icon based on completion status
 const getButtonIcon = (date, mealType, mealIndex) => {
   if (isMealOptionCompleted(date, mealType, mealIndex)) {
     return 'mdi-check-circle'
@@ -793,8 +785,7 @@ const getButtonIcon = (date, mealType, mealIndex) => {
   return 'mdi-check-circle'
 }
 
-// UPDATED: markMealAsCompleted function with enforcement
-// DEBUGGING VERSION: markMealAsCompleted with detailed logging
+// markMealAsCompleted function 
 const markMealAsCompleted = async (meal, mealType, mealIndex) => {
   try {
     console.log('=== MARK MEAL COMPLETE START ===')
@@ -947,7 +938,7 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
     console.log('Progress response:', { data: progressData, error: progressError })
 
     if (progressError) {
-      console.error("❌ Error updating progress:", progressError)
+      console.error("Error updating progress:", progressError)
       alertMessage.value = `Meal completed but progress update failed: ${progressError.message}`
       alertType.value = 'warning'
       showSuccessAlert.value = true
@@ -972,7 +963,7 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
     return true
     
   } catch (err) {
-    console.error("❌ Error in markMealAsCompleted:", err)
+    console.error("Error in markMealAsCompleted:", err)
     console.error('Error stack:', err.stack)
     alertMessage.value = "An unexpected error occurred. Please try again."
     alertType.value = 'error'
@@ -1047,7 +1038,7 @@ onMounted(async () => {
   }
 
   await fetchUserStartDate()
-  await fetchUserBudget() // Add this line
+  await fetchUserBudget() 
   if (!errorMsg.value) {
     await fetchMealPlan()
     await fetchCompletedMeals()
@@ -1408,37 +1399,32 @@ onMounted(async () => {
               </v-chip>
             </div>
              
-            <!-- ✅ COST & SERVING INFO (add this) -->
-  <v-card class="mb-4 pa-3" color="#F0F8E8" elevation="0" rounded="lg">
-    <div class="d-flex justify-space-around align-center flex-wrap">
-      <!-- Cost per serving -->
-      <!-- <div class="text-center pa-2">
-        <v-icon color="#4CAF50" size="small" class="mb-1">mdi-currency-php</v-icon>
-        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Cost</div>
-        <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-          ₱{{ selectedMeal.estimated_cost_per_serving?.toFixed(2) || '0.00' }}
-        </div>
-      </div> -->
+            <!-- COST & SERVING INFO -->
+            <v-row class="mb-7 justify-center">
+              <v-col cols="12" sm="10" md="12" lg="10" xl="8">
+                <v-card class="pa-4 text-center nutrition-card" elevation="1" rounded="lg" color="#F8FDF0">
+                  <v-row class="nutrition-grid">
+                    <!-- Serving size -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#FF9800" size="28" class="mb-2">mdi-silverware-fork-knife</v-icon>
+                      <div class="label">Serving</div>
+                      <div class="value">
+                        {{ selectedMeal.serving_size || '1 serving' }}
+                      </div>
+                    </v-col>
 
-      <!-- Serving size -->
-      <div class="text-center pa-2">
-        <v-icon color="#FF9800" size="small" class="mb-1">mdi-silverware-fork-knife</v-icon>
-        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Serving</div>
-        <div class="text-body-1 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-          {{ selectedMeal.serving_size || '1 serving' }}
-        </div>
-      </div>
-
-      <!-- Servings count -->
-      <div class="text-center pa-2">
-        <v-icon color="#2196F3" size="small" class="mb-1">mdi-numeric</v-icon>
-        <div class="text-caption" style="color: #5D8736; font-family: 'Syne', sans-serif;">Count</div>
-        <div class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-          {{ selectedMeal.servings_count || 1 }}
-        </div>
-      </div>
-    </div>
-  </v-card>
+                    <!-- Servings count -->
+                    <v-col class="nutrition-item">
+                      <v-icon color="#2196F3" size="28" class="mb-2">mdi-bowl-mix</v-icon>
+                      <div class="label">Count</div>
+                      <div class="value">
+                        {{ selectedMeal.servings_count || 1 }}
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </v-col>
+            </v-row>
 
             <!-- Quick Info Card - Calories and Nutrition -->
             <v-row class="mb-7 justify-center">
@@ -1487,133 +1473,131 @@ onMounted(async () => {
             </v-row>
 
             <!-- Ingredients -->
-            <!-- Ingredients Section -->
-<div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
-  <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center"
-      style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-    <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
-    Ingredients (Per Serving)
-  </h3>
-  
-  <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
-    <!-- Ingredient List -->
-    <div 
-      v-for="(ingredient, index) in selectedMeal.ingredients"
-      :key="index"
-      class="ingredient-item mb-3 pb-3"
-      :class="{ 'border-bottom': index !== selectedMeal.ingredients.length - 1 }"
-    >
-      <!-- Ingredient Name & Amount -->
-      <div class="d-flex justify-space-between align-center mb-2">
-        <div class="d-flex align-center">
-          <v-icon color="#A9C46C" size="small" class="mr-2">mdi-circle-small</v-icon>
-          <span class="text-body-1 font-weight-medium" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-            {{ typeof ingredient === 'string' ? ingredient : ingredient.name }}
-          </span>
-        </div>
-        
-        <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-          {{ typeof ingredient === 'object' ? `${ingredient.amount}${ingredient.unit}` : '100g' }}
-        </span>
-      </div>
-
-      <!-- Price Info -->
-      <div class="d-flex justify-space-between align-center ml-6">
-        <span class="text-caption" style="color: #7A7A7A; font-family: 'Syne', sans-serif;">
-          {{ typeof ingredient === 'object' ? ingredient.pricePerKg : '₱-- per kg' }}
-        </span>
-        
-        <div class="d-flex align-center">
-          <v-icon size="x-small" color="#5D8736" class="mr-1">mdi-arrow-right</v-icon>
-          <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-            ₱{{ typeof ingredient === 'object' ? ingredient.calculatedPrice.toFixed(2) : '0.00' }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Total Cost -->
-    <v-divider class="my-3"></v-divider>
-    <div class="d-flex justify-space-between align-center">
-      <span class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-        Total:
-      </span>
-      <span class="text-h6 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
-        ₱{{ nutritionTotals.totalCost ? nutritionTotals.totalCost.toFixed(2) : '0.00' }}/serving
-      </span>
-    </div>
-  </v-card>
-</div>
-   <!-- Instructions (Procedure) -->
-
-          <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string' && formatProcedureSteps.length > 0">
-            <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
-                Procedure
+            <div v-if="selectedMeal.ingredients && selectedMeal.ingredients.length > 0" class="mb-6">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center"
+                  style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                <v-icon color="#5D8736" class="mr-2">mdi-format-list-bulleted</v-icon>
+                Ingredients (Per Serving)
               </h3>
-              <br></br>
-
-          <div 
-            v-for="(step, index) in formatProcedureSteps" 
-            :key="`step-${index}`"
-            class="mb-4 mt-1 last:mb-0"
-          >
-            <div class="d-flex align-start">
-              <div 
-                class="mr-3 flex-shrink-0 d-flex align-center justify-center"
-                style="
-                  min-width: 70px;
-                  height: 36px; 
-                  background: linear-gradient(135deg, #5D8736 0%, #4A6B2B 100%);
-                  border-radius: 8px; 
-                  color: white; 
-                  font-weight: bold;
-                  font-size: 13px;
-                  font-family: 'Syne', sans-serif;
-                  padding: 0 12px;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-                "
-              >
-                Step  {{ index + 1 }} :
-              </div>
               
-              <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.8; color: #2C3E50; font-family: 'Syne', sans-serif; margin-top: 4px;">
-                {{ step }}
-              </p>
-            </div>
-          </div>
-          </div>
-
-          <!-- Handle array-based instructions -->
-          <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
-            <div
-              v-for="(instruction, index) in selectedMeal.instructions"
-              :key="`instruction-${index}`"
-              class="mb-4 last:mb-0"
-            >
-              <div class="d-flex align-start">
+              <v-card class="pa-4" elevation="0" color="#F8FDF0" rounded="lg">
+                <!-- Ingredient List -->
                 <div 
-                  class="mr-3 mt-1 flex-shrink-0 d-flex align-center justify-center"
-                  style="
-                    width: 32px; 
-                    height: 32px; 
-                    background: #5D8736; 
-                    border-radius: 50%; 
-                    color: white; 
-                    font-weight: bold; 
-                    font-size: 14px;
-                    font-family: 'Syne', sans-serif;
-                  "
+                  v-for="(ingredient, index) in selectedMeal.ingredients"
+                  :key="index"
+                  class="ingredient-item mb-3 pb-3"
+                  :class="{ 'border-bottom': index !== selectedMeal.ingredients.length - 1 }"
                 >
-                  {{ index + 1 }}
+                  <!-- Ingredient Name & Amount -->
+                  <div class="d-flex justify-space-between align-center mb-2">
+                    <div class="d-flex align-center">
+                      <v-icon color="#A9C46C" size="small" class="mr-2">mdi-circle-small</v-icon>
+                      <span class="text-body-1 font-weight-medium" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                        {{ typeof ingredient === 'string' ? ingredient : ingredient.name }}
+                      </span>
+                    </div>
+                    
+                    <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                      {{ typeof ingredient === 'object' ? `${ingredient.amount}${ingredient.unit}` : '100g' }}
+                    </span>
+                  </div>
+
+                  <!-- Price Info -->
+                  <div class="d-flex justify-space-between align-center ml-6">
+                    <span class="text-caption" style="color: #7A7A7A; font-family: 'Syne', sans-serif;">
+                      {{ typeof ingredient === 'object' ? ingredient.pricePerKg : '₱-- per kg' }}
+                    </span>
+                    
+                    <div class="d-flex align-center">
+                      <v-icon size="x-small" color="#5D8736" class="mr-1">mdi-arrow-right</v-icon>
+                      <span class="text-body-2 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                        ₱{{ typeof ingredient === 'object' ? ingredient.calculatedPrice.toFixed(2) : '0.00' }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                
-                <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
-                  {{ instruction }}
-                </p>
+
+                <!-- Total Cost -->
+                <v-divider class="my-3"></v-divider>
+                <div class="d-flex justify-space-between align-center">
+                  <span class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    Total:
+                  </span>
+                  <span class="text-h6 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
+                    ₱{{ nutritionTotals.totalCost ? nutritionTotals.totalCost.toFixed(2) : '0.00' }}/serving
+                  </span>
+                </div>
+              </v-card>
+            </div>
+
+            <!-- Procedure -->
+            <div v-if="selectedMeal.procedures && typeof selectedMeal.procedures === 'string' && formatProcedureSteps.length > 0">
+              <h3 class="text-h6 font-weight-bold mb-3 d-flex align-center" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
+                  <v-icon color="#5D8736" class="mr-2">mdi-chef-hat</v-icon>
+                  Procedure
+                </h3>
+                <br></br>
+
+                <div 
+                  v-for="(step, index) in formatProcedureSteps" 
+                  :key="`step-${index}`"
+                  class="mb-4 mt-1 last:mb-0"
+                >
+                  <div class="d-flex align-start">
+                    <div 
+                      class="mr-3 flex-shrink-0 d-flex align-center justify-center"
+                      style="
+                        min-width: 70px;
+                        height: 36px; 
+                        background: linear-gradient(135deg, #5D8736 0%, #4A6B2B 100%);
+                        border-radius: 8px; 
+                        color: white; 
+                        font-size: 13px;
+                        font-family: 'Syne', sans-serif;
+                        padding: 0 12px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+                      "
+                    >
+                      Step  {{ index + 1 }} :
+                    </div>
+                    
+                    <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.8; color: #2C3E50; font-family: 'Syne', sans-serif; margin-top: 4px;">
+                      {{ step }}
+                    </p>
+                  </div>
+                </div>
+            </div>
+
+            <!-- Handle array-based instructions -->
+            <div v-else-if="selectedMeal.instructions && Array.isArray(selectedMeal.instructions)">
+              <div
+                v-for="(instruction, index) in selectedMeal.instructions"
+                :key="`instruction-${index}`"
+                class="mb-4 last:mb-0"
+              >
+                <div class="d-flex align-start">
+                  <div 
+                    class="mr-3 mt-1 flex-shrink-0 d-flex align-center justify-center"
+                    style="
+                      width: 32px; 
+                      height: 32px; 
+                      background: #5D8736; 
+                      border-radius: 50%; 
+                      color: white; 
+                      font-weight: bold; 
+                      font-size: 14px;
+                      font-family: 'Syne', sans-serif;
+                    "
+                  >
+                    {{ index + 1 }}
+                  </div>
+                  
+                  <p class="text-body-2 mb-0 flex-grow-1" style="line-height: 1.6; color: #2C3E50; font-family: 'Syne', sans-serif;">
+                    {{ instruction }}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
           </v-card-text>
         </v-card>
       </v-dialog>

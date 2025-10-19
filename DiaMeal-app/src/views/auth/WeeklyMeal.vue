@@ -971,6 +971,50 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
     return false
   }
 }
+
+// Add this computed property
+// Add this computed property
+const estimatedDayBudget = computed(() => {
+  const dateStr = selectedDay.value?.date
+  if (!dateStr || !mealPlansByDay.value[dateStr]) {
+    return {
+      breakfast: 0,
+      lunch: 0,
+      dinner: 0,
+      total: 0,
+      dailyTarget: weeklyBudget.value / 7,
+      difference: 0,
+      percentage: 0
+    }
+  }
+  
+  const dayMeals = mealPlansByDay.value[dateStr]
+  
+  // Calculate average cost for each meal type (3 options each)
+  const calculateAverage = (meals) => {
+    if (!meals || meals.length === 0) return 0
+    const total = meals.reduce((sum, m) => sum + (m.estimated_cost_per_serving || 0), 0)
+    return total / meals.length
+  }
+  
+  const breakfast = calculateAverage(dayMeals.breakfast)
+  const lunch = calculateAverage(dayMeals.lunch)
+  const dinner = calculateAverage(dayMeals.dinner)
+  const total = breakfast + lunch + dinner
+  const dailyTarget = weeklyBudget.value / 7
+  
+  return {
+    breakfast,
+    lunch,
+    dinner,
+    total,
+    dailyTarget,
+    difference: dailyTarget - total,
+    percentage: (total / dailyTarget) * 100
+  }
+})
+
+
 // UPDATED: Fetch completed meals from database
 const fetchCompletedMeals = async () => {
   try {
@@ -1142,80 +1186,258 @@ onMounted(async () => {
               {{ selectedDay?.date ? formatDate(selectedDay.date) : '' }}
             </p>
           </v-card-text>
+          </v-card>  
 
-              <!-- Time Window Information Alert -->
-
-<!-- Time Window Information Alert -->
-<v-alert
-  variant="tonal"
-  prominent
-  class="mb-4 mx-2 mx-sm-4"
-  color="#5D8736"
-  rounded="lg"
->
-  <div class="d-flex flex-column align-center text-center">
-    <span class="font-weight-bold mb-3" style="font-family: 'Syne', sans-serif; font-size: 16px;">
-      Meal Completion Time Windows
-    </span>
-    <div class="text-body-2" style="font-family: 'Syne', sans-serif;">
-      <div class="mb-2 d-flex align-center justify-center">
-        <v-icon size="small" class="mr-2" color="#FF9800">mdi-egg-fried</v-icon>
-        <strong>Breakfast:</strong> <span class="ml-1">6:00 AM - 8:00 AM</span>
-      </div>
-      <div class="mb-2 d-flex align-center justify-center">
-        <v-icon size="small" class="mr-2" color="#FFC107">mdi-bowl-mix</v-icon>
-        <strong>Lunch:</strong> <span class="ml-1">11:00 AM - 2:00 PM</span>
-      </div>
-      <div class="d-flex align-center justify-center">
-        <v-icon size="small" class="mr-2" color="#FF9800">mdi-pot-steam</v-icon>
-        <strong>Dinner:</strong> <span class="ml-1">6:00 PM - 11:00 PM</span>
-      </div>
-    </div>
-  </div>
-</v-alert>
-
-        </v-card>
-
-        
-
-        
-        
-         <!-- success/error/warning alert for meal completion -->
-          <v-alert
-              v-if="showSuccessAlert"
-              :type="alertType"
+            <!-- Time Window Information Alert -->
+            <v-alert
               variant="tonal"
-              closable
-              @click:close="showSuccessAlert = false"
-              class="custom-alert"
-              :class="{
-                'ma-2': $vuetify.display.xs,
-                'ma-3': $vuetify.display.sm,
-                'ma-4': $vuetify.display.mdAndUp
-              }"
+              prominent
+              class="mb-4 mx-2 mx-sm-4"
+              color="#5D8736"
               rounded="lg"
             >
-              <div class="d-flex align-center">
-                <v-icon 
-                  :color="alertType === 'success' ? 'success' : 
-                        alertType === 'warning' ? 'warning' : 
-                        alertType === 'error' ? 'error' : 'info'"
-                  :size="$vuetify.display.xs ? 'default' : 'large'"
-                  class="mr-3"
-                >
-                </v-icon>
-                
-                <span 
-                  class="alert-message" 
-                  :class="{
-                    'text-body-2': $vuetify.display.xs,
-                    'text-body-1': $vuetify.display.smAndUp
-                  }"
-                >
-                  {{ alertMessage }}
+              <div class="d-flex flex-column align-center text-center">
+                <span class="font-weight-bold mb-3" style="font-family: 'Syne', sans-serif; font-size: 16px;">
+                  Meal Completion Time Windows
+                </span>
+                <div class="text-body-2" style="font-family: 'Syne', sans-serif;">
+                  <div class="mb-2 d-flex align-center justify-center">
+                    <v-icon size="small" class="mr-2" color="#FF9800">mdi-egg-fried</v-icon>
+                    <strong>Breakfast:</strong> <span class="ml-1">6:00 AM - 8:00 AM</span>
+                  </div>
+                  <div class="mb-2 d-flex align-center justify-center">
+                    <v-icon size="small" class="mr-2" color="#FFC107">mdi-bowl-mix</v-icon>
+                    <strong>Lunch:</strong> <span class="ml-1">11:00 AM - 2:00 PM</span>
+                  </div>
+                  <div class="d-flex align-center justify-center">
+                    <v-icon size="small" class="mr-2" color="#FF9800">mdi-pot-steam</v-icon>
+                    <strong>Dinner:</strong> <span class="ml-1">6:00 PM - 11:00 PM</span>
+                  </div>
+                </div>
+              </div>
+            </v-alert>
+            
+          <!-- Daily Budget Estimate Card -->
+    <v-card 
+      class="mb-6 mx-2 mx-sm-4" 
+      rounded="lg" 
+      elevation="3"
+    >
+      <!-- Header -->
+      <div class="pa-4" style="background: linear-gradient(135deg, #5D8736 0%, #7BAF4A 100%);">
+        <div class="d-flex align-items-center justify-space-between">
+          <div class="d-flex align-items-center">
+            <v-icon color="white" size="large" class="mr-2">mdi-calendar-today</v-icon>
+            <div>
+              <h3 class="text-h6 font-weight-bold text-white" style="font-family: 'Syne', sans-serif;">
+                {{ selectedDay?.label }} Budget Estimate
+              </h3>
+              <p class="text-caption text-white" style="font-family: 'Syne', sans-serif;">
+                {{ selectedDay?.date ? formatDate(selectedDay.date) : '' }} • Per Serving
+              </p>
+            </div>
+          </div>
+          <v-chip 
+            :color="estimatedDayBudget.difference >= 0 ? 'success' : 'error'"
+            size="small"
+            class="font-weight-bold"
+          >
+            {{ estimatedDayBudget.percentage.toFixed(0) }}%
+          </v-chip>
+        </div>
+      </div>
+
+      <v-card-text class="pa-4">
+        <!-- Budget Overview -->
+        <v-row class="mb-4">
+          <v-col cols="6">
+            <v-card class="pa-3 text-center" elevation="0" color="#7BAF4B" rounded="lg">
+              <p class="text-caption mb-1" style="font-family: 'Syne', sans-serif; color: #FFFF;">
+                Daily Target
+              </p>
+              <p class="text-h6 font-weight-bold" style="font-family: 'Syne', sans-serif; color: #FFFF;">
+                ₱{{ estimatedDayBudget.dailyTarget.toFixed(2) }}
+              </p>
+              <p class="text-caption" style="font-family: 'Syne', sans-serif; color: #FFFF;">
+                per day
+              </p>
+            </v-card>
+          </v-col>
+          <v-col cols="6">
+            <v-card 
+              class="pa-3 text-center" 
+              elevation="0" 
+              rounded="lg"
+              :color="estimatedDayBudget.difference >= 0 ? '#E8F5E9' : '#FFEBEE'"
+            >
+              <p 
+                class="text-caption mb-1" 
+                style="font-family: 'Syne', sans-serif;"
+                :style="{ color: estimatedDayBudget.difference >= 0 ? '#388E3C' : '#C62828' }"
+              >
+                Estimated Total
+              </p>
+              <p 
+                class="text-h6 font-weight-bold" 
+                style="font-family: 'Syne', sans-serif;"
+                :style="{ color: estimatedDayBudget.difference >= 0 ? '#1B5E20' : '#B71C1C' }"
+              >
+                ₱{{ estimatedDayBudget.total.toFixed(2) }}
+              </p>
+              <p 
+                class="text-caption" 
+                style="font-family: 'Syne', sans-serif;"
+                :style="{ color: estimatedDayBudget.difference >= 0 ? '#388E3C' : '#C62828' }"
+              >
+                per serving
+              </p>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Meal Type Breakdown -->
+        <div class="mb-4">
+          <h4 class="text-body-2 font-weight-bold mb-3 d-flex align-items-center" 
+              style="font-family: 'Syne', sans-serif; color: #2C3E50;">
+            Average Cost per Meal Type (3 options each)
+          </h4>
+
+          <!-- Breakfast -->
+          <v-card class="mb-2 pa-3" elevation="0" color="#E8F5E9" rounded="lg">
+            <div class="d-flex justify-space-between align-items-center">
+              <div class="d-flex align-items-center">
+                <v-icon color="#388E3C" size="small" class="mr-2">mdi-egg-fried</v-icon>
+                <span class="text-body-2 font-weight-medium" style="font-family: 'Syne', sans-serif;">
+                  Breakfast
                 </span>
               </div>
-          </v-alert>
+              <div class="text-right">
+                <span class="text-body-2 font-weight-bold d-block" style="font-family: 'Syne', sans-serif; color: #388E3C;">
+                  ₱{{ estimatedDayBudget.breakfast.toFixed(2) }}
+                </span>
+                <span class="text-caption" style="font-family: 'Syne', sans-serif; color: #757575;">
+                  per serving
+                </span>
+              </div>
+            </div>
+          </v-card>
+
+          <!-- Lunch -->
+          <v-card class="mb-2 pa-3" elevation="0" color="#E8F5E9" rounded="lg">
+            <div class="d-flex justify-space-between align-items-center">
+              <div class="d-flex align-items-center">
+                <v-icon color="#388E3C" size="small" class="mr-2">mdi-bowl-mix</v-icon>
+                <span class="text-body-2 font-weight-medium" style="font-family: 'Syne', sans-serif;">
+                  Lunch
+                </span>
+              </div>
+              <div class="text-right">
+                <span class="text-body-2 font-weight-bold d-block" style="font-family: 'Syne', sans-serif; color: #388E3C;">
+                  ₱{{ estimatedDayBudget.lunch.toFixed(2) }}
+                </span>
+                <span class="text-caption" style="font-family: 'Syne', sans-serif; color: #757575;">
+                  per serving
+                </span>
+              </div>
+            </div>
+          </v-card>
+
+          <!-- Dinner -->
+          <v-card class="pa-3" elevation="0" color="#E8F5E9" rounded="lg">
+            <div class="d-flex justify-space-between align-items-center">
+              <div class="d-flex align-items-center">
+                <v-icon color="#388E3C" size="small" class="mr-2">mdi-pot-steam</v-icon>
+                <span class="text-body-2 font-weight-medium" style="font-family: 'Syne', sans-serif;">
+                  Dinner
+                </span>
+              </div>
+              <div class="text-right">
+                <span class="text-body-2 font-weight-bold d-block" style="font-family: 'Syne', sans-serif; color: #388E3C;">
+                  ₱{{ estimatedDayBudget.dinner.toFixed(2) }}
+                </span>
+                <span class="text-caption" style="font-family: 'Syne', sans-serif; color: #757575;">
+                  per serving
+                </span>
+              </div>
+            </div>
+          </v-card>
+        </div>
+
+        <!-- Budget Status -->
+        <v-alert
+          :type="estimatedDayBudget.difference >= 0 ? 'success' : 'error'"
+          variant="tonal"
+          rounded="lg"
+          class="mb-3"
+        >
+          <div class="d-flex align-items-start">
+           
+            <div>
+              <p class="text-body-2 font-weight-bold mb-1" style="font-family: 'Syne', sans-serif;">
+                {{ estimatedDayBudget.difference >= 0 ? 'Within Budget' : 'Over Budget' }}
+              </p>
+              <p class="text-caption" style="font-family: 'Syne', sans-serif;">
+                {{ estimatedDayBudget.difference >= 0 
+                  ? `You'll save ₱${estimatedDayBudget.difference.toFixed(2)} under daily target.`
+                  : `Estimated ₱${Math.abs(estimatedDayBudget.difference).toFixed(2)} over daily target.`
+                }}
+              </p>
+            </div>
+          </div>
+        </v-alert>
+
+        <!-- Info Note -->
+        <v-alert
+          type="info"
+          variant="tonal"
+          rounded="lg"
+          density="compact"
+        >
+          <p class="text-caption" style="font-family: 'Syne', sans-serif;">
+            <strong>Note:</strong> All costs are <strong>per serving</strong> and show averages of 3 meal options. 
+            Actual cost depends on your meal choice.
+          </p>
+        </v-alert>
+      </v-card-text>
+    </v-card>
+    <!-- End of Budget Card -->
+
+    <!-- success/error/warning alert for meal completion -->
+    <v-alert
+      v-if="showSuccessAlert"
+      :type="alertType"
+      variant="tonal"
+      closable
+      @click:close="showSuccessAlert = false"
+      class="custom-alert"
+      :class="{
+        'ma-2': $vuetify.display.xs,
+        'ma-3': $vuetify.display.sm,
+        'ma-4': $vuetify.display.mdAndUp
+      }"
+      rounded="lg"
+    >
+      <div class="d-flex align-center">
+        <v-icon 
+          :color="alertType === 'success' ? 'success' : 
+                alertType === 'warning' ? 'warning' : 
+                alertType === 'error' ? 'error' : 'info'"
+          :size="$vuetify.display.xs ? 'default' : 'large'"
+          class="mr-3"
+        >
+        </v-icon>
+        
+        <span 
+          class="alert-message" 
+          :class="{
+            'text-body-2': $vuetify.display.xs,
+            'text-body-1': $vuetify.display.smAndUp
+          }"
+        >
+          {{ alertMessage }}
+        </span>
+      </div>
+    </v-alert>
 
         <!-- Meal Type Sections -->
         <v-card
@@ -1538,16 +1760,46 @@ onMounted(async () => {
                   </div>
                 </div>
 
-                <!-- Total Cost -->
+                  <!-- Total Cost -->
                 <v-divider class="my-3"></v-divider>
                 <div class="d-flex justify-space-between align-center">
                   <span class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;">
-                    Total:
+                    Ingredients Total:
                   </span>
                   <span class="text-h6 font-weight-bold" style="color: #5D8736; font-family: 'Syne', sans-serif;">
                     ₱{{ nutritionTotals.totalCost ? nutritionTotals.totalCost.toFixed(2) : '0.00' }}/serving
                   </span>
                 </div>
+
+                <!-- Before the Total -->
+              <v-divider class="my-3"></v-divider>
+              <div class="d-flex justify-space-between align-center mt-2">
+                 <span class="text-h6 font-weight-bold" style="color: #2C3E50; font-family: 'Syne', sans-serif;"> Estimated Meal Cost:</span>
+                <span class="text-h6 font-weight-bold" style="color:#5D8736; font-family: 'Syne', sans-serif;">
+                  ₱{{ selectedMeal.estimated_cost_per_serving.toFixed(2) }}/serving
+                </span>
+              </div>
+
+
+                <br>
+            
+            <v-alert 
+              variant="tonal" 
+              density="compact" 
+              class="mb-3"
+              color="#E8F5E9"
+              rounded="lg"
+            >
+              <div class="d-flex">
+                <v-icon color="#5D8736" size="small" class="mr-2 mt-1">mdi-information</v-icon>
+                <p class="text-caption mb-0" style="font-family: 'Syne', sans-serif; color: #2C3E50;">
+                  <strong style="color: #2C3E50;">Ingredient Cost Only:</strong> This total reflects raw ingredient 
+                  prices. The estimated meal cost <strong>(₱{{ selectedMeal.estimated_cost_per_serving }})</strong>
+                  includes preparation, cooking, and other expenses.
+                </p>
+              </div>
+            </v-alert>
+
               </v-card>
             </div>
 

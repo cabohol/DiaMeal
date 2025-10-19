@@ -329,11 +329,12 @@ async function submitForm() {
               <v-col cols="12">
                 <v-select
                   v-model="basicInfo.allergies"
+                  :rules="[required]"
                   :items="[
                     'None',
                     'Peanuts', 
-                    'Shrimp',
-                    'Crab',
+                    'Soy',
+                    'Fish',
                     'Lobster', 
                     'Eggs',
                     'Other']"
@@ -365,6 +366,7 @@ async function submitForm() {
               <v-col cols="12">
                 <v-select
                   v-model="basicInfo.religiousDiet"
+                  :rules="[required]"
                   :items="[
                     'None',
                     'Catholic (No meat on Fridays/Lent)', 
@@ -392,6 +394,7 @@ async function submitForm() {
                   clearable
                   prepend-inner-icon="mdi-pencil"
                   color="success"
+                  :rules="[required]"
                   class="mt-2"
                 />
               </v-col>
@@ -400,7 +403,7 @@ async function submitForm() {
               <v-col cols="12">
                 <v-text-field
                   v-model="basicInfo.budget"
-                  label="Budget"
+                  label="Budget per week (PHP)"
                   :rules="[required]"
                   type="number"
                   color="success"
@@ -564,7 +567,7 @@ async function submitForm() {
                   color="success"
                   prepend-inner-icon="mdi-test-tube"
                   placeholder="e.g., 135"
-                  hint="Enter your 2-hour OGTT result"
+                  hint="Enter your OGTT result (latest test in mg/dL)"
                   persistent-hint
                 >
                   <!-- Info Icon inside the text field -->

@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-2o8y6gx09-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-kd1pwqcyi-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -1879,6 +1879,22 @@ onMounted(async () => {
 
 
 <style scoped>
+.text-body-2 {
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+  max-width: none !important;
+}
+
+/* Or more specifically target the procedure text */
+.text-body-2.flex-grow-1 {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
 .custom-alert {
   font-family: 'Syne', sans-serif !important;
 }

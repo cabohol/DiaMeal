@@ -343,7 +343,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       "estimated_cost_per_serving": 45.50,
       "serving_size": "1 plate",
       "servings_count": 1,
-      "procedures": "Step 1: Marinate chicken...\\n\\nStep 2: Sauté garlic...",
+      "procedures": ""Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."",
       "preparation_time": "45 minutes"
     };
 
@@ -405,6 +405,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Include: Vegetables, whole grains, lean meats, healthy fats
 
     PROCEDURE FORMAT:
+    IMPORTANT: For procedures, write COMPLETE instructions. Each step should be detailed and NOT cut off with "..." 
     - Each step should be detailed but concise (1-2 sentences per step)
     - Example: "Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."
     - Include specific temperatures, times, and measurements

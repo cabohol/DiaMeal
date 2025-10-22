@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://meal-plan-2o8y6gx09-claire-annes-projects.vercel.app',
+        target: 'https://meal-plan-kd1pwqcyi-claire-annes-projects.vercel.app',
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path, // Keep the path as-is

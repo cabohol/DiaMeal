@@ -330,7 +330,7 @@ onMounted(async () => {
     .from('users')
     .select('id')
     .eq('email', data.user.email)
-    .single()
+    .maybeSingle()
 
   if (userRow) {
     currentUserId.value = userRow.id

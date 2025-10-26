@@ -304,10 +304,10 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Use different protein sources each day (e.g., chicken Day 1, fish Day 2, pork Day 3)
     - Rotate vegetables and carbs throughout the week
     - Each day should feel fresh and varied
-    - If an ingredient appears in Day 1 breakfast, avoid it in Day 2-3 breakfast
-    - Only repeat a specific ingredient combination if absolutely necessary
+    - If an ingredient appears in Day 1 breakfast, avoid it in Day 2-7 breakfast
+    - Only repeat specific ingredients (not entire meals) if absolutely necessary
     - Prioritize ingredient variety while staying within budget
-    - Track ingredients used in previous days and deliberately choose different ones
+    - Track all meal names used and deliberately choose completely different dishes for each day
 
     INGREDIENT AMOUNTS (NEW - CRITICAL):
     - For EACH ingredient used, specify the exact amount needed in grams
@@ -376,11 +376,11 @@ app.post('/api/generateMealPlan', async (req, res) => {
       - Always use is_diabetic_friendly=true ingredients when possible
       - Limit high-carb ingredients, avoid refined sugars
 
-    4. **Lab Results**: Use to fine-tune recommendations
-      - High Fasting Blood Sugar (>100 mg/dL): Reduce breakfast carbs
-      - High Postprandial Blood Sugar (>140 mg/dL): Lower overall carb load
-      - High HbA1c (>6.5%): Strict low-glycemic meal selection
-      - Poor Glucose Tolerance: Smaller, more frequent meals
+    4. **Lab Results** — Use to fine-tune recommendations:
+      - **Fasting Blood Sugar > 100 mg/dL:** Reduce carbohydrate load at breakfast.
+      - **Postprandial Blood Sugar > 140 mg/dL:** Lower total daily carb intake; increase fiber and lean protein.
+      - **HbA1c > 6.5%:** Apply strict low-glycemic meal plans with minimal added sugars.
+      - **Poor Glucose Tolerance:** Recommend smaller, more frequent meals to stabilize blood sugar.
 
     5. **Allergies**: STRICTLY AVOID all allergens
       - Check ingredient.common_allergens array
@@ -428,10 +428,13 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Diabetes Type: ${user.diabetes_type} (CRITICAL: follow diabetes-specific guidelines)
     - Budget: ₱${user.budget}/week (stay within cost constraints)
 
-    DIVERSITY REQUIREMENTS:
-    - DO NOT repeat the same meal on multiple days
-    - Use ${availableIngredients.length} ingredients creatively
-    - Each day should feel unique and interesting
+   
+    DIVERSITY REQUIREMENTS (CRITICAL - STRICTLY ENFORCE):
+    - ABSOLUTELY NO MEAL REPETITION: Each meal name must be UNIQUE across all 7 days
+    - DO NOT reuse the same dish name even with different variations
+    - Track all meal names used and ensure 100% uniqueness across the entire week
+    - Use ${availableIngredients.length} ingredients creatively to create diverse meals
+    - Each of the 63 meals (7 days × 3 meal types × 3 options) must have a unique name
 
      INGREDIENT AMOUNT REQUIREMENTS (CRITICAL):
     - Specify EXACT gram amounts for every ingredient
@@ -509,7 +512,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       model: "llama-3.3-70b-versatile",
       temperature: 0.85,
       top_p: 0.95,
-      max_completion_tokens: 15000, // Increased for 7-day plan
+      max_completion_tokens: 15000,
       stream: false,
       response_format: { type: "json_object" },
       messages: [

@@ -37,6 +37,33 @@ const labResults = ref({
 
 const mealPlanText = ref(''); // Holds the streamed meal plan
 
+
+const validAge = v => (v && v >= 1) || 'Invalid age (>= 1)';
+const validHeight = v => (v && v >= 50) || 'Invalid height (>= 50 cm)';
+const validWeight = v => (v && v >= 20) || 'Invalid weight (>= 20 kg)';
+const validFastingBloodSugar = v => (v && v >= 70) || 'Invalid value (>= 70 mg/dL)';
+const validPostprandialBloodSugar = v => (v && v >= 70) || 'Invalid value (>= 70 mg/dL)';
+const validHbA1c = v => (v && v >= 3 ) || 'Invalid HbA1c (>= 3%)';
+const validglucoseTolerance = v => (v && v >= 70) || 'Invalid value (>= 70 mg/dL)';
+const validBudget = v => (v && v >= 100) || 'Budget must be at least ₱100';
+
+
+const isLabResultsComplete = computed(() => {
+  return labResults.value.fbs && 
+         labResults.value.ppbs && 
+         labResults.value.hba1c && 
+         labResults.value.glucoseTolerance &&
+         parseFloat(labResults.value.fbs) > 0 &&
+         parseFloat(labResults.value.ppbs) > 0 &&
+         parseFloat(labResults.value.hba1c) > 0 &&
+         parseFloat(labResults.value.glucoseTolerance) > 0;
+});
+
+const isFormComplete = computed(() => {
+  return isBasicInfoComplete.value && isLabResultsComplete.value;
+});
+
+
 // Add computed property to check if basic info is complete
 const isBasicInfoComplete = computed(() => {
   return basicInfo.value.gender && 
@@ -50,6 +77,8 @@ const isBasicInfoComplete = computed(() => {
          // If "Other" is selected for religious diet, check if otherReligiousDiet is filled
          (!basicInfo.value.religiousDiet.includes('Other') || basicInfo.value.otherReligiousDiet);
 });
+
+
 
 // Add method to handle next button click
 const nextToLabResults = () => {
@@ -278,7 +307,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="basicInfo.age"
                   label="Age"
-                  :rules="[required]"
+                  :rules="[required,validAge]"
                   type="number"
                   color="success"
                   class="mt-2"
@@ -291,7 +320,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="basicInfo.height"
                   label="Height (cm)"
-                  :rules="[required]"
+                  :rules="[required, validHeight]"
                   type="number"
                   color="success"
                   class="mt-n2"
@@ -304,7 +333,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="basicInfo.weight"
                   label="Weight (kg)"
-                  :rules="[required]"
+                  :rules="[required, validWeight]"
                   type="number"
                   color="success"
                   class="mt-n2"
@@ -404,7 +433,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="basicInfo.budget"
                   label="Budget per week (PHP)"
-                  :rules="[required]"
+                  :rules="[required, validBudget]"
                   type="number"
                   color="success"
                   class="mt-n2"
@@ -437,7 +466,7 @@ async function submitForm() {
               <v-text-field
                 v-model="labResults.fbs"
                 label="Fasting Blood Sugar [mg/dL]"
-                :rules="[required]"
+                :rules="[required, validFastingBloodSugar]"
                 type="number"
                 color="success"
                 prepend-inner-icon="mdi-water-percent"
@@ -477,7 +506,7 @@ async function submitForm() {
               <v-text-field
                 v-model="labResults.ppbs"
                 label="Postprandial Blood Sugar [mg/dL]"
-                :rules="[required]"
+                :rules="[required, validPostprandialBloodSugar]"
                 type="number"
                 color="success"
                 prepend-inner-icon="mdi-food-variant"
@@ -519,7 +548,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="labResults.hba1c"
                   label="HbA1c [%]"
-                  :rules="[required]"
+                  :rules="[required, validHbA1c]"
                   type="number"
                   color="success"
                   prepend-inner-icon="mdi-percent"
@@ -562,7 +591,7 @@ async function submitForm() {
                 <v-text-field
                   v-model="labResults.glucoseTolerance"
                   label="Glucose Tolerance [mg/dL]"
-                  :rules="[required]"
+                  :rules="[required, validglucoseTolerance]"
                   type="number"
                   color="success"
                   prepend-inner-icon="mdi-test-tube"
@@ -610,6 +639,7 @@ async function submitForm() {
 
               <!-- Submit Button -->
               <v-btn color="#5D8736" class="text-white" style="font-family: 'Syne', sans-serif; width: 140px;"
+               :disabled="!isFormComplete"
                 @click="submitForm"prepend-icon="mdi-check">Submit
               </v-btn>
             </div>

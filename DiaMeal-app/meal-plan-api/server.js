@@ -179,6 +179,23 @@ app.post('/api/generateMealPlan', async (req, res) => {
       throw userError || new Error("User not found");
     }
 
+    // --- 3.5) VALIDATE REQUIRED USER DATA ---
+    const missingFields = [];
+    if (!user.gender) missingFields.push('gender');
+    if (!user.age) missingFields.push('age');
+    if (!user.height_cm) missingFields.push('height');
+    if (!user.weight_kg) missingFields.push('weight');
+    if (!user.diabetes_type) missingFields.push('diabetes type');
+    if (!user.budget || user.budget < 100) missingFields.push('budget (minimum ₱100)');
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Incomplete user profile. Missing: ${missingFields.join(', ')}`,
+        missingFields
+      });
+    }
+
     const { data: lab, error: labError } = await supabase
       .from("lab_results")
       .select("*")
@@ -186,6 +203,31 @@ app.post('/api/generateMealPlan', async (req, res) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
+
+       if (!lab) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "No lab results found. Please complete your lab results first." 
+      });
+    }
+
+    const missingLabResults = [];
+    if (!lab.fasting_blood_sugar || lab.fasting_blood_sugar <= 0) 
+      missingLabResults.push('Fasting Blood Sugar');
+    if (!lab.postprandial_blood_sugar || lab.postprandial_blood_sugar <= 0) 
+      missingLabResults.push('Postprandial Blood Sugar');
+    if (!lab.hba1c || lab.hba1c <= 0) 
+      missingLabResults.push('HbA1c');
+    if (!lab.glucose_tolerance || lab.glucose_tolerance <= 0) 
+      missingLabResults.push('Glucose Tolerance');
+
+    if (missingLabResults.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Incomplete lab results. Missing: ${missingLabResults.join(', ')}`,
+        missingLabResults
+      });
+    }
 
     const { data: allergiesData } = await supabase
       .from("allergies")

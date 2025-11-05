@@ -650,7 +650,7 @@ async function submitForm() {
       </v-container>
 
         <!-- Bottom Navigation -->
-        <v-bottom-navigation grow class="mt-8 nav-bar" style="background-color: #5B913B;">
+        <v-bottom-navigation app grow class="mt-8 nav-bar" style="background-color: #5B913B; position: fixed !important; bottom: 0 !important; z-index: 1000;">
           <v-btn @click="$router.push('/home')" class="nav-tab" :class="{ active: $route.path === '/home' }">
             <span class="icon-wrapper" :class="{ active: $route.path === '/home' }">
               <v-icon>mdi-home</v-icon>
@@ -692,6 +692,16 @@ async function submitForm() {
   height: auto;
   min-height: 56px;
   padding: 4px 0;
+}
+
+/* Prevent navigation from moving when keyboard appears */
+.v-bottom-navigation.nav-bar {
+  transform: none !important;
+}
+
+/* Add padding to container so content doesn't hide behind nav */
+.v-container {
+  padding-bottom: 80px !important;
 }
 
 .icon-wrapper {  

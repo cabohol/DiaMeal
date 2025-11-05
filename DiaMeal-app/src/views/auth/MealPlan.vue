@@ -710,11 +710,22 @@ async function submitForm() {
 /* Prevent navigation from moving when keyboard appears */
 .v-bottom-navigation.nav-bar {
   transform: none !important;
+  position: fixed !important;
 }
 
-/* Add padding to container so content doesn't hide behind nav */
-.v-container {
-  padding-bottom: 80px !important;
+/* Mobile keyboard fix - keep nav bar hidden when keyboard is open */
+@media (max-height: 500px) {
+  .v-bottom-navigation.nav-bar {
+    display: none;
+  }
+  
+  .v-main {
+    padding-bottom: 0 !important;
+  }
+  
+  .v-container {
+    padding-bottom: 20px !important;
+  }
 }
 
 .icon-wrapper {  

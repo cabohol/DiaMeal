@@ -9,8 +9,8 @@ const router = useRouter();
 const tab = ref(0);
 const currentUser = ref(null);
 const required = v => !!v || 'This field is required';
-const infoDialog = ref(false);  // for FBS
-const ppbsDialog = ref(false);  // for PPBS
+const infoDialog = ref(false);  
+const ppbsDialog = ref(false);  
 const hba1cDialog = ref(false);
 const glucoseToleranceDialog = ref(false);
 
@@ -692,6 +692,19 @@ async function submitForm() {
   height: auto;
   min-height: 56px;
   padding: 4px 0;
+}
+
+.v-bottom-navigation {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
+}
+
+/* Add padding to main content so it doesn't get hidden behind nav */
+.v-main {
+  padding-bottom: 56px !important; /* Height of bottom nav */
 }
 
 /* Prevent navigation from moving when keyboard appears */

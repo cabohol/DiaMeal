@@ -299,6 +299,45 @@ app.post('/api/generateMealPlan', async (req, res) => {
     }
   }
 
+  function validateMealNutrition(meal, mealType, dayKey) {
+  const errors = [];
+  
+  // 1. Check nutrition values are present and realistic
+  if (!meal.calories || meal.calories < 100 || meal.calories > 1000) {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" has invalid calories: ${meal.calories}`);
+  }
+  
+  // 2. Check macros are present (can be 0 for some, but must exist)
+  if (typeof meal.carbs !== 'number') {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing carbs`);
+  }
+  if (typeof meal.protein !== 'number') {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing protein`);
+  }
+  if (typeof meal.fat !== 'number') {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing fat`);
+  }
+  if (typeof meal.fiber !== 'number') {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing fiber`);
+  }
+  
+  // 3. Check procedures are complete
+  if (!meal.procedures || meal.procedures.length < 50) {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" has incomplete procedures`);
+  }
+  
+  if (meal.procedures && meal.procedures.includes('...')) {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" has truncated procedures (contains "...")`);
+  }
+  
+  // 4. Check ingredient amounts exist
+  if (!meal.ingredient_amounts || Object.keys(meal.ingredient_amounts).length === 0) {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing ingredient_amounts`);
+  }
+  
+  return errors;
+}
+
     const systemSchema = `
     You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
     
@@ -311,7 +350,11 @@ app.post('/api/generateMealPlan', async (req, res) => {
     type Meal = {
       name: string;
       meal_type: "breakfast" | "lunch" | "dinner";
-      calories: number;                
+      calories: number;        
+      carbs: number;                   // REQUIRED: Grams of carbohydrates (calculated from ingredients)
+      protein: number;                 // REQUIRED: Grams of protein (calculated from ingredients)
+      fat: number;                     // REQUIRED: Grams of fat (calculated from ingredients)
+      fiber: number;         
       ingredients: string[];           // Keep this for backward compatibility
       ingredient_amounts: {            // NEW: Add specific amounts
         [ingredientName: string]: {
@@ -351,6 +394,23 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Prioritize ingredient variety while staying within budget
     - Track all meal names used and deliberately choose completely different dishes for each day
 
+    CRITICAL NUTRITION CALCULATION RULES:
+    1. **You MUST calculate actual nutrition values** from ingredient amounts
+    2. **Formula for each nutrient:**
+      - carbs = Σ (ingredient_amount_g / 100) × ingredient.carbs_per_100g
+      - protein = Σ (ingredient_amount_g / 100) × ingredient.protein_per_100g
+      - fat = Σ (ingredient_amount_g / 100) × ingredient.fat_per_100g
+      - fiber = Σ (ingredient_amount_g / 100) × ingredient.fiber_per_100g
+      - calories = Σ (ingredient_amount_g / 100) × ingredient.calories_per_100g
+
+    3. **Example calculation:**
+      If using 120g chicken (protein_per_100g: 27):
+      protein_from_chicken = (120 / 100) × 27 = 32.4g
+
+    4. **ALL nutrition values MUST be numbers > 0** (can be 0 only for fiber in some cases)
+
+    5. **Round to 1 decimal place** for precision
+
     INGREDIENT AMOUNTS (NEW - CRITICAL):
     - For EACH ingredient used, specify the exact amount needed in grams
     - Use realistic amounts based on typical Filipino serving sizes:
@@ -374,6 +434,10 @@ app.post('/api/generateMealPlan', async (req, res) => {
       "name": "Chicken Adobo",
       "meal_type": "lunch",
       "calories": 350,
+      "carbs": 45.2,
+      "protein": 34.8,
+      "fat": 15.3,
+      "fiber": 2.1,
       "ingredients": ["Chicken", "Soy Sauce", "Vinegar", "Garlic", "Bay Leaf"],
       "ingredient_amounts": {
         "Chicken": { "amount": 120, "unit": "g" },
@@ -390,8 +454,14 @@ app.post('/api/generateMealPlan', async (req, res) => {
     };
 
     INGREDIENT USAGE (CRITICAL):
-    - You will receive a list of available_ingredients
-    - ONLY use ingredients from this list
+    - You will receive a list called "available_ingredients"
+    - You MUST ONLY use ingredient names that EXACTLY match names in that list
+    - DO NOT use any ingredient not in the list
+    - DO NOT use variations or synonyms (e.g., if list has "Chicken Breast", don't use "Chicken")
+    - If an ingredient is not in the list, DO NOT use it - find an alternative from the list
+      Example: If available_ingredients includes ["White Rice", "Brown Rice", "Chicken Breast", "Tomato"],
+      you can ONLY use those exact names. You cannot use "Rice" (too general) or "Tomatoes" (plural).
+
     - Each ingredient has nutritional data, cost, and dietary flags
     - Use ONLY ingredients from the provided available_ingredients list
     - Each meal's ingredients array must contain ingredient names that exist in available_ingredients  
@@ -452,6 +522,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Example: "Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."
     - Include specific temperatures, times, and measurements
     - 4-9 steps depending on complexity
+    - **NEVER write "Not available" or incomplete procedures**
+    - **ALWAYS write COMPLETE step-by-step instructions**
 
     COST CALCULATION:
     - Use ingredient.estimated_price to estimate costs
@@ -552,9 +624,9 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log('Calling Groq API for 7-day plan...');
     const chat = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.85,
-      top_p: 0.95,
-      max_completion_tokens: 15000,
+      temperature: 0.7, 
+      top_p: 0.9,       
+      max_completion_tokens: 32000,
       stream: false,
       response_format: { type: "json_object" },
       messages: [
@@ -647,6 +719,249 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
       }
     }
 
+    // ADD this BEFORE saving meals to database (around line 650):
+function validateAndFixIngredients(weekPlan, availableIngredients) {
+  console.log('🔍 Starting strict ingredient validation...');
+  
+  // Create lookup maps for case-insensitive matching
+  const ingredientMap = new Map();
+  availableIngredients.forEach(ing => {
+    ingredientMap.set(ing.name.toLowerCase().trim(), ing.name);
+  });
+  
+  const allErrors = [];
+  let fixedCount = 0;
+  let invalidCount = 0;
+  
+  for (let dayNum = 1; dayNum <= 7; dayNum++) {
+    const dayKey = `day${dayNum}`;
+    const dayMeals = weekPlan[dayKey];
+    
+    if (!dayMeals) continue;
+    
+    for (const mealType of ["breakfast", "lunch", "dinner"]) {
+      const mealsForType = dayMeals[mealType];
+      
+      if (!Array.isArray(mealsForType)) continue;
+      
+      for (const meal of mealsForType) {
+        if (!Array.isArray(meal.ingredients)) continue;
+        
+        // Validate each ingredient
+        const validatedIngredients = [];
+        const validatedAmounts = {};
+        
+        for (const ingredientName of meal.ingredients) {
+          const lowerName = ingredientName.toLowerCase().trim();
+          
+          // Try exact match first
+          if (ingredientMap.has(lowerName)) {
+            const correctName = ingredientMap.get(lowerName);
+            validatedIngredients.push(correctName);
+            
+            // Preserve or fix ingredient amounts
+            if (meal.ingredient_amounts) {
+              const amountData = meal.ingredient_amounts[ingredientName] || 
+                                 meal.ingredient_amounts[correctName] || 
+                                 { amount: 100, unit: 'g' };
+              validatedAmounts[correctName] = amountData;
+            }
+            
+            if (correctName !== ingredientName) {
+              console.log(`✓ Fixed: "${ingredientName}" → "${correctName}"`);
+              fixedCount++;
+            }
+          } else {
+            // Try fuzzy matching (find similar names)
+            const similar = findSimilarIngredient(ingredientName, availableIngredients);
+            
+            if (similar) {
+              console.log(`⚠️ Replaced invalid "${ingredientName}" with similar "${similar.name}" in ${meal.name}`);
+              validatedIngredients.push(similar.name);
+              validatedAmounts[similar.name] = { amount: 100, unit: 'g' };
+              fixedCount++;
+            } else {
+              console.error(`❌ Invalid ingredient "${ingredientName}" in ${meal.name} - NO MATCH FOUND`);
+              allErrors.push(`${dayKey}.${mealType}: "${meal.name}" uses invalid ingredient "${ingredientName}"`);
+              invalidCount++;
+            }
+          }
+        }
+        
+        // Update meal with validated ingredients
+        meal.ingredients = validatedIngredients;
+        meal.ingredient_amounts = validatedAmounts;
+      }
+    }
+  }
+  
+  console.log(`\n📊 Validation Summary:`);
+  console.log(`  ✓ Fixed: ${fixedCount}`);
+  console.log(`  ❌ Invalid: ${invalidCount}`);
+  console.log(`  📝 Errors: ${allErrors.length}`);
+  
+  if (invalidCount > 10) {
+    throw new Error(
+      `Too many invalid ingredients (${invalidCount}). AI is not following instructions. ` +
+      `Sample errors:\n${allErrors.slice(0, 5).join('\n')}`
+    );
+  }
+  
+  return {
+    valid: allErrors.length === 0,
+    errors: allErrors,
+    fixedCount,
+    invalidCount
+  };
+}
+
+// Add this after line 650 (after weekPlan validation)
+
+// CRITICAL: Validate nutrition values
+console.log('🔍 Validating nutrition values...');
+let nutritionErrors = [];
+
+for (let dayNum = 1; dayNum <= 7; dayNum++) {
+  const dayKey = `day${dayNum}`;
+  const dayMeals = weekPlan[dayKey];
+  
+  for (const mealType of ["breakfast", "lunch", "dinner"]) {
+    const mealsForType = dayMeals[mealType];
+    
+    mealsForType.forEach((meal, idx) => {
+      // Check calories
+      if (!meal.calories || meal.calories < 100 || meal.calories > 1000) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" has invalid calories: ${meal.calories}`
+        );
+      }
+      
+      // Check macros
+      if (typeof meal.carbs !== 'number' || meal.carbs < 0) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" missing/invalid carbs: ${meal.carbs}`
+        );
+      }
+      
+      if (typeof meal.protein !== 'number' || meal.protein < 0) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" missing/invalid protein: ${meal.protein}`
+        );
+      }
+      
+      if (typeof meal.fat !== 'number' || meal.fat < 0) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" missing/invalid fat: ${meal.fat}`
+        );
+      }
+      
+      // Check procedures
+      if (!meal.procedures || meal.procedures.length < 50) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" has incomplete procedures`
+        );
+      }
+      
+      if (meal.procedures && meal.procedures.includes('...')) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" has truncated procedures`
+        );
+      }
+      
+      // Check ingredient amounts
+      if (!meal.ingredient_amounts || Object.keys(meal.ingredient_amounts).length === 0) {
+        nutritionErrors.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" missing ingredient_amounts`
+        );
+      }
+    });
+  }
+}
+
+if (nutritionErrors.length > 0) {
+  console.error('❌ Nutrition validation failed:');
+  nutritionErrors.forEach(err => console.error(`  - ${err}`));
+  
+  throw new Error(
+    `AI generated incomplete meal plan. Issues found:\n${nutritionErrors.slice(0, 10).join('\n')}\n` +
+    `(${nutritionErrors.length} total issues)`
+  );
+}
+
+console.log('✅ Nutrition validation passed');
+
+// Helper function for fuzzy matching
+function findSimilarIngredient(searchName, availableIngredients) {
+  const search = searchName.toLowerCase().trim();
+  
+  // Try partial matches
+  for (const ing of availableIngredients) {
+    const ingName = ing.name.toLowerCase();
+    
+    // Check if search is contained in ingredient name or vice versa
+    if (ingName.includes(search) || search.includes(ingName)) {
+      return ing;
+    }
+  }
+  
+  // Try removing plurals
+  const singularSearch = search.replace(/s$/, '');
+  for (const ing of availableIngredients) {
+    const ingName = ing.name.toLowerCase();
+    if (ingName === singularSearch || ingName === search + 's') {
+      return ing;
+    }
+  }
+  
+  return null;
+}
+
+
+        // Add comprehensive meal validation
+    const allValidationErrors = [];
+
+    for (let dayNum = 1; dayNum <= 7; dayNum++) {
+      const dayKey = `day${dayNum}`;
+      const dayMeals = weekPlan[dayKey];
+      
+      if (!dayMeals) {
+        allValidationErrors.push(`Missing ${dayKey}`);
+        continue;
+      }
+
+      for (const mealType of ["breakfast", "lunch", "dinner"]) {
+        const mealsForType = dayMeals[mealType];
+        
+        if (!Array.isArray(mealsForType)) {
+          allValidationErrors.push(`${dayKey}.${mealType} is not an array`);
+          continue;
+        }
+        
+        if (mealsForType.length !== 3) {
+          allValidationErrors.push(`${dayKey}.${mealType} has ${mealsForType.length} meals instead of 3`);
+        }
+        
+        // Validate each meal's nutrition and completeness
+        mealsForType.forEach((meal, idx) => {
+          const mealErrors = validateMealNutrition(meal, `${mealType}[${idx}]`, dayKey);
+          allValidationErrors.push(...mealErrors);
+        });
+      }
+    }
+
+    // If there are validation errors, reject the plan
+    if (allValidationErrors.length > 0) {
+      console.error('❌ Meal plan validation failed:');
+      allValidationErrors.forEach(err => console.error(`  - ${err}`));
+      
+      throw new Error(
+        `AI generated incomplete meal plan. Issues found:\n${allValidationErrors.slice(0, 10).join('\n')}\n` +
+        `(${allValidationErrors.length} total issues)`
+      );
+    }
+
+    console.log('✅ Meal plan validation passed');
+
     // --- 8) Save all meals and plans into DB with ingredient relationships ---
     const startDate = new Date();
     const mealPlansByDay = {};
@@ -671,6 +986,10 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
           const mealPayload = {
             meal_type: meal.meal_type || mealType,
             calories: typeof meal.calories === "number" ? meal.calories : null,
+            carbs: typeof meal.carbs === "number" ? meal.carbs : 0,
+            protein: typeof meal.protein === "number" ? meal.protein : 0,
+            fat: typeof meal.fat === "number" ? meal.fat : 0,
+            fiber: typeof meal.fiber === "number" ? meal.fiber : 0,
             ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
             procedures: meal.procedures || "",
             preparation_time: meal.preparation_time || null,

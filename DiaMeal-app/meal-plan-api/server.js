@@ -78,6 +78,51 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
   });
 }
 
+
+function findBestIngredientMatch(searchName, availableIngredients) {
+  const search = searchName.toLowerCase().trim();
+  
+  // 1. Try exact match first
+  const exactMatch = availableIngredients.find(
+    ing => ing.name.toLowerCase() === search
+  );
+  if (exactMatch) return exactMatch;
+  
+  // 2. Try partial match (ingredient name contains search term)
+  const partialMatch = availableIngredients.find(
+    ing => ing.name.toLowerCase().includes(search)
+  );
+  if (partialMatch) return partialMatch;
+  
+  // 3. Try reverse partial match (search term contains ingredient name)
+  const reverseMatch = availableIngredients.find(
+    ing => search.includes(ing.name.toLowerCase())
+  );
+  if (reverseMatch) return reverseMatch;
+  
+  // 4. Try fuzzy match for common variations
+  const fuzzyMatch = availableIngredients.find(ing => {
+    const ingName = ing.name.toLowerCase();
+    
+    // Remove common suffixes/prefixes
+    const cleanSearch = search
+      .replace(/\(.*?\)/g, '') // Remove parentheses content
+      .replace(/imported|fresh|local/gi, '')
+      .trim();
+    
+    const cleanIng = ingName
+      .replace(/\(.*?\)/g, '')
+      .replace(/imported|fresh|local/gi, '')
+      .trim();
+    
+    return cleanSearch === cleanIng || 
+           cleanSearch.includes(cleanIng) || 
+           cleanIng.includes(cleanSearch);
+  });
+  
+  return fuzzyMatch || null;
+}
+
 // Add this validation function before the /api/generateMealPlan endpoint
 function validateWeekPlan(weekPlan) {
   const errors = [];
@@ -550,6 +595,15 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Use ${availableIngredients.length} ingredients creatively to create diverse meals
     - Each of the 63 meals (7 days × 3 meal types × 3 options) must have a unique name
 
+    INGREDIENT MATCHING EXAMPLES:
+    CORRECT:
+    - available_ingredients has "Banana (Saba)" → use "Banana (Saba)"
+    - available_ingredients has "White Rice" → use "White Rice"
+
+    WRONG:
+    - available_ingredients has "Banana (Saba)" → DON'T use "Banana" (too generic)
+    - available_ingredients has "White Rice" → DON'T use "Rice" (too generic)
+
      INGREDIENT AMOUNT REQUIREMENTS (CRITICAL):
     - Specify EXACT gram amounts for every ingredient
     - Use realistic portions suitable for one serving
@@ -719,15 +773,47 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
       }
     }
 
+  function validateMealDiversity(weekPlan) {
+  const allMealNames = new Set();
+  const duplicates = [];
+  
+  for (let dayNum = 1; dayNum <= 7; dayNum++) {
+    const dayKey = `day${dayNum}`;
+    const dayMeals = weekPlan[dayKey];
+    
+    if (!dayMeals) continue;
+    
+    for (const mealType of ["breakfast", "lunch", "dinner"]) {
+      const mealsForType = dayMeals[mealType];
+      
+      if (!Array.isArray(mealsForType)) continue;
+      
+      for (const meal of mealsForType) {
+        const mealName = meal.name.toLowerCase().trim();
+        
+        if (allMealNames.has(mealName)) {
+          duplicates.push({
+            name: meal.name,
+            day: dayKey,
+            mealType: mealType
+          });
+        } else {
+          allMealNames.add(mealName);
+        }
+      }
+    }
+  }
+  
+  return {
+    isUnique: duplicates.length === 0,
+    duplicates: duplicates,
+    uniqueCount: allMealNames.size,
+    totalMeals: 63
+  };
+}
     // ADD this BEFORE saving meals to database (around line 650):
 function validateAndFixIngredients(weekPlan, availableIngredients) {
-  console.log('🔍 Starting strict ingredient validation...');
-  
-  // Create lookup maps for case-insensitive matching
-  const ingredientMap = new Map();
-  availableIngredients.forEach(ing => {
-    ingredientMap.set(ing.name.toLowerCase().trim(), ing.name);
-  });
+  console.log('🔍 Starting enhanced ingredient validation...');
   
   const allErrors = [];
   let fixedCount = 0;
@@ -747,44 +833,36 @@ function validateAndFixIngredients(weekPlan, availableIngredients) {
       for (const meal of mealsForType) {
         if (!Array.isArray(meal.ingredients)) continue;
         
-        // Validate each ingredient
         const validatedIngredients = [];
         const validatedAmounts = {};
         
         for (const ingredientName of meal.ingredients) {
-          const lowerName = ingredientName.toLowerCase().trim();
+          // Use the new smart matching function
+          const matchedIngredient = findBestIngredientMatch(
+            ingredientName, 
+            availableIngredients
+          );
           
-          // Try exact match first
-          if (ingredientMap.has(lowerName)) {
-            const correctName = ingredientMap.get(lowerName);
-            validatedIngredients.push(correctName);
+          if (matchedIngredient) {
+            validatedIngredients.push(matchedIngredient.name);
             
-            // Preserve or fix ingredient amounts
-            if (meal.ingredient_amounts) {
-              const amountData = meal.ingredient_amounts[ingredientName] || 
-                                 meal.ingredient_amounts[correctName] || 
-                                 { amount: 100, unit: 'g' };
-              validatedAmounts[correctName] = amountData;
-            }
+            // Get or create amount data
+            const amountData = meal.ingredient_amounts?.[ingredientName] || 
+                               meal.ingredient_amounts?.[matchedIngredient.name] || 
+                               { amount: 100, unit: 'g' };
             
-            if (correctName !== ingredientName) {
-              console.log(`✓ Fixed: "${ingredientName}" → "${correctName}"`);
+            validatedAmounts[matchedIngredient.name] = amountData;
+            
+            if (matchedIngredient.name !== ingredientName) {
+              console.log(`✓ Fixed: "${ingredientName}" → "${matchedIngredient.name}" in ${meal.name}`);
               fixedCount++;
             }
           } else {
-            // Try fuzzy matching (find similar names)
-            const similar = findSimilarIngredient(ingredientName, availableIngredients);
-            
-            if (similar) {
-              console.log(`⚠️ Replaced invalid "${ingredientName}" with similar "${similar.name}" in ${meal.name}`);
-              validatedIngredients.push(similar.name);
-              validatedAmounts[similar.name] = { amount: 100, unit: 'g' };
-              fixedCount++;
-            } else {
-              console.error(`❌ Invalid ingredient "${ingredientName}" in ${meal.name} - NO MATCH FOUND`);
-              allErrors.push(`${dayKey}.${mealType}: "${meal.name}" uses invalid ingredient "${ingredientName}"`);
-              invalidCount++;
-            }
+            console.error(`❌ No match found for "${ingredientName}" in ${meal.name}`);
+            allErrors.push(
+              `${dayKey}.${mealType}: "${meal.name}" uses invalid ingredient "${ingredientName}"`
+            );
+            invalidCount++;
           }
         }
         
@@ -800,20 +878,38 @@ function validateAndFixIngredients(weekPlan, availableIngredients) {
   console.log(`  ❌ Invalid: ${invalidCount}`);
   console.log(`  📝 Errors: ${allErrors.length}`);
   
-  if (invalidCount > 10) {
-    throw new Error(
-      `Too many invalid ingredients (${invalidCount}). AI is not following instructions. ` +
-      `Sample errors:\n${allErrors.slice(0, 5).join('\n')}`
-    );
-  }
-  
   return {
-    valid: allErrors.length === 0,
+    valid: invalidCount === 0,
     errors: allErrors,
     fixedCount,
     invalidCount
   };
 }
+
+// ADD diversity validation after ingredient validation (around line 800, after validateAndFixIngredients)
+
+// Validate meal diversity
+console.log('🔍 Checking meal diversity...');
+const diversityCheck = validateMealDiversity(weekPlan);
+
+if (!diversityCheck.isUnique) {
+  console.warn(`⚠️ Found ${diversityCheck.duplicates.length} duplicate meals:`);
+  diversityCheck.duplicates.forEach(dup => {
+    console.warn(`  - "${dup.name}" appears in ${dup.day} ${dup.mealType}`);
+  });
+  
+  // OPTION 1: Throw error and force regeneration
+  throw new Error(
+    `Meal plan has ${diversityCheck.duplicates.length} duplicate meals. ` +
+    `Each meal must be unique. Found duplicates: ` +
+    `${diversityCheck.duplicates.slice(0, 3).map(d => d.name).join(', ')}`
+  );
+  
+  // OPTION 2: Allow with warning (comment out the throw above and uncomment below)
+  // console.warn(`⚠️ Proceeding with ${diversityCheck.duplicates.length} duplicate meals`);
+}
+
+console.log(`✅ Meal diversity check: ${diversityCheck.uniqueCount}/63 unique meals`);
 
 // Add this after line 650 (after weekPlan validation)
 

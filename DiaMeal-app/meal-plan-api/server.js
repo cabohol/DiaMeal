@@ -678,8 +678,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log('Calling Groq API for 7-day plan...');
     const chat = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7, 
-      top_p: 0.9,       
+      temperature: 0.9, 
+      top_p: 0.95,       
       max_completion_tokens: 32000,
       stream: false,
       response_format: { type: "json_object" },
@@ -892,21 +892,19 @@ function validateAndFixIngredients(weekPlan, availableIngredients) {
 console.log('🔍 Checking meal diversity...');
 const diversityCheck = validateMealDiversity(weekPlan);
 
+// Change from throwing error to just warning
 if (!diversityCheck.isUnique) {
   console.warn(`⚠️ Found ${diversityCheck.duplicates.length} duplicate meals:`);
   diversityCheck.duplicates.forEach(dup => {
     console.warn(`  - "${dup.name}" appears in ${dup.day} ${dup.mealType}`);
   });
   
-  // OPTION 1: Throw error and force regeneration
-  throw new Error(
-    `Meal plan has ${diversityCheck.duplicates.length} duplicate meals. ` +
-    `Each meal must be unique. Found duplicates: ` +
-    `${diversityCheck.duplicates.slice(0, 3).map(d => d.name).join(', ')}`
-  );
+  // Option: Set a threshold instead of zero tolerance
+  if (diversityCheck.duplicates.length > 15) { // Allow up to 15 duplicates
+    throw new Error(`Too many duplicate meals: ${diversityCheck.duplicates.length}`);
+  }
   
-  // OPTION 2: Allow with warning (comment out the throw above and uncomment below)
-  // console.warn(`⚠️ Proceeding with ${diversityCheck.duplicates.length} duplicate meals`);
+  console.warn(`⚠️ Proceeding with ${diversityCheck.duplicates.length} duplicate meals`);
 }
 
 console.log(`✅ Meal diversity check: ${diversityCheck.uniqueCount}/63 unique meals`);

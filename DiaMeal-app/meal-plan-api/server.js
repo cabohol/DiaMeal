@@ -22,7 +22,7 @@ const groq = new Groq({
 
 // Middleware
 // app.use(cors({
-//   origin: 'http://localhost:5173',
+//   origin: 'http://localhost:5173', // Your Vue app URL
 //   credentials: true
 // }));
 // app.use(express.json());
@@ -76,51 +76,6 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
 
     return true;
   });
-}
-
-
-function findBestIngredientMatch(searchName, availableIngredients) {
-  const search = searchName.toLowerCase().trim();
-  
-  // 1. Try exact match first
-  const exactMatch = availableIngredients.find(
-    ing => ing.name.toLowerCase() === search
-  );
-  if (exactMatch) return exactMatch;
-  
-  // 2. Try partial match (ingredient name contains search term)
-  const partialMatch = availableIngredients.find(
-    ing => ing.name.toLowerCase().includes(search)
-  );
-  if (partialMatch) return partialMatch;
-  
-  // 3. Try reverse partial match (search term contains ingredient name)
-  const reverseMatch = availableIngredients.find(
-    ing => search.includes(ing.name.toLowerCase())
-  );
-  if (reverseMatch) return reverseMatch;
-  
-  // 4. Try fuzzy match for common variations
-  const fuzzyMatch = availableIngredients.find(ing => {
-    const ingName = ing.name.toLowerCase();
-    
-    // Remove common suffixes/prefixes
-    const cleanSearch = search
-      .replace(/\(.*?\)/g, '') // Remove parentheses content
-      .replace(/imported|fresh|local/gi, '')
-      .trim();
-    
-    const cleanIng = ingName
-      .replace(/\(.*?\)/g, '')
-      .replace(/imported|fresh|local/gi, '')
-      .trim();
-    
-    return cleanSearch === cleanIng || 
-           cleanSearch.includes(cleanIng) || 
-           cleanIng.includes(cleanSearch);
-  });
-  
-  return fuzzyMatch || null;
 }
 
 // Add this validation function before the /api/generateMealPlan endpoint
@@ -348,10 +303,9 @@ app.post('/api/generateMealPlan', async (req, res) => {
   const errors = [];
   
   // 1. Check nutrition values are present and realistic
-  if (!meal.calories || meal.calories < 50 || meal.calories > 1500) {
-    console.warn(`${dayKey}.${mealType} "${meal.name}" has low calories: ${meal.calories}`);
+  if (typeof meal.calories !== 'number') {
+    errors.push(`${dayKey}.${mealType} "${meal.name}" missing calories`);
   }
-  
   // 2. Check macros are present (can be 0 for some, but must exist)
   if (typeof meal.carbs !== 'number') {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing carbs`);
@@ -364,15 +318,6 @@ app.post('/api/generateMealPlan', async (req, res) => {
   }
   if (typeof meal.fiber !== 'number') {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing fiber`);
-  }
-  
-  // 3. Check procedures are complete
-  if (!meal.procedures || meal.procedures.length < 50) {
-    errors.push(`${dayKey}.${mealType} "${meal.name}" has incomplete procedures`);
-  }
-  
-  if (meal.procedures && meal.procedures.includes('...')) {
-    errors.push(`${dayKey}.${mealType} "${meal.name}" has truncated procedures (contains "...")`);
   }
   
   // 4. Check ingredient amounts exist
@@ -595,15 +540,6 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Use ${availableIngredients.length} ingredients creatively to create diverse meals
     - Each of the 63 meals (7 days × 3 meal types × 3 options) must have a unique name
 
-    INGREDIENT MATCHING EXAMPLES:
-    CORRECT:
-    - available_ingredients has "Banana (Saba)" → use "Banana (Saba)"
-    - available_ingredients has "White Rice" → use "White Rice"
-
-    WRONG:
-    - available_ingredients has "Banana (Saba)" → DON'T use "Banana" (too generic)
-    - available_ingredients has "White Rice" → DON'T use "Rice" (too generic)
-
      INGREDIENT AMOUNT REQUIREMENTS (CRITICAL):
     - Specify EXACT gram amounts for every ingredient
     - Use realistic portions suitable for one serving
@@ -680,7 +616,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       model: "llama-3.3-70b-versatile",
       temperature: 0.7, 
       top_p: 0.9,       
-      max_completion_tokens: 32000,
+      max_completion_tokens: 30000,
       stream: false,
       response_format: { type: "json_object" },
       messages: [
@@ -773,83 +709,6 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
       }
     }
 
-
-    // ADD this BEFORE saving meals to database (around line 650):
-function validateAndFixIngredients(weekPlan, availableIngredients) {
-  console.log('🔍 Starting enhanced ingredient validation...');
-  
-  const allErrors = [];
-  let fixedCount = 0;
-  let invalidCount = 0;
-  
-  for (let dayNum = 1; dayNum <= 7; dayNum++) {
-    const dayKey = `day${dayNum}`;
-    const dayMeals = weekPlan[dayKey];
-    
-    if (!dayMeals) continue;
-    
-    for (const mealType of ["breakfast", "lunch", "dinner"]) {
-      const mealsForType = dayMeals[mealType];
-      
-      if (!Array.isArray(mealsForType)) continue;
-      
-      for (const meal of mealsForType) {
-        if (!Array.isArray(meal.ingredients)) continue;
-        
-        const validatedIngredients = [];
-        const validatedAmounts = {};
-        
-        for (const ingredientName of meal.ingredients) {
-          // Use the new smart matching function
-          const matchedIngredient = findBestIngredientMatch(
-            ingredientName, 
-            availableIngredients
-          );
-          
-          if (matchedIngredient) {
-            validatedIngredients.push(matchedIngredient.name);
-            
-            // Get or create amount data
-            const amountData = meal.ingredient_amounts?.[ingredientName] || 
-                               meal.ingredient_amounts?.[matchedIngredient.name] || 
-                               { amount: 100, unit: 'g' };
-            
-            validatedAmounts[matchedIngredient.name] = amountData;
-            
-            if (matchedIngredient.name !== ingredientName) {
-              console.log(`✓ Fixed: "${ingredientName}" → "${matchedIngredient.name}" in ${meal.name}`);
-              fixedCount++;
-            }
-          } else {
-            console.error(`❌ No match found for "${ingredientName}" in ${meal.name}`);
-            allErrors.push(
-              `${dayKey}.${mealType}: "${meal.name}" uses invalid ingredient "${ingredientName}"`
-            );
-            invalidCount++;
-          }
-        }
-        
-        // Update meal with validated ingredients
-        meal.ingredients = validatedIngredients;
-        meal.ingredient_amounts = validatedAmounts;
-      }
-    }
-  }
-  
-  console.log(`\n📊 Validation Summary:`);
-  console.log(`  ✓ Fixed: ${fixedCount}`);
-  console.log(`  ❌ Invalid: ${invalidCount}`);
-  console.log(`  📝 Errors: ${allErrors.length}`);
-  
-  return {
-    valid: invalidCount === 0,
-    errors: allErrors,
-    fixedCount,
-    invalidCount
-  };
-}
-
-
 // Add this after line 650 (after weekPlan validation)
 
 // CRITICAL: Validate nutrition values
@@ -865,7 +724,7 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
     
     mealsForType.forEach((meal, idx) => {
       // Check calories
-      if (!meal.calories || meal.calories < 50 || meal.calories > 1500) {
+      if (typeof meal.calories !== 'number' || meal.calories < 0) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" has invalid calories: ${meal.calories}`
         );
@@ -887,19 +746,6 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
       if (typeof meal.fat !== 'number' || meal.fat < 0) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" missing/invalid fat: ${meal.fat}`
-        );
-      }
-      
-      // Check procedures
-      if (!meal.procedures || meal.procedures.length < 50) {
-        nutritionErrors.push(
-          `${dayKey}.${mealType}[${idx}] "${meal.name}" has incomplete procedures`
-        );
-      }
-      
-      if (meal.procedures && meal.procedures.includes('...')) {
-        nutritionErrors.push(
-          `${dayKey}.${mealType}[${idx}] "${meal.name}" has truncated procedures`
         );
       }
       

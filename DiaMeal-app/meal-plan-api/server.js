@@ -443,14 +443,29 @@ app.post('/api/generateMealPlan', async (req, res) => {
       "preparation_time": "45 minutes"
     };
 
-    INGREDIENT USAGE (CRITICAL):
-    - You will receive a list called "available_ingredients"
-    - You MUST ONLY use ingredient names that EXACTLY match names in that list
-    - DO NOT use any ingredient not in the list
-    - DO NOT use variations or synonyms (e.g., if list has "Chicken Breast", don't use "Chicken")
-    - If an ingredient is not in the list, DO NOT use it - find an alternative from the list
-      Example: If available_ingredients includes ["White Rice", "Brown Rice", "Chicken Breast", "Tomato"],
-      you can ONLY use those exact names. You cannot use "Rice" (too general) or "Tomatoes" (plural).
+      INGREDIENT USAGE (CRITICAL):
+      You will receive a list called "available_ingredients" with EXACT ingredient names.
+      YOU MUST ONLY USE THESE EXACT NAMES - DO NOT modify, abbreviate, or create variations.
+
+      CORRECT vs WRONG examples:
+      If available_ingredients contains "Chicken Breast":
+       CORRECT: "Chicken Breast" (exact match)
+       WRONG: "Chicken" (incomplete)
+       WRONG: "chicken breast" (wrong case - use exact case)
+       WRONG: "Chicken Breasts" (plural not in list)
+
+       If available_ingredients contains "White Rice":
+       CORRECT: "White Rice"
+       WRONG: "Rice" (too generic)
+       WRONG: "Steamed Rice" (not in list)
+
+      BEFORE adding ANY ingredient to a meal:
+      1. Look at the available_ingredients list
+      2. Find the EXACT name match
+      3. Copy it character-by-character
+      4. If ingredient doesn't exist, find an alternative that DOES exist
+
+      If you cannot find an ingredient, DO NOT INVENT IT. Use what's available.
 
     - Each ingredient has nutritional data, cost, and dietary flags
     - Use ONLY ingredients from the provided available_ingredients list
@@ -489,11 +504,21 @@ app.post('/api/generateMealPlan', async (req, res) => {
       - Never include ingredients containing user's allergens
 
     6. **Religious Diets**: STRICTLY RESPECT dietary laws
-      - Halal: Only use ingredients with is_halal=true
-      - Kosher: Only use ingredients with is_kosher=true
-      - Catholic: Only use ingredients with is_catholic=true
-      - Vegetarian: Only use ingredients with is_vegetarian=true
-      - Vegan: Only use ingredients with is_vegan=true
+       YOU MUST ABSOLUTELY FOLLOW THESE RULES:
+      ${religiousList.length > 0 ? `
+      - User follows: ${religiousList.join(', ').toUpperCase()}
+      - ONLY use ingredients where the corresponding flag is TRUE
+       IF YOU INCLUDE A FORBIDDEN INGREDIENT, THE MEAL PLAN WILL BE REJECTED
+      ` : '- No religious dietary restrictions'}
+      - Halal: Only use ingredients with is_halal=TRUE
+      - Kosher: Only use ingredients with is_kosher=TRUE
+      - Catholic: Only use ingredients with is_catholic=TRUE
+      - Vegetarian: Only use ingredients with is_vegetarian=TRUE
+      - Vegan: Only use ingredients with is_vegan=TRUE
+      BEFORE using ANY ingredient:
+      1. Check the ingredient's dietary flags (is_halal, is_kosher, etc.)
+      2. Verify it matches the user's religious diet requirements
+      3. If it doesn't match, DO NOT USE IT - find an alternative
 
     7. **Budget**: Stay within weekly budget constraints
       - Max cost per meal: weekly_budget / 21
@@ -546,6 +571,19 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Base amounts on typical Filipino cooking practices
     - Ensure amounts align with calorie calculations
     - Calculate accurate cost based on these specific amounts
+
+     ${religiousList.length > 0 ? `
+   CRITICAL RELIGIOUS DIET REQUIREMENTS
+    User follows: ${religiousList.join(', ').toUpperCase()}
+    
+    YOU MUST:
+    - Only use ingredients with matching dietary flags
+    - Example: If HALAL, only use ingredients where is_halal=true
+    - NEVER use pork, alcohol, or non-compliant ingredients
+    - Double-check EVERY ingredient against religious requirements
+    
+    IF YOU VIOLATE THIS, THE ENTIRE MEAL PLAN WILL BE REJECTED.
+    ` : ''}
 
     STRICT CONSTRAINTS:
     ${allergiesList.length > 0 ? `- ALLERGIES: NEVER use ingredients containing: ${allergiesList.join(', ')}` : ''}
@@ -616,16 +654,21 @@ app.post('/api/generateMealPlan', async (req, res) => {
       model: "llama-3.3-70b-versatile",
       temperature: 0.7, 
       top_p: 0.9,       
-      max_completion_tokens: 30000,
+      max_completion_tokens: 32000,
       stream: false,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemSchema },
-        {
-          role: "user",
-          content: JSON.stringify(content)
-        }
-      ]
+         { role: "system", content: systemSchema },
+          { role: "user", content: JSON.stringify(content) },
+          { 
+            role: "assistant", 
+            content: "I understand. I will ONLY use ingredients from the available_ingredients list with their EXACT names." 
+          },
+          {
+            role: "user",
+            content: "Correct. Now generate the meal plan following all rules strictly."
+          }
+        ]
     });
 
     // --- 6) Parse Groq JSON safely ---

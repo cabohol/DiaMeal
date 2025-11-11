@@ -50,7 +50,7 @@ const onSubmit = async () => {
         full_name: fullName,
         contact,
         address,
-        role: 'customer', // customize role as needed
+        role: 'customer',
       },
     },
   });
@@ -60,10 +60,18 @@ const onSubmit = async () => {
     formAction.value.formErrorMessage = error.message;
     formAction.value.formStatus = error.status;
   } else {
-    formAction.value.formSuccessMessage = 'Successfully registered! Please check your email to confirm your account.';
+    // Updated message - no email confirmation needed
+    formAction.value.formSuccessMessage = 'Successfully registered! Redirecting to login...';
+    
+    // Automatically sign in the user (optional)
+    // const { error: signInError } = await supabase.auth.signInWithPassword({
+    //   email,
+    //   password,
+    // });
+    
     setTimeout(() => {
       router.push('/login');
-    }, 2000);
+    }, 1500);
   }
 
   formAction.value.formProcess = false;

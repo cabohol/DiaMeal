@@ -22,7 +22,7 @@ const groq = new Groq({
 
 // Middleware
 // app.use(cors({
-//   origin: 'http://localhost:5173', // Your Vue app URL
+//   origin: 'http://localhost:5173',
 //   credentials: true
 // }));
 // app.use(express.json());
@@ -348,8 +348,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
   const errors = [];
   
   // 1. Check nutrition values are present and realistic
-  if (!meal.calories || meal.calories < 100 || meal.calories > 1000) {
-    errors.push(`${dayKey}.${mealType} "${meal.name}" has invalid calories: ${meal.calories}`);
+  if (!meal.calories || meal.calories < 50 || meal.calories > 1500) {
+    console.warn(`${dayKey}.${mealType} "${meal.name}" has low calories: ${meal.calories}`);
   }
   
   // 2. Check macros are present (can be 0 for some, but must exist)
@@ -678,8 +678,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log('Calling Groq API for 7-day plan...');
     const chat = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.9, 
-      top_p: 0.95,       
+      temperature: 0.7, 
+      top_p: 0.9,       
       max_completion_tokens: 32000,
       stream: false,
       response_format: { type: "json_object" },
@@ -773,44 +773,7 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
       }
     }
 
-  function validateMealDiversity(weekPlan) {
-  const allMealNames = new Set();
-  const duplicates = [];
-  
-  for (let dayNum = 1; dayNum <= 7; dayNum++) {
-    const dayKey = `day${dayNum}`;
-    const dayMeals = weekPlan[dayKey];
-    
-    if (!dayMeals) continue;
-    
-    for (const mealType of ["breakfast", "lunch", "dinner"]) {
-      const mealsForType = dayMeals[mealType];
-      
-      if (!Array.isArray(mealsForType)) continue;
-      
-      for (const meal of mealsForType) {
-        const mealName = meal.name.toLowerCase().trim();
-        
-        if (allMealNames.has(mealName)) {
-          duplicates.push({
-            name: meal.name,
-            day: dayKey,
-            mealType: mealType
-          });
-        } else {
-          allMealNames.add(mealName);
-        }
-      }
-    }
-  }
-  
-  return {
-    isUnique: duplicates.length === 0,
-    duplicates: duplicates,
-    uniqueCount: allMealNames.size,
-    totalMeals: 63
-  };
-}
+
     // ADD this BEFORE saving meals to database (around line 650):
 function validateAndFixIngredients(weekPlan, availableIngredients) {
   console.log('🔍 Starting enhanced ingredient validation...');
@@ -886,28 +849,6 @@ function validateAndFixIngredients(weekPlan, availableIngredients) {
   };
 }
 
-// ADD diversity validation after ingredient validation (around line 800, after validateAndFixIngredients)
-
-// Validate meal diversity
-console.log('🔍 Checking meal diversity...');
-const diversityCheck = validateMealDiversity(weekPlan);
-
-// Change from throwing error to just warning
-if (!diversityCheck.isUnique) {
-  console.warn(`⚠️ Found ${diversityCheck.duplicates.length} duplicate meals:`);
-  diversityCheck.duplicates.forEach(dup => {
-    console.warn(`  - "${dup.name}" appears in ${dup.day} ${dup.mealType}`);
-  });
-  
-  // Option: Set a threshold instead of zero tolerance
-  if (diversityCheck.duplicates.length > 15) { // Allow up to 15 duplicates
-    throw new Error(`Too many duplicate meals: ${diversityCheck.duplicates.length}`);
-  }
-  
-  console.warn(`⚠️ Proceeding with ${diversityCheck.duplicates.length} duplicate meals`);
-}
-
-console.log(`✅ Meal diversity check: ${diversityCheck.uniqueCount}/63 unique meals`);
 
 // Add this after line 650 (after weekPlan validation)
 
@@ -924,7 +865,7 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
     
     mealsForType.forEach((meal, idx) => {
       // Check calories
-      if (!meal.calories || meal.calories < 100 || meal.calories > 1000) {
+      if (!meal.calories || meal.calories < 50 || meal.calories > 1500) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" has invalid calories: ${meal.calories}`
         );

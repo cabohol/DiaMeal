@@ -136,22 +136,22 @@ CRITICAL RULES:
                 "common_allergens": self._format_allergens(str(nutrition_data.get('common_allergens') or "none"))
             }
             
-            logging.info(f"✅ AI nutrition obtained for {name}")
+            logging.info(f" AI nutrition obtained for {name}")
             return validated_data
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429 and retry_count < max_retries:
                 # Rate limit - wait and retry with exponential backoff
                 wait_time = 60 * (2 ** retry_count)
-                logging.warning(f"⏳ Rate limited, waiting {wait_time}s... (retry {retry_count + 1}/{max_retries})")
+                logging.warning(f" Rate limited, waiting {wait_time}s... (retry {retry_count + 1}/{max_retries})")
                 time.sleep(wait_time)
                 return self.get_ai_nutrition(name, category, retry_count + 1)
             else:
-                logging.error(f"❌ AI HTTP error for {name}: {e}")
+                logging.error(f" AI HTTP error for {name}: {e}")
                 return self.get_default_nutrition()
                 
         except Exception as e:
-            logging.error(f"❌ AI nutrition error for {name}: {e}")
+            logging.error(f" AI nutrition error for {name}: {e}")
             return self.get_default_nutrition()
     
     def get_default_nutrition(self):
@@ -199,7 +199,7 @@ CRITICAL RULES:
             'LIVESTOCK & POULTRY FEEDS'
         ]
         
-        # ✅ ADD: Excluded item patterns as backup
+       
         EXCLUDED_ITEMS = [
             'HOG BOOSTER', 'HOG PRE-STARTER', 'HOG STARTER', 'HOG GROWER', 
             'HOG FINISHER', 'LACTATING', 'GESTATING', 
@@ -235,18 +235,18 @@ CRITICAL RULES:
                             unit = (row[3] or "").strip()
                             average_price_str = (row[-1] or "").strip()
                             
-                            # ✅ SKIP if no name or price FIRST
+                           
                             if not commodity_name or not average_price_str:
                                 continue
                             
-                            # ✅ NOW check exclusions (after we know there's an actual item)
+                            
                             if commodity_group in EXCLUDED_CATEGORIES:
-                                logging.info(f"🚫 EXCLUDED by category: {commodity_name} ({commodity_group})")
+                                logging.info(f"EXCLUDED by category: {commodity_name} ({commodity_group})")
                                 continue
                             
-                            # ✅ BACKUP: Check if item name matches excluded patterns
+                            
                             if any(pattern in commodity_name.upper() for pattern in EXCLUDED_ITEMS):
-                                logging.info(f"🚫 EXCLUDED by name pattern: {commodity_name}")
+                                logging.info(f"EXCLUDED by name pattern: {commodity_name}")
                                 continue
                             
                             try:
@@ -260,7 +260,7 @@ CRITICAL RULES:
                                     'average_price': avg_price
                                 })
                                 
-                                logging.info(f"✅ Added to queue: {commodity_name} ({commodity_group})")
+                                logging.info(f"Added to queue: {commodity_name} ({commodity_group})")
                                 
                             except (ValueError, AttributeError):
                                 continue
@@ -296,7 +296,7 @@ CRITICAL RULES:
             try:
                 estimated_price = f"₱{item['average_price']:.2f} per {item['unit']}"
                 
-                # ✅ CORRECT WAY - Use params instead of manual encoding
+               
                 check_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
                 check_response = requests.get(
                     check_url, 
@@ -314,17 +314,17 @@ CRITICAL RULES:
                     has_nulls = self.has_any_null_nutrition(record)
                     
                     if not has_nulls:
-                        # ✅ COMPLETE DATA - Update price only
+                        # COMPLETE DATA - Update price only
                         data = {
                             'specifications': item.get('specifications'),
                             'estimated_price': estimated_price,
                             'availability': 'available',
                             'updated_at': get_philippine_timestamp() 
                         }
-                        logging.info(f"✅ Price update: {item['name']}")
+                        logging.info(f"Price update: {item['name']}")
                     else:
-                        # ⚠️ HAS NULLS - Get AI nutrition to fill gaps
-                        print(f"🔧 Fixing NULL values for: {item['name']}")
+                        # HAS NULLS - Get AI nutrition to fill gaps
+                        print(f"Fixing NULL values for: {item['name']}")
                         nutrition = self.get_ai_nutrition(item['name'], item['category'])
                         time.sleep(3)  # Rate limit protection
                         
@@ -335,7 +335,7 @@ CRITICAL RULES:
                             'updated_at': get_philippine_timestamp(),
                             **nutrition  # This will overwrite ALL nutrition fields
                         }
-                        logging.info(f"🔧 Fixed NULLs: {item['name']}")
+                        logging.info(f"Fixed NULLs: {item['name']}")
                     
                     update_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
                     update_response = requests.patch(
@@ -345,15 +345,15 @@ CRITICAL RULES:
                         params={"id": f"eq.{record_id}"}
                     )
                     
-                    # ✅ ADD ERROR CHECKING
+                    # ADD ERROR CHECKING
                     if update_response.status_code >= 400:
-                        logging.error(f"❌ Update failed for {item['name']}: {update_response.text}")
+                        logging.error(f"Update failed for {item['name']}: {update_response.text}")
                     else:
                         updated += 1
                     
                 else:
-                    # ➕ NEW ingredient - Get complete AI nutrition
-                    print(f"➕ Adding NEW ingredient: {item['name']}")
+                    #  NEW ingredient - Get complete AI nutrition
+                    print(f"Adding NEW ingredient: {item['name']}")
                     nutrition = self.get_ai_nutrition(item['name'], item['category'])
                     time.sleep(3)  # Rate limit protection
                     
@@ -372,46 +372,46 @@ CRITICAL RULES:
                     insert_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
                     insert_response = requests.post(insert_url, headers=self.headers, json=data)
                     
-                    # ✅ ADD ERROR CHECKING
+                    # ADD ERROR CHECKING
                     if insert_response.status_code >= 400:
-                        logging.error(f"❌ Insert failed for {item['name']}: {insert_response.text}")
+                        logging.error(f"Insert failed for {item['name']}: {insert_response.text}")
                     else:
                         inserted += 1
-                        logging.info(f"➕ Inserted: {item['name']}")
+                        logging.info(f"Inserted: {item['name']}")
                 
             except Exception as e:
-                logging.error(f"❌ Error: {item['name']} - {e}")
+                logging.error(f"Error: {item['name']} - {e}")
                 continue
         
-        logging.info(f"📊 Summary - Inserted: {inserted}, Updated: {updated}")
+        logging.info(f"Summary - Inserted: {inserted}, Updated: {updated}")
         return inserted + updated
     
     def fix_all_null_records(self):
         """BONUS: Fix ALL existing records with NULL nutrition data"""
-        print("\n🔍 Scanning for NULL records in database...")
+        print("\n Scanning for NULL records in database...")
         
         # Get all records with ANY NULL nutrition field
         url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}?select=id,name,category,carbs_per_100g,calories_per_100g,common_allergens"
         response = requests.get(url, headers=self.headers)
         
         if not response.json():
-            print("✅ No records found")
+            print("No records found")
             return
         
         all_records = response.json()
         null_records = [r for r in all_records if self.has_any_null_nutrition(r)]
         
         if not null_records:
-            print("✅ No NULL records found!")
+            print("No NULL records found!")
             return
         
-        print(f"⚠️  Found {len(null_records)} records with NULL values")
-        print("🤖 Starting AI nutrition enrichment...\n")
+        print(f"Found {len(null_records)} records with NULL values")
+        print("Starting AI nutrition enrichment...\n")
         
         fixed = 0
         for record in null_records:
             try:
-                print(f"🔧 Fixing: {record['name']}")
+                print(f" Fixing: {record['name']}")
                 nutrition = self.get_ai_nutrition(record['name'], record.get('category', 'UNKNOWN'))
                 time.sleep(3)  # Rate limit protection
                 
@@ -421,35 +421,35 @@ CRITICAL RULES:
                     'updated_at': get_philippine_timestamp()
                 })
                 fixed += 1
-                print(f"   ✅ Fixed!")
+                print(f"   Fixed!")
                 
             except Exception as e:
-                print(f"   ❌ Error: {e}")
+                print(f"   Error: {e}")
                 continue
         
-        print(f"\n✅ Fixed {fixed} records with NULL values!")
+        print(f"\n Fixed {fixed} records with NULL values!")
     
     def run(self, pdf_url):
         """Main function"""
         logging.info("="*60)
         logging.info(f"Processing PDF: {pdf_url}")
         
-        print("\n📥 Downloading PDF...")
+        print("\n Downloading PDF...")
         pdf_file = self.download_pdf(pdf_url)
         
         if not pdf_file:
             return False
         
-        print("📊 Extracting commodity data...")
+        print(" Extracting commodity data...")
         commodities = self.extract_commodity_data(pdf_file)
         
         if not commodities:
             return False
         
-        print(f"💾 Processing {len(commodities)} items...")
+        print(f" Processing {len(commodities)} items...")
         count = self.insert_to_supabase(commodities)
         
-        print(f"✅ Done! Processed {count} items")
+        print(f" Done! Processed {count} items")
         return True
 
 

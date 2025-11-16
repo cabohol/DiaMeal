@@ -399,11 +399,12 @@ async function submitForm() {
                   :items="[
                     'None',
                     'Catholic (No meat on Fridays/Lent)', 
-                    'Islam (Halal)', 
+                    'Islam (Halal)',
+                    'Judaism (Kosher)', 
                     'Vegetarian', 
                     'Vegan',
                     'Other']"
-                  label="Religious Diet (if any)"
+                  label="Dietary Restrictions (Religious or Preference)"
                   multiple
                   chips
                   clearable

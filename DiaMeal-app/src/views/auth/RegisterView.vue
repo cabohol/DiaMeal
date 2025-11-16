@@ -63,11 +63,7 @@ const onSubmit = async () => {
     // Updated message - no email confirmation needed
     formAction.value.formSuccessMessage = 'Successfully registered! Redirecting to login...';
     
-    // Automatically sign in the user (optional)
-    // const { error: signInError } = await supabase.auth.signInWithPassword({
-    //   email,
-    //   password,
-    // });
+    await supabase.auth.signOut();
     
     setTimeout(() => {
       router.push('/login');
@@ -76,6 +72,9 @@ const onSubmit = async () => {
 
   formAction.value.formProcess = false;
 };
+
+
+
 </script>
 
 <template>

@@ -540,6 +540,22 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - **NEVER write "Not available" or incomplete procedures**
     - **ALWAYS write COMPLETE step-by-step instructions**
 
+    CORRECT Example (DETAILED):
+    "Step 1: Heat 2 tablespoons of cooking oil in a large pan over medium-high heat (around 180°C).
+    
+    Step 2: Grill the tilapia for 4-5 minutes on each side until the fish turns golden brown and flakes easily with a fork. 
+    
+    Step 3: In a separate pot, bring 3 cups of water to a rolling boil over high heat. 
+    
+    Step 4: Drain the okra using a colander and transfer to a serving bowl.
+    
+    Step 5: Arrange the grilled tilapia on a serving plate alongside the boiled okra."
+    
+    WRONG Example (TOO SHORT - NEVER DO THIS):
+    "Step 1: Grill the Tilapia.
+    Step 2: Boil the Okra.
+    Step 3: Serve together."
+
     COST CALCULATION:
     - Use ingredient.estimated_price to estimate costs
     - Calculate: estimated_cost_per_serving = sum(ingredient_cost × quantity)

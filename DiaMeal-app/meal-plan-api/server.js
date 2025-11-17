@@ -550,7 +550,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
     Step 4: Drain the okra using a colander and transfer to a serving bowl.
     
     Step 5: Arrange the grilled tilapia on a serving plate alongside the boiled okra."
-    
+
     WRONG Example (TOO SHORT - NEVER DO THIS):
     "Step 1: Grill the Tilapia.
     Step 2: Boil the Okra.
@@ -768,7 +768,156 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget
       }
     }
 
-// Add this after line 650 (after weekPlan validation)
+console.log('🔍 Validating ingredients and recalculating nutrition...');
+
+const availableIngredientMap = new Map(
+  availableIngredients.map(ing => [ing.name.toLowerCase(), ing])
+);
+
+const nutritionWarnings = [];
+
+for (let dayNum = 1; dayNum <= 7; dayNum++) {
+  const dayKey = `day${dayNum}`;
+  const dayMeals = weekPlan[dayKey];
+  
+  for (const mealType of ["breakfast", "lunch", "dinner"]) {
+    const mealsForType = dayMeals[mealType];
+    
+    mealsForType.forEach((meal, idx) => {
+      // Track which ingredients are from DB vs AI-generated
+      const dbIngredients = [];
+      const unknownIngredients = [];
+
+      if (!meal.ingredients || !Array.isArray(meal.ingredients)) {
+        nutritionWarnings.push(
+          `${dayKey}.${mealType}[${idx}] "${meal.name}" missing ingredients - using AI values`
+        );
+        return;
+      }
+
+      // Categorize ingredients
+      meal.ingredients.forEach(ingredientName => {
+        const foundIngredient = availableIngredientMap.get(ingredientName.toLowerCase());
+        if (foundIngredient) {
+          dbIngredients.push({ name: ingredientName, data: foundIngredient });
+        } else {
+          unknownIngredients.push(ingredientName);
+          nutritionWarnings.push(
+            `${dayKey}.${mealType}[${idx}] "${meal.name}" uses unknown ingredient: "${ingredientName}" (using AI estimate)`
+          );
+        }
+      });
+
+      // RECALCULATE nutrition for DB ingredients only
+      let calculatedCalories = 0;
+      let calculatedCarbs = 0;
+      let calculatedProtein = 0;
+      let calculatedFat = 0;
+      let calculatedFiber = 0;
+
+      // Calculate from DATABASE ingredients
+      dbIngredients.forEach(({ name: ingredientName, data: dbIngredient }) => {
+        const amountData = meal.ingredient_amounts?.[ingredientName] || 
+                          meal.ingredient_amounts?.[dbIngredient.name];
+        
+        if (!amountData) {
+          nutritionWarnings.push(
+            `${dayKey}.${mealType}[${idx}] "${meal.name}" missing amount for "${ingredientName}" - skipping`
+          );
+          return;
+        }
+
+        const amount = amountData.amount || 0;
+        const scaleFactor = amount / 100;
+
+        calculatedCalories += (dbIngredient.calories_per_100g || 0) * scaleFactor;
+        calculatedCarbs += (dbIngredient.carbs_per_100g || 0) * scaleFactor;
+        calculatedProtein += (dbIngredient.protein_per_100g || 0) * scaleFactor;
+        calculatedFat += (dbIngredient.fat_per_100g || 0) * scaleFactor;
+        calculatedFiber += (dbIngredient.fiber_per_100g || 0) * scaleFactor;
+      });
+
+      // If we have DB ingredients, use calculated values
+      // Otherwise, trust AI's values (for unknown ingredients)
+      if (dbIngredients.length > 0) {
+        // Store AI's original values for unknown ingredients
+        const aiCalories = meal.calories || 0;
+        const aiCarbs = meal.carbs || 0;
+        const aiProtein = meal.protein || 0;
+        const aiFat = meal.fat || 0;
+        const aiFiber = meal.fiber || 0;
+
+        // If meal has BOTH known and unknown ingredients
+        if (unknownIngredients.length > 0) {
+          // Calculate proportion of known ingredients
+          const knownProportion = dbIngredients.length / meal.ingredients.length;
+          
+          // Estimate unknown ingredient contribution
+          const unknownCalories = aiCalories - calculatedCalories;
+          const unknownCarbs = aiCarbs - calculatedCarbs;
+          const unknownProtein = aiProtein - calculatedProtein;
+          const unknownFat = aiFat - calculatedFat;
+          const unknownFiber = aiFiber - calculatedFiber;
+
+          // Use DB values + AI estimates for unknown ingredients
+          meal.calories = Math.round(calculatedCalories + Math.max(0, unknownCalories));
+          meal.carbs = Math.round((calculatedCarbs + Math.max(0, unknownCarbs)) * 10) / 10;
+          meal.protein = Math.round((calculatedProtein + Math.max(0, unknownProtein)) * 10) / 10;
+          meal.fat = Math.round((calculatedFat + Math.max(0, unknownFat)) * 10) / 10;
+          meal.fiber = Math.round((calculatedFiber + Math.max(0, unknownFiber)) * 10) / 10;
+
+          console.log(`📊 Hybrid calculation for "${meal.name}":`, {
+            dbIngredients: dbIngredients.length,
+            unknownIngredients: unknownIngredients.length,
+            calculatedFromDB: { calories: Math.round(calculatedCalories), carbs: Math.round(calculatedCarbs * 10) / 10 },
+            final: { calories: meal.calories, carbs: meal.carbs }
+          });
+        } else {
+          // All ingredients are from DB - use only calculated values
+          meal.calories = Math.round(calculatedCalories);
+          meal.carbs = Math.round(calculatedCarbs * 10) / 10;
+          meal.protein = Math.round(calculatedProtein * 10) / 10;
+          meal.fat = Math.round(calculatedFat * 10) / 10;
+          meal.fiber = Math.round(calculatedFiber * 10) / 10;
+
+          console.log(`✅ 100% DB calculation for "${meal.name}":`, {
+            calories: meal.calories,
+            carbs: meal.carbs,
+            protein: meal.protein,
+            fat: meal.fat,
+            fiber: meal.fiber
+          });
+        }
+
+        // Add metadata to track calculation source
+        meal._nutrition_source = {
+          db_ingredients: dbIngredients.length,
+          unknown_ingredients: unknownIngredients.length,
+          calculation_method: unknownIngredients.length > 0 ? 'hybrid' : 'database_only'
+        };
+      } else {
+        // No DB ingredients - use AI values as-is
+        console.log(`⚠️ Using AI values for "${meal.name}" (no DB ingredients found)`);
+        meal._nutrition_source = {
+          db_ingredients: 0,
+          unknown_ingredients: unknownIngredients.length,
+          calculation_method: 'ai_only'
+        };
+      }
+    });
+  }
+}
+
+// Log warnings but DON'T reject the meal plan
+if (nutritionWarnings.length > 0) {
+  console.warn('⚠️ Nutrition calculation warnings:');
+  nutritionWarnings.slice(0, 10).forEach(warn => console.warn(`  - ${warn}`));
+  if (nutritionWarnings.length > 10) {
+    console.warn(`  ... and ${nutritionWarnings.length - 10} more warnings`);
+  }
+}
+
+console.log('✅ Nutrition validation complete (allowing unknown ingredients)');
 
 // CRITICAL: Validate nutrition values
 console.log('🔍 Validating nutrition values...');

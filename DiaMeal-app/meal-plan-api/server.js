@@ -556,6 +556,13 @@ app.post('/api/generateMealPlan', async (req, res) => {
     Step 2: Boil the Okra.
     Step 3: Serve together."
 
+    COOKING OIL RULES (CRITICAL):
+    - DO NOT automatically add cooking oil to every meal
+    - Only include oil when ACTUALLY NEEDED for cooking method:
+      Use oil: Fried (prito), sautéed (gisa), roasted
+      NO oil: Boiled (laga), steamed (singaw), raw/fresh, soup-based
+    RULE: Check cooking method first, then decide if oil is needed.
+
     COST CALCULATION:
     - Use ingredient.estimated_price to estimate costs
     - Calculate: estimated_cost_per_serving = sum(ingredient_cost × quantity)

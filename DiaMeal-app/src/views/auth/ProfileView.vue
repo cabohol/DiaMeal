@@ -123,7 +123,8 @@ onMounted(fetchUser);
             <!-- Avatar Profile -->
             <div style="position: relative; width: 200px; height: 200px; margin: -160px auto 0;">
               <v-avatar size="200" style="background-color: #5d8736;">
-                <v-img :src="profileImageUrl || '/src/assets/default_profile.png'" cover/>
+                <v-img v-if="profileImageUrl" :src="profileImageUrl" cover />
+                <v-icon v-else size="260" color="white">mdi-account-circle</v-icon>
               </v-avatar>
 
               <v-btn

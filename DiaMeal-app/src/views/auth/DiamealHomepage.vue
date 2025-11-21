@@ -187,7 +187,7 @@ const fetchCompletedMeals = async () => {
     await updateProgressInDB(totalCalories, completedMealTypes.size);
     
   } catch (err) {
-    console.error('Error fetching completed meals:', err);
+    // console.error('Error fetching completed meals:', err);
   }
 };
 

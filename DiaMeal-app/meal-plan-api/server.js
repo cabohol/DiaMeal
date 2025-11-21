@@ -9,26 +9,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.VITE_SUPABASE_ANON_KEY
 );
 
-// Initialize Groq
+
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
-// Middleware
-// app.use(cors({
-//   origin: 'http://localhost:5173', // Your Vue app URL
-//   credentials: true
-// }));
-// app.use(express.json());
 
 app.use(cors({
-  origin: true, // Allow all origins for now
+  origin: true, 
   credentials: true
 }));
 app.use(express.json());
@@ -36,7 +29,7 @@ app.use(express.json());
 // --- Helper function to filter ingredients based on user constraints ---
 function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, diabetesType) {
   return ingredients.filter(ingredient => {
-    // Filter out allergens
+ 
     if (allergies.length > 0) {
       const allergenList = ingredient.common_allergens || [];
       const hasAllergen = allergies.some(allergy => 
@@ -48,7 +41,7 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
       if (hasAllergen) return false;
     }
 
-    // Filter based on religious dietary restrictions
+    
     for (const diet of religiousDiets) {
       switch (diet.toLowerCase()) {
         case 'halal':
@@ -69,7 +62,7 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
       }
     }
 
-    // Filter based on availability
+
     if (ingredient.availability === 'unavailable') {
       return false;
     }
@@ -78,7 +71,7 @@ function filterIngredientsByConstraints(ingredients, allergies, religiousDiets, 
   });
 }
 
-// Add this validation function before the /api/generateMealPlan endpoint
+//  validation function 
 function validateWeekPlan(weekPlan) {
   const errors = [];
   
@@ -103,7 +96,7 @@ function validateWeekPlan(weekPlan) {
         errors.push(`${dayKey}.${mealType} has ${mealsForType.length} meals instead of 3`);
       }
       
-      // Validate each meal has required fields
+      
       mealsForType.forEach((meal, idx) => {
         if (!meal.name) {
           errors.push(`${dayKey}.${mealType}[${idx}] missing name`);
@@ -121,16 +114,15 @@ function validateWeekPlan(weekPlan) {
   return errors;
 }
 
-// REPLACE YOUR EXISTING /api/generateMealPlan endpoint with this updated version:
+
 app.post('/api/generateMealPlan', async (req, res) => {
   try {
-    // --- 1) Validate input ---
     const { user_id, force_regenerate = false } = req.body || {};
     if (!user_id) {
       return res.status(400).json({ success: false, error: "Missing user_id" });
     }
 
-    // --- 2) Check if valid meal plan already exists (unless force regenerate) ---
+  
     if (!force_regenerate) {
       const { data: existingPlans, error: checkError } = await supabase
         .from("meal_plans")
@@ -140,11 +132,11 @@ app.post('/api/generateMealPlan', async (req, res) => {
         `)
         .eq("user_id", user_id)
         .eq("recommended_by_ai", true)
-        .gte("date", new Date().toISOString().split('T')[0]) // Today or future
+        .gte("date", new Date().toISOString().split('T')[0]) 
         .order("date", { ascending: true });
 
-      if (!checkError && existingPlans && existingPlans.length >= 21) { // 3 meals x 7 days
-        // Group existing plans by date
+      if (!checkError && existingPlans && existingPlans.length >= 21) { 
+     
         const plansByDate = {};
         existingPlans.forEach(plan => {
           const dateStr = plan.date.split('T')[0];
@@ -168,7 +160,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       }
     }
 
-    // --- 3) Pull latest user profile, constraints, AND available ingredients ---
+    // Pull latest user profile, constraints, AND available ingredients
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
@@ -179,7 +171,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       throw userError || new Error("User not found");
     }
 
-    // --- 3.5) VALIDATE REQUIRED USER DATA ---
+    // VALIDATE REQUIRED USER DATA
     const missingFields = [];
     if (!user.gender) missingFields.push('gender');
     if (!user.age) missingFields.push('age');
@@ -239,7 +231,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       .select("diet_type")
       .eq("user_id", user_id);
 
-    // --- NEW: Fetch available ingredients from database ---
+    // Fetch available ingredients from database 
     const { data: ingredientsData, error: ingredientsError } = await supabase
       .from("ingredients")
       .select("*")
@@ -263,10 +255,9 @@ app.post('/api/generateMealPlan', async (req, res) => {
 
     console.log(`Using ${availableIngredients.length} filtered ingredients for meal planning...`);
 
-    // --- 4) Delete old meal plans if regenerating ---
-    // In server.js, in the force_regenerate block (around line 206):
+    // Delete old meal plans if regenerating 
   if (force_regenerate) {
-    // Delete ALL existing AI-generated meal plans for this user
+   
     const { data: oldPlans } = await supabase
       .from("meal_plans")
       .select("meal_id")
@@ -276,21 +267,21 @@ app.post('/api/generateMealPlan', async (req, res) => {
     if (oldPlans && oldPlans.length > 0) {
       const mealIds = oldPlans.map(p => p.meal_id).filter(Boolean);
       
-      // Delete meal plans
+    
       await supabase
         .from("meal_plans")
         .delete()
         .eq("user_id", user_id)
         .eq("recommended_by_ai", true);
 
-      // Delete meal-ingredient relationships
+     
       if (mealIds.length > 0) {
         await supabase
           .from("meal_ingredients")
           .delete()
           .in("meal_id", mealIds);
           
-        // Delete meals
+        
         await supabase
           .from("meals")
           .delete()
@@ -302,11 +293,10 @@ app.post('/api/generateMealPlan', async (req, res) => {
   function validateMealNutrition(meal, mealType, dayKey) {
   const errors = [];
   
-  // 1. Check nutrition values are present and realistic
   if (typeof meal.calories !== 'number') {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing calories`);
   }
-  // 2. Check macros are present (can be 0 for some, but must exist)
+  
   if (typeof meal.carbs !== 'number') {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing carbs`);
   }
@@ -319,8 +309,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
   if (typeof meal.fiber !== 'number') {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing fiber`);
   }
-  
-  // 4. Check ingredient amounts exist
+
   if (!meal.ingredient_amounts || Object.keys(meal.ingredient_amounts).length === 0) {
     errors.push(`${dayKey}.${mealType} "${meal.name}" missing ingredient_amounts`);
   }
@@ -332,21 +321,21 @@ app.post('/api/generateMealPlan', async (req, res) => {
     You are a Filipino meal planning assistant. Generate a 7-day meal plan in JSON format, matching exactly this TypeScript type:
     
     type IngredientAmount = {
-      name: string;           // Ingredient name (must match available_ingredients)
-      amount: number;         // Amount in grams
-      unit: string;          // Unit (usually "g" for grams)
+      name: string;           
+      amount: number;         
+      unit: string;         
     };
 
     type Meal = {
       name: string;
       meal_type: "breakfast" | "lunch" | "dinner";
       calories: number;        
-      carbs: number;                   // REQUIRED: Grams of carbohydrates (calculated from ingredients)
-      protein: number;                 // REQUIRED: Grams of protein (calculated from ingredients)
-      fat: number;                     // REQUIRED: Grams of fat (calculated from ingredients)
+      carbs: number;                   
+      protein: number;                 
+      fat: number;                     
       fiber: number;         
-      ingredients: string[];           // Keep this for backward compatibility
-      ingredient_amounts: {            // NEW: Add specific amounts
+      ingredients: string[];           
+      ingredient_amounts: {            
         [ingredientName: string]: {
           amount: number;
           unit: string;
@@ -703,7 +692,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       throw new Error("AI response was not valid JSON.");
     }
 
-    // ✅ ADD BUDGET VALIDATION HERE (inside the function where 'user' exists)
+    //BUDGET VALIDATION
 let totalWeekCost = 0;
 const weeklyBudget = user.budget;
 
@@ -726,7 +715,7 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
 
 console.log(`Total week cost: ₱${totalWeekCost.toFixed(2)}`);
 console.log(`Weekly budget: ₱${weeklyBudget}`);
-console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? '✅ Within budget' : '⚠️ Over budget'}`);
+console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? ' Within budget' : ' Over budget'}`);
 
     // --- 7) Validate ingredients in generated meals ---
     const availableIngredientNames = new Set(availableIngredients.map(ing => ing.name.toLowerCase()));
@@ -873,21 +862,21 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
           meal.fat = Math.round((calculatedFat + Math.max(0, unknownFat)) * 10) / 10;
           meal.fiber = Math.round((calculatedFiber + Math.max(0, unknownFiber)) * 10) / 10;
 
-          console.log(`📊 Hybrid calculation for "${meal.name}":`, {
+          console.log(`Hybrid calculation for "${meal.name}":`, {
             dbIngredients: dbIngredients.length,
             unknownIngredients: unknownIngredients.length,
             calculatedFromDB: { calories: Math.round(calculatedCalories), carbs: Math.round(calculatedCarbs * 10) / 10 },
             final: { calories: meal.calories, carbs: meal.carbs }
           });
         } else {
-          // All ingredients are from DB - use only calculated values
+          
           meal.calories = Math.round(calculatedCalories);
           meal.carbs = Math.round(calculatedCarbs * 10) / 10;
           meal.protein = Math.round(calculatedProtein * 10) / 10;
           meal.fat = Math.round(calculatedFat * 10) / 10;
           meal.fiber = Math.round(calculatedFiber * 10) / 10;
 
-          console.log(`✅ 100% DB calculation for "${meal.name}":`, {
+          console.log(`100% DB calculation for "${meal.name}":`, {
             calories: meal.calories,
             carbs: meal.carbs,
             protein: meal.protein,
@@ -896,15 +885,15 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
           });
         }
 
-        // Add metadata to track calculation source
+        
         meal._nutrition_source = {
           db_ingredients: dbIngredients.length,
           unknown_ingredients: unknownIngredients.length,
           calculation_method: unknownIngredients.length > 0 ? 'hybrid' : 'database_only'
         };
       } else {
-        // No DB ingredients - use AI values as-is
-        console.log(`⚠️ Using AI values for "${meal.name}" (no DB ingredients found)`);
+        
+        console.log(` Using AI values for "${meal.name}" (no DB ingredients found)`);
         meal._nutrition_source = {
           db_ingredients: 0,
           unknown_ingredients: unknownIngredients.length,
@@ -915,19 +904,19 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
   }
 }
 
-// Log warnings but DON'T reject the meal plan
+
 if (nutritionWarnings.length > 0) {
-  console.warn('⚠️ Nutrition calculation warnings:');
+  console.warn(' Nutrition calculation warnings:');
   nutritionWarnings.slice(0, 10).forEach(warn => console.warn(`  - ${warn}`));
   if (nutritionWarnings.length > 10) {
     console.warn(`  ... and ${nutritionWarnings.length - 10} more warnings`);
   }
 }
 
-console.log('✅ Nutrition validation complete (allowing unknown ingredients)');
+console.log(' Nutrition validation complete (allowing unknown ingredients)');
 
-// CRITICAL: Validate nutrition values
-console.log('🔍 Validating nutrition values...');
+
+console.log(' Validating nutrition values...');
 let nutritionErrors = [];
 
 for (let dayNum = 1; dayNum <= 7; dayNum++) {
@@ -938,14 +927,14 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
     const mealsForType = dayMeals[mealType];
     
     mealsForType.forEach((meal, idx) => {
-      // Check calories
+     
       if (typeof meal.calories !== 'number' || meal.calories < 0) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" has invalid calories: ${meal.calories}`
         );
       }
       
-      // Check macros
+      
       if (typeof meal.carbs !== 'number' || meal.carbs < 0) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" missing/invalid carbs: ${meal.carbs}`
@@ -964,7 +953,7 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
         );
       }
       
-      // Check ingredient amounts
+    
       if (!meal.ingredient_amounts || Object.keys(meal.ingredient_amounts).length === 0) {
         nutritionErrors.push(
           `${dayKey}.${mealType}[${idx}] "${meal.name}" missing ingredient_amounts`
@@ -975,7 +964,7 @@ for (let dayNum = 1; dayNum <= 7; dayNum++) {
 }
 
 if (nutritionErrors.length > 0) {
-  console.error('❌ Nutrition validation failed:');
+  console.error(' Nutrition validation failed:');
   nutritionErrors.forEach(err => console.error(`  - ${err}`));
   
   throw new Error(
@@ -984,7 +973,7 @@ if (nutritionErrors.length > 0) {
   );
 }
 
-console.log('✅ Nutrition validation passed');
+console.log(' Nutrition validation passed');
 
 // Helper function for fuzzy matching
 function findSimilarIngredient(searchName, availableIngredients) {
@@ -1008,12 +997,11 @@ function findSimilarIngredient(searchName, availableIngredients) {
       return ing;
     }
   }
-  
   return null;
 }
 
 
-        // Add comprehensive meal validation
+// Meal plan validation function
     const allValidationErrors = [];
 
     for (let dayNum = 1; dayNum <= 7; dayNum++) {
@@ -1047,7 +1035,7 @@ function findSimilarIngredient(searchName, availableIngredients) {
 
     // If there are validation errors, reject the plan
     if (allValidationErrors.length > 0) {
-      console.error('❌ Meal plan validation failed:');
+      console.error(' Meal plan validation failed:');
       allValidationErrors.forEach(err => console.error(`  - ${err}`));
       
       throw new Error(
@@ -1056,7 +1044,7 @@ function findSimilarIngredient(searchName, availableIngredients) {
       );
     }
 
-    console.log('✅ Meal plan validation passed');
+    console.log(' Meal plan validation passed');
 
     // --- 8) Save all meals and plans into DB with ingredient relationships ---
     const startDate = new Date();
@@ -1066,18 +1054,18 @@ function findSimilarIngredient(searchName, availableIngredients) {
       const dayKey = `day${dayNum}`;
       const dayMeals = weekPlan[dayKey];
       
-      // Calculate date for this day
+      
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + (dayNum - 1));
       const dateStr = currentDate.toISOString().split('T')[0];
       
       mealPlansByDay[dateStr] = { breakfast: [], lunch: [], dinner: [] };
 
-      // Process each meal type for this day
+      
       for (const mealType of ["breakfast", "lunch", "dinner"]) {
         const mealsForType = dayMeals[mealType];
 
-        // Save each meal alternative
+        
         for (const meal of mealsForType) {
           const mealPayload = {
             meal_type: meal.meal_type || mealType,
@@ -1091,7 +1079,6 @@ function findSimilarIngredient(searchName, availableIngredients) {
             preparation_time: meal.preparation_time || null,
             name: meal.name || `${mealType} option`,
             user_id,
-            // NEW: Add these
             estimated_cost_per_serving: meal.estimated_cost_per_serving || 0,
             serving_size: meal.serving_size || '1 serving',
             servings_count: meal.servings_count || 1,
@@ -1109,27 +1096,27 @@ function findSimilarIngredient(searchName, availableIngredients) {
             throw mealErr;
           }
 
-          // --- NEW: Create meal-ingredient relationships ---
+          
           if (Array.isArray(meal.ingredients) && meal.ingredients.length > 0) {
             const ingredientRelationships = [];
             
             for (const ingredientName of meal.ingredients) {
-              // Find the ingredient in our database
+             
               const dbIngredient = availableIngredients.find(
                 ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
               );
               
               if (dbIngredient) {
-                // Get the specific amount for this ingredient
+               
                 const amountData = meal.ingredient_amounts?.[ingredientName] || 
                                   meal.ingredient_amounts?.[dbIngredient.name] || 
-                                  { amount: 100, unit: 'g' }; // Default fallback
+                                  { amount: 100, unit: 'g' }; 
                 
                 ingredientRelationships.push({
                   meal_id: mealRow.id,
                   ingredient_id: dbIngredient.id,
-                  quantity: amountData.amount, // Use the specific amount
-                  unit: amountData.unit || 'g'  // Use the specific unit
+                  quantity: amountData.amount, 
+                  unit: amountData.unit || 'g'
                 });
               }
             }
@@ -1141,7 +1128,7 @@ function findSimilarIngredient(searchName, availableIngredients) {
               
               if (relationError) {
                 console.error('Meal ingredients relationship error:', relationError);
-                // Don't throw error, just log it as this is supplementary data
+                
               } else {
                 console.log(`Saved ${ingredientRelationships.length} ingredient relationships for meal ${mealRow.id}`);
               }
@@ -1185,10 +1172,6 @@ function findSimilarIngredient(searchName, availableIngredients) {
       .json({ success: false, error: error?.message || "Internal server error" });
   }
 });
-
-// KEEP your existing /api/getMealPlan/:userId endpoint as is
-
-// ADD these new endpoints at the end, before app.listen():
 
 // Get ingredients endpoint
 app.get('/api/getIngredients', async (req, res) => {
@@ -1263,7 +1246,7 @@ app.get('/api/getMealWithIngredients/:mealId', async (req, res) => {
   }
 });
 
-// Add this endpoint to your server.js file, before app.listen()
+// Get meal plan endpoint
 
 app.get('/api/getMealPlan/:userId', async (req, res) => {
   try {
@@ -1273,7 +1256,7 @@ app.get('/api/getMealPlan/:userId', async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing userId" });
     }
 
-    // Get existing meal plans for today and the next 6 days
+    
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + 6);
@@ -1295,7 +1278,7 @@ app.get('/api/getMealPlan/:userId', async (req, res) => {
       throw error;
     }
 
-    // Group meal plans by date
+  
     const mealPlansByDay = {};
     (mealPlans || []).forEach(plan => {
       const dateStr = plan.date.split('T')[0];
@@ -1325,9 +1308,7 @@ app.get('/api/getMealPlan/:userId', async (req, res) => {
   }
 });
 
-
-
-// Keep your existing health check and app.listen() as they are
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });

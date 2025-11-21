@@ -10,14 +10,14 @@ from config import SUPABASE_URL, SUPABASE_ANON_KEY, GROQ_API_KEY, TABLE_NAME, LO
 import pytz
 
 
-# Add this constant after imports
+
 PHILIPPINE_TZ = pytz.timezone('Asia/Manila')
 
 def get_philippine_timestamp():
     """Get current timestamp in Philippine timezone"""
     return datetime.now(PHILIPPINE_TZ).isoformat()
 
-# Setup logging
+
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -40,7 +40,7 @@ class CaragaPriceScraper:
             'Prefer': 'return=representation'
         }
         
-        # Groq API settings
+        
         self.groq_api_key = GROQ_API_KEY
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         
@@ -49,9 +49,9 @@ class CaragaPriceScraper:
     def _format_allergens(self, allergen_string):
         """Convert allergen string to array format for PostgreSQL"""
         if not allergen_string or allergen_string.lower() == "none":
-            return []  # Empty array
+            return []  
         
-        # Split by comma and clean up
+       
         allergens = [a.strip() for a in allergen_string.split(',')]
         return allergens
         
@@ -110,7 +110,7 @@ CRITICAL RULES:
             result = response.json()
             ai_response = result['choices'][0]['message']['content'].strip()
             
-            # Remove markdown code blocks
+          
             if ai_response.startswith('```'):
                 ai_response = ai_response.split('```')[1]
                 if ai_response.startswith('json'):
@@ -141,7 +141,7 @@ CRITICAL RULES:
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429 and retry_count < max_retries:
-                # Rate limit - wait and retry with exponential backoff
+                
                 wait_time = 60 * (2 ** retry_count)
                 logging.warning(f" Rate limited, waiting {wait_time}s... (retry {retry_count + 1}/{max_retries})")
                 time.sleep(wait_time)
@@ -314,7 +314,7 @@ CRITICAL RULES:
                     has_nulls = self.has_any_null_nutrition(record)
                     
                     if not has_nulls:
-                        # COMPLETE DATA - Update price only
+                        # Update price only
                         data = {
                             'specifications': item.get('specifications'),
                             'estimated_price': estimated_price,
@@ -333,7 +333,7 @@ CRITICAL RULES:
                             'estimated_price': estimated_price,
                             'availability': 'available',
                             'updated_at': get_philippine_timestamp(),
-                            **nutrition  # This will overwrite ALL nutrition fields
+                            **nutrition  
                         }
                         logging.info(f"Fixed NULLs: {item['name']}")
                     
@@ -345,7 +345,7 @@ CRITICAL RULES:
                         params={"id": f"eq.{record_id}"}
                     )
                     
-                    # ADD ERROR CHECKING
+                  
                     if update_response.status_code >= 400:
                         logging.error(f"Update failed for {item['name']}: {update_response.text}")
                     else:
@@ -355,7 +355,7 @@ CRITICAL RULES:
                     #  NEW ingredient - Get complete AI nutrition
                     print(f"Adding NEW ingredient: {item['name']}")
                     nutrition = self.get_ai_nutrition(item['name'], item['category'])
-                    time.sleep(3)  # Rate limit protection
+                    time.sleep(3)  
                     
                     data = {
                         'name': item['name'],
@@ -372,7 +372,7 @@ CRITICAL RULES:
                     insert_url = f"{self.supabase_url}/rest/v1/{TABLE_NAME}"
                     insert_response = requests.post(insert_url, headers=self.headers, json=data)
                     
-                    # ADD ERROR CHECKING
+                    
                     if insert_response.status_code >= 400:
                         logging.error(f"Insert failed for {item['name']}: {insert_response.text}")
                     else:

@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 import pytz 
 
-# Setup logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -18,7 +18,7 @@ logging.basicConfig(
     ]
 )
 
-# Philippine timezone
+
 PHILIPPINE_TZ = pytz.timezone('Asia/Manila')
 
 def get_latest_pdf_url(market_url):
@@ -43,7 +43,7 @@ def get_latest_pdf_url(market_url):
             
             # Check if it's a price monitoring PDF
             if 'PriceMonitoring' in href and '.pdf' in href:
-                # Make full URL
+               
                 if href.startswith('http'):
                     pdf_url = href
                 else:
@@ -51,7 +51,7 @@ def get_latest_pdf_url(market_url):
                 
                 pdf_date = None
                 
-                # METHOD 1: Try to extract date from FILENAME (e.g., October-14-2025.pdf)
+                # METHOD 1: Try to extract date from FILENAME
                 import re
                 filename_date_match = re.search(r'(\w+)-(\d{2})-(\d{4})', href)
                 
@@ -69,9 +69,9 @@ def get_latest_pdf_url(market_url):
                     except:
                         pass
                 
-                # METHOD 2: If no date in filename, try to extract from LINK TEXT (e.g., "October 3 2025")
+                # METHOD 2: If no date in filename, try to extract from LINK TEXT 
                 if not pdf_date and link_text:
-                    # Match patterns like "October 3 2025", "May 27 2025", "September 26 2025"
+                   
                     text_date_match = re.search(r'(\w+)\s+(\d{1,2})\s+(\d{4})', link_text)
                     
                     if text_date_match:
@@ -107,7 +107,7 @@ def get_latest_pdf_url(market_url):
         logging.info(f"✓ Selected LATEST PDF: {latest_pdf['date'].strftime('%B %d, %Y')} (from {latest_pdf['source']})")
         logging.info(f"  URL: {latest_pdf['url']}")
         
-        # Log all found PDFs for debugging
+        # Log all found PDFs 
         logging.info(f"✓ All PDFs found ({len(pdf_candidates)}):")
         for idx, pdf in enumerate(pdf_candidates[:5], 1):  # Show top 5
             logging.info(f"  {idx}. {pdf['date'].strftime('%B %d, %Y')} - {pdf['url']}")
@@ -183,7 +183,7 @@ def get_next_run_time_ph():
     # Create next run time in Philippine timezone
     next_run = now_ph.replace(hour=hour, minute=minute, second=0, microsecond=0)
     
-    # If we've already passed today's scheduled time, schedule for tomorrow
+    
     if next_run <= now_ph:
         from datetime import timedelta
         next_run = next_run + timedelta(days=1)
@@ -220,24 +220,24 @@ def run_scheduler():
     # Schedule using UTC time (Railway servers use UTC)
     schedule.every().day.at(utc_schedule_time).do(daily_update_job)
     
-    # Run immediately on start
+    
     print(" Running initial update now...\n")
     daily_update_job()
     
     next_run = get_next_run_time_ph()
     print(f"\n Waiting for next scheduled run at {next_run.strftime('%Y-%m-%d %H:%M:%S')} (Philippine Time)...")
     
-    # Keep the script running
+
     while True:
         schedule.run_pending()
         
-        # Show countdown every hour
+    
         now_ph = datetime.now(PHILIPPINE_TZ)
         next_run = get_next_run_time_ph()
         time_until = next_run - now_ph
         hours_until = time_until.total_seconds() / 3600
         
-        if int(time.time()) % 3600 == 0:  # Every hour
+        if int(time.time()) % 3600 == 0: 
             logging.info(f"Status: {hours_until:.1f} hours until next run ({next_run.strftime('%H:%M:%S')} PH Time)")
         
         time.sleep(60)

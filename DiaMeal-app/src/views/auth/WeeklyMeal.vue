@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-8gl9r0wu8-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-vgl7tg8dj-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -676,7 +676,7 @@ const isTimeAllowedForMealType = (mealType) => {
   const currentTimeMinutes = getCurrentTime()
   
   const timeWindows = {
-    breakfast: { start: 6 * 60, end: 8 * 60 }, // 6:00 AM - 8:00 AM
+    breakfast: { start: 6 * 60, end: 8  * 60 }, // 6:00 AM - 8:00 AM
     lunch: { start: 11 * 60, end: 14 * 60 },   // 11:00 AM - 2:00 PM
     dinner: { start: 18 * 60, end: 23 * 60 }   // 6:00 PM - 8:00 PM
   }
@@ -1211,7 +1211,7 @@ onMounted(async () => {
                   </div>
                   <div class="d-flex align-center justify-center">
                     <v-icon size="small" class="mr-2" color="#FF9800">mdi-pot-steam</v-icon>
-                    <strong>Dinner:</strong> <span class="ml-1">6:00 PM - 11:00 PM</span>
+                    <strong>Dinner:</strong> <span class="ml-1">6:00 PM - 8:00 PM</span>
                   </div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import { supabase } from '@/utils/supabase'
 const isDev = import.meta.env.DEV
 const API_BASE_URL = isDev 
   ? '' // Use relative URLs in development (requires proxy)
-  : (import.meta.env.VITE_API_URL || 'https://meal-plan-vgl7tg8dj-claire-annes-projects.vercel.app')
+  : (import.meta.env.VITE_API_URL || 'https://meal-plan-a6n5g297o-claire-annes-projects.vercel.app')
 
 // Generate day labels with actual dates based on user's last_submission_date
 const generateDaysWithDates = (startDate) => {
@@ -158,10 +158,10 @@ const spentAmount = computed(() => {
       const [date, mealType] = key.split('-');
       const meals = mealPlansByDay.value[date]?.[mealType] || [];
       
-      // Get the completed meal option index
+     
       const completedIndex = completedMealOptions.value[key];
       
-      // Add cost of the completed meal
+      
       if (completedIndex !== null && completedIndex !== undefined && meals[completedIndex]) {
         const completedMeal = meals[completedIndex];
         total += completedMeal.estimated_cost_per_serving || 0;
@@ -263,21 +263,21 @@ const calculateNutrition = async () => {
   }
 }
 
-// Helper function to process nutrition data
+// function to process nutrition data
 const processNutritionData = (nutritionData) => {
   console.log('Processing nutrition data:', nutritionData)
 
-  // Get amounts from ingredient_amounts field
+ 
   const ingredientAmounts = selectedMeal.value.ingredient_amounts || {}
 
   // Transform ingredients with calculated costs
   selectedMeal.value.ingredients = nutritionData.map(ingredient => {
-    // Get amount from ingredient_amounts object
+   
     const amountData = ingredientAmounts[ingredient.name] || { amount: 100, unit: 'g' }
     const amount = amountData.amount
     const unit = amountData.unit
     
-    const scaleFactor = amount / 1000 // Convert to kg for price calculation
+    const scaleFactor = amount / 1000 
     
     // Calculate price based on amount
     const pricePerKg = extractPrice(ingredient.estimated_price) || 0
@@ -297,7 +297,7 @@ const processNutritionData = (nutritionData) => {
     }
   })
 
-  // Calculate totals (same as before)
+  // Calculate totals
   const totals = selectedMeal.value.ingredients.reduce((acc, ingredient) => {
     return {
       calories: acc.calories + (parseFloat(ingredient.calories_per_100g) || 0),
@@ -318,7 +318,7 @@ const processNutritionData = (nutritionData) => {
     totalCost: Math.round(totals.totalCost * 100) / 100
   }
 }
-// Helper function
+
 const extractPrice = (priceRange) => {
   if (!priceRange) return null
   const match = priceRange.match(/₱?([\d.]+)/)
@@ -328,19 +328,19 @@ const extractPrice = (priceRange) => {
   return null
 }
 
-// Computed property to return the nutrition totals
+
 const totalNutrition = computed(() => {
   return nutritionTotals.value
 })
 
-// Watch for changes in selectedMeal and recalculate nutrition
+
 watch(selectedMeal, () => {
   if (selectedMeal.value) {
     calculateNutrition()
   }
 })
 
-// Helper function to get local date string (YYYY-MM-DD format)
+
 const getLocalDateString = (date = new Date()) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -348,13 +348,13 @@ const getLocalDateString = (date = new Date()) => {
   return `${year}-${month}-${day}`
 }
 
-// Updated fetchUserStartDate function
+
 const fetchUserStartDate = async () => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error('User not authenticated')
 
-    // Fetch user row to get last_submission_date
+    
     const { data: userRow, error: userRowErr } = await supabase
       .from('users')
       .select('last_submission_date')
@@ -376,10 +376,10 @@ const fetchUserStartDate = async () => {
     if (generatedDays && generatedDays.length > 0) {
       daysWithDates.value = generatedDays
       
-      const todayLocal = getLocalDateString() // This gets local date correctly
+      const todayLocal = getLocalDateString() 
       const todayIndex = generatedDays.findIndex(day => day.date === todayLocal)
       
-      // If today matches one of the generated days, select it; otherwise default to Day 1
+      
       selectedDayIndex.value = todayIndex >= 0 ? todayIndex : 0
       
       console.log('Today (local):', todayLocal)
@@ -397,12 +397,12 @@ const fetchUserStartDate = async () => {
   } catch (err) {
     console.error('Error fetching user start date:', err)
     errorMsg.value = err.message || 'Failed to fetch user data'
-    // Provide fallback data
+   
     daysWithDates.value = []
   }
 }
 
-// Add this before existing fetchMealPlan try block
+
 console.log('Environment check:', {
   isDev,
   API_BASE_URL,
@@ -410,7 +410,7 @@ console.log('Environment check:', {
   selectedDay: selectedDay.value
 })
 
-// Fetch or generate meal plan
+
 const fetchMealPlan = async (forceRegenerate = false) => {
   loading.value = true
   errorMsg.value = ''
@@ -661,15 +661,15 @@ const alertType = ref('success')
 const completedMeals = ref({})
 const currentUserId = ref(null)
 
-// NEW: Track which specific meal option was completed (for enforcement)
+
 const completedMealOptions = ref({})
 
-// Helper functions for time checking and meal completion
+
 const getCurrentTime = () => {
   const now = new Date()
   const hours = now.getHours()
   const minutes = now.getMinutes()
-  return hours * 60 + minutes // Convert to minutes for easier comparison
+  return hours * 60 + minutes 
 }
 
 const isTimeAllowedForMealType = (mealType) => {
@@ -677,8 +677,8 @@ const isTimeAllowedForMealType = (mealType) => {
   
   const timeWindows = {
     breakfast: { start: 6 * 60, end: 8  * 60 }, // 6:00 AM - 8:00 AM
-    lunch: { start: 11 * 60, end: 14 * 60 },   // 11:00 AM - 2:00 PM
-    dinner: { start: 18 * 60, end: 23 * 60 }   // 6:00 PM - 8:00 PM
+    lunch: { start: 12 * 60, end: 14 * 60 },   // 12:00 AM - 2:00 PM
+    dinner: { start: 18 * 60, end: 20 * 60 }   // 6:00 PM - 8:00 PM
   }
   
   const window = timeWindows[mealType]
@@ -693,25 +693,25 @@ const getCompletedMealIndex = (date, mealType) => {
   return completedMealOptions.value[key] !== undefined ? completedMealOptions.value[key] : null
 }
 
-// NEW: Check if a specific meal option is the one that was completed
+// Check if a specific meal option is the one that was completed
 const isMealOptionCompleted = (date, mealType, mealIndex) => {
   const completedIndex = getCompletedMealIndex(date, mealType)
   return completedIndex === mealIndex
 }
 
-// NEW: Check if View Details should be disabled for this meal
+// Check if View Details should be disabled for this meal
 const isViewDetailsDisabled = (date, mealType, mealIndex) => {
-  // If no meal has been completed yet for this type, all are viewable
+  
   const completedIndex = getCompletedMealIndex(date, mealType)
   if (completedIndex === null) {
     return false
   }
   
-  // If this specific meal was completed, it's viewable
+ 
   if (completedIndex === mealIndex) {
     return false
   }
-  // Otherwise, disable it (another option was chosen)
+  
   return true
 }
 
@@ -972,8 +972,7 @@ const markMealAsCompleted = async (meal, mealType, mealIndex) => {
   }
 }
 
-// Add this computed property
-// Add this computed property
+
 const estimatedDayBudget = computed(() => {
   const dateStr = selectedDay.value?.date
   if (!dateStr || !mealPlansByDay.value[dateStr]) {
@@ -1207,7 +1206,7 @@ onMounted(async () => {
                   </div>
                   <div class="mb-2 d-flex align-center justify-center">
                     <v-icon size="small" class="mr-2" color="#FFC107">mdi-bowl-mix</v-icon>
-                    <strong>Lunch:</strong> <span class="ml-1">11:00 AM - 2:00 PM</span>
+                    <strong>Lunch:</strong> <span class="ml-1">12:00 NN - 2:00 PM</span>
                   </div>
                   <div class="d-flex align-center justify-center">
                     <v-icon size="small" class="mr-2" color="#FF9800">mdi-pot-steam</v-icon>

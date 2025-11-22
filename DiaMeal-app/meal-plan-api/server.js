@@ -520,7 +520,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Minimize: Simple sugars, refined carbs, high-glycemic foods
     - Include: Vegetables, whole grains, lean meats, healthy fats
 
-    PROCEDURE FORMAT:
+    PROCEDURE FORMAT (CRITICAL - MUST FOLLOW EXACTLY):
+    **YOU MUST WRITE COMPLETE, DETAILED PROCEDURES - THIS IS MANDATORY**
     IMPORTANT: For procedures, write COMPLETE instructions. Each step should be detailed and NOT cut off with "..." 
     - Each step should be detailed but concise (1-2 sentences per step)
     - Example: "Step 1: Instruction here.\\n\\nStep 2: Next instruction.\\n\\nStep 3: Final step."
@@ -544,6 +545,11 @@ app.post('/api/generateMealPlan', async (req, res) => {
     "Step 1: Grill the Tilapia.
     Step 2: Boil the Okra.
     Step 3: Serve together."
+
+    VALIDATION RULES:
+    - If a procedure has fewer than 5 steps, it is INCOMPLETE and REJECTED
+    - If steps lack specific measurements/times/temperatures, they are INCOMPLETE
+    - Generic verbs without detail (e.g., "Cook", "Prepare", "Mix") are NOT ALLOWED
 
     COOKING OIL RULES (CRITICAL):
     - DO NOT automatically add cooking oil to every meal
@@ -664,8 +670,8 @@ app.post('/api/generateMealPlan', async (req, res) => {
     console.log('Calling Groq API for 7-day plan...');
     const chat = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7, 
-      top_p: 0.9,       
+      temperature: 0.9, 
+      top_p: 0.95,       
       max_completion_tokens: 32000,
       stream: false,
       response_format: { type: "json_object" },
@@ -683,7 +689,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
         ]
     });
 
-    // --- 6) Parse Groq JSON safely ---
+    // --- 6) Parse Groq JSON ---
     let weekPlan;
     try {
       weekPlan = JSON.parse(chat.choices?.[0]?.message?.content || "{}");
@@ -691,7 +697,7 @@ app.post('/api/generateMealPlan', async (req, res) => {
       console.error('AI response parse error:', e);
       throw new Error("AI response was not valid JSON.");
     }
-
+  
     //BUDGET VALIDATION
 let totalWeekCost = 0;
 const weeklyBudget = user.budget;

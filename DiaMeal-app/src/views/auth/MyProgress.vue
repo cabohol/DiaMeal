@@ -149,7 +149,8 @@ const mealTypeBreakdown = computed(() => {
   return currentWeekSummary.value.mealsByType;
 });
 
-// Process week data
+// WEEKLY SUMMARY
+//Avg Daily Calories & Avg Daily Carbs
 const processWeekData = (meals, weekBounds) => {
   const dailyData = {};
   const mealsByType = { breakfast: 0, lunch: 0, dinner: 0 };
@@ -326,6 +327,7 @@ const getCurrentSelectedDate = () => {
 };
 
 // Fetch completed meals
+// DAILY VIEW
 const fetchCompletedMeals = async () => {
   if (!currentUserId.value) return;
   const selectedDate = getCurrentSelectedDate();

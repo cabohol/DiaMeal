@@ -114,6 +114,17 @@ function validateWeekPlan(weekPlan) {
   return errors;
 }
 
+// Helper function to extract price from price range string
+function extractPrice(priceRange) {
+  if (!priceRange) return 0;
+  const match = priceRange.toString().match(/₱?([\d.]+)/);
+  if (match && match[1]) {
+    return parseFloat(match[1]);
+  }
+  return 0;
+}
+
+
 
 app.post('/api/generateMealPlan', async (req, res) => {
   try {
@@ -403,10 +414,23 @@ app.post('/api/generateMealPlan', async (req, res) => {
     - Store amounts in ingredient_amounts field as an object
     - Calculate estimated_cost_per_serving based on these exact amounts
     
-    COST CALCULATION:
-    - Use the exact gram amounts to calculate costs
-    - Formula: (ingredient_amount_in_grams / 1000) * price_per_kg
-    - Sum all ingredient costs for total estimated_cost_per_serving
+    COST CALCULATION :
+    - Calculate base ingredient cost: sum(ingredient_amount_g / 1000 × price_per_kg)
+    - Add 40-60% markup for preparation, cooking, utilities, and labor
+    - Formula: estimated_cost_per_serving = ingredient_cost × 1.5 (50% markup)
+    - This accounts for:
+      * Cooking gas/electricity
+      * Water usage
+      * Preparation time and labor
+      * Cooking equipment wear
+      * Waste and spillage (~5-10%)
+    Example:
+    If ingredients total ₱30:
+    - Base ingredient cost: ₱30.00
+    - Preparation markup (50%): ₱15.00
+    - estimated_cost_per_serving: ₱45.00
+    
+    IMPORTANT: estimated_cost_per_serving should be 1.4 to 1.6 times the raw ingredient cost.
     
     Example meal structure:
     {
@@ -560,7 +584,6 @@ app.post('/api/generateMealPlan', async (req, res) => {
 
     COST CALCULATION:
     - Use ingredient.estimated_price to estimate costs
-    - Calculate: estimated_cost_per_serving = sum(ingredient_cost × quantity)
     - serving_size: e.g., "1 plate", "1 bowl"
     - servings_count: typically 1 per person
     `;
@@ -771,6 +794,57 @@ console.log(`Budget status: ${totalWeekCost <= weeklyBudget ? ' Within budget' :
     }
 
 console.log('🔍 Validating ingredients and recalculating nutrition...');
+
+// Validate cost markup
+console.log('🔍 Validating cost markup...');
+
+for (let dayNum = 1; dayNum <= 7; dayNum++) {
+  const dayKey = `day${dayNum}`;
+  const dayMeals = weekPlan[dayKey];
+  
+  for (const mealType of ["breakfast", "lunch", "dinner"]) {
+    const mealsForType = dayMeals[mealType];
+    
+    mealsForType.forEach((meal, idx) => {
+      // Calculate ingredient cost from ingredient_amounts
+      let ingredientCost = 0;
+      
+      if (meal.ingredient_amounts && meal.ingredients) {
+        meal.ingredients.forEach(ingredientName => {
+          const dbIngredient = availableIngredients.find(
+            ing => ing.name.toLowerCase() === ingredientName.toLowerCase()
+          );
+          
+          if (dbIngredient && meal.ingredient_amounts[ingredientName]) {
+            const amount = meal.ingredient_amounts[ingredientName].amount;
+            const pricePerKg = extractPrice(dbIngredient.estimated_price) || 0;
+            ingredientCost += (amount / 1000) * pricePerKg;
+          }
+        });
+      }
+      
+      // Ensure there's a markup (at least 40%)
+      const minimumCost = ingredientCost * 1.4;
+      
+      if (meal.estimated_cost_per_serving < minimumCost) {
+        console.warn(
+          `⚠️ ${dayKey}.${mealType}[${idx}] "${meal.name}" has insufficient markup. ` +
+          `Adjusting from ₱${meal.estimated_cost_per_serving.toFixed(2)} to ₱${minimumCost.toFixed(2)}`
+        );
+        meal.estimated_cost_per_serving = Math.round(minimumCost * 100) / 100;
+      }
+      
+      // Store the breakdown for frontend
+      meal.cost_breakdown = {
+        ingredients: Math.round(ingredientCost * 100) / 100,
+        preparation: Math.round((meal.estimated_cost_per_serving - ingredientCost) * 100) / 100,
+        total: meal.estimated_cost_per_serving
+      };
+    });
+  }
+}
+
+console.log('✓ Cost markup validation complete');
 
 const availableIngredientMap = new Map(
   availableIngredients.map(ing => [ing.name.toLowerCase(), ing])

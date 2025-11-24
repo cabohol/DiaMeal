@@ -25,6 +25,16 @@ const formActionDefault = {
   formStatus: 200,
 };
 
+const contactValidator = value => {
+  return /^09\d{9}$/.test(value) || 'Enter a valid PH number (11 digits)';
+};
+
+const onlyNumbers = (e) => {
+  if (!/[0-9]/.test(e.key)) {
+    e.preventDefault();
+  }
+};
+
 const formData = ref({ ...formDataDefault });
 const formAction = ref({ ...formActionDefault });
 const isPasswordVisible = ref(false);
@@ -138,16 +148,19 @@ const onSubmit = async () => {
               <v-text-field
                 v-model="formData.contact"
                 label="Contact Number"
-                :rules="[requiredValidator]"
+                :rules="[requiredValidator, contactValidator]"
                 type="tel"
                 placeholder="09XXXXXXXXX"
                 prepend-inner-icon="mdi-phone"
                 variant="outlined"
                 density="comfortable"
                 color="green-darken-2"
+                @keypress="onlyNumbers"
+                maxlength="11"
                 style="font-family: 'Syne', sans-serif;"
                 class="mb-2"
               />
+
 
               <!-- Address -->
               <v-text-field

@@ -61,10 +61,10 @@ const onSubmit = async () => {
   <v-app>
     <v-main>
       <v class="d-flex flex-column align-center justify-center text-center px-4"
-        style="min-height: 100vh; background-color: #A9C46C; position: relative; overflow: hidden;">
+        style="min-height: 100vh; background-color: #ffff; position: relative; overflow: hidden;">
 
         <!-- Top Image -->
-        <v-img :src="Header" cover height="40%" class="position-absolute top-0 left-0 w-100" style="z-index: 0; opacity: 0.70" />
+        <v-img :src="Header" cover height="40%" class="position-absolute top-0 left-0 w-100" style="z-index: 0;" />
 
         <!-- Logo -->
         <v-img :src="Logo1" width="150" style="z-index: 1; margin-top: 220px;" />

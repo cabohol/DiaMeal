@@ -92,7 +92,7 @@ const onSubmit = async () => {
     <v-main>
       <v-container-fluid
         class="d-flex flex-column align-center justify-center text-center px-4"
-         style="min-height: 100vh; background-color: #ffff; position: relative; overflow: hidden;"
+        style="min-height: 100vh; background-color: #ffff; position: relative; overflow: hidden;"
       >
         <!-- Logo -->
         <v-img :src="Logo1" width="100" style="z-index: 1; margin-top: 15px;" />

@@ -167,13 +167,14 @@ async function submitForm() {
     const fullName = user.user_metadata?.full_name || '';
     const email = user.email || '';
 
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('id, last_submission_date')
-      .eq('email', email)
-      .single();
+      const { data: existingUsers, error: fetchError } = await supabase
+        .from('users')
+        .select('id, last_submission_date')
+        .eq('email', email);
 
-    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+      if (fetchError) throw fetchError;
+
+      const existingUser = existingUsers && existingUsers.length > 0 ? existingUsers[0] : null;
 
     if (existingUser?.last_submission_date) {
       const lastDate = new Date(existingUser.last_submission_date);
